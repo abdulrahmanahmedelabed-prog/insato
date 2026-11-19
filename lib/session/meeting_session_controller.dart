@@ -489,13 +489,28 @@ List<String> requiredModelIds(
 class SherpaSessionEnginesFactory implements SessionEnginesFactory {
   /// Creates the factory. [modelManager] resolves the app's [ModelManager]
   /// (it is created asynchronously).
+  ///
+  /// `keyterms` (F2) yields the custom vocabulary sent to cloud ASR
+  /// (Deepgram `keyterm`); a failure there never prevents recording.
   SherpaSessionEnginesFactory({
     required this._modelManager,
     required SecureSettings secureSettings,
+    this._keyterms,
   }) : _secure = secureSettings;
 
   final Future<ModelManager> Function() _modelManager;
   final SecureSettings _secure;
+  final Future<List<String>> Function()? _keyterms;
+
+  Future<List<String>> _safeKeyterms() async {
+    final f = _keyterms;
+    if (f == null) return const [];
+    try {
+      return await f();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Future<void> ensureReady(SessionEngineRequest request) async {
@@ -543,7 +558,10 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     try {
       await segmenter.initialize();
       if (request.usesCloudAsr) {
-        cloud = CloudAsrEngine(apiKeyProvider: _secure.getDeepgramApiKey);
+        cloud = CloudAsrEngine(
+          apiKeyProvider: _secure.getDeepgramApiKey,
+          keyterms: await _safeKeyterms(),
+        );
         await cloud.initialize();
       }
       final processor = await IsolateSegmentProcessor.start(
@@ -769,8 +787,8 @@ class SessionPipeline {
       final r = o.result!;
       // F17: real speech without usable text is stored as unintelligible
       // (never dropped); only silence is skipped.
-      final outcome = classifyAsrOutcome(r.asr);
-      final kind = outcome.kind;
+      final asrOutcome = classifyAsrOutcome(r.asr);
+      final kind = asrOutcome.kind;
       if (kind == null) {
         _skipped++;
         return;
@@ -789,12 +807,12 @@ class SessionPipeline {
         index: _nextIndex,
         startMs: r.startMs,
         endMs: math.max(r.startMs, r.endMs),
-        text: outcome.text,
+        text: asrOutcome.text,
         speakerId: speaker?.id,
         language: r.asr.language,
         embedding: r.embedding,
         kind: kind,
-        asrConfidence: outcome.confidence,
+        asrConfidence: asrOutcome.confidence,
       );
       TranscriptSegment stored;
       try {

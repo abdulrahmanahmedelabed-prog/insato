@@ -81,11 +81,19 @@ SpeechSegment speech(int index, int startMs, int durMs, int? k) =>
       samples: voiceSamples(k, durMs),
     );
 
-/// ASR fake: `كلام <index>` for speech, empty for silence; throws
-/// [AsrException] for indices in [failIndices].
+/// ASR fake: `كلام <index>` for speech, a silence rejection for silence;
+/// throws [AsrException] for indices in [failIndices]; reports voiced audio
+/// without text for indices in [undecodableIndices] (F17) and a
+/// low-confidence guess for [lowConfidenceIndices].
 class FakeAsr implements AsrEngine {
-  FakeAsr({this.failIndices = const {}});
+  FakeAsr({
+    this.failIndices = const {},
+    this.undecodableIndices = const {},
+    this.lowConfidenceIndices = const {},
+  });
   final Set<int> failIndices;
+  final Set<int> undecodableIndices;
+  final Set<int> lowConfidenceIndices;
   int calls = 0;
   bool disposed = false;
 
@@ -108,7 +116,19 @@ class FakeAsr implements AsrEngine {
       throw const AsrException('فشل التفريغ', debugDetails: 'fake failure');
     }
     final k = decodeVoice(segment.samples);
-    if (k == null) return const AsrResult(text: '  ');
+    if (k == null) {
+      return const AsrResult(text: '  ', rejection: AsrRejection.silence);
+    }
+    if (undecodableIndices.contains(segment.index)) {
+      return const AsrResult(text: '', rejection: AsrRejection.noText);
+    }
+    if (lowConfidenceIndices.contains(segment.index)) {
+      return AsrResult(
+        text: 'تخمين ${segment.index}',
+        language: 'ar',
+        confidence: 0.1,
+      );
+    }
     return AsrResult(text: 'كلام ${segment.index}', language: 'ar');
   }
 

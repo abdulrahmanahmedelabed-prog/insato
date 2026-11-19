@@ -20,6 +20,7 @@ import 'package:path_provider/path_provider.dart';
 import '../audio/audio_capture_service.dart';
 import '../core/interfaces.dart';
 import '../data/repositories.dart';
+import '../data/repositories_v11.dart';
 import '../data/secure_settings.dart';
 import '../features/local_llm/local_minutes_backends.dart';
 import '../minutes/export_service.dart';
@@ -314,9 +315,19 @@ final liveBacklogLimitMsProvider = Provider<int>((ref) => 15 * 60 * 1000);
 
 /// Builds the speech engines of a session (sherpa-onnx + optional Deepgram).
 final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
+  final glossary = ref.watch(glossaryRepositoryProvider);
+  final speakers = ref.watch(speakerRepositoryProvider);
   return SherpaSessionEnginesFactory(
     modelManager: () => ref.read(modelManagerProvider.future),
     secureSettings: ref.watch(secureSettingsProvider),
+    // F2: global glossary terms and named speakers as Deepgram keyterms.
+    keyterms: () async => [
+      for (final t in await glossary.getEffective(
+        null,
+        speakers: await speakers.getAll(),
+      ))
+        t.term,
+    ],
   );
 });
 
