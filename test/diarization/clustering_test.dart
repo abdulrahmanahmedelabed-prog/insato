@@ -368,6 +368,21 @@ void main() {
       expect(r.speakerIdForSegment('s${s1[1]}'), isNull);
     });
 
+    test('split half re-merges into an anchored cluster via voiceprint', () {
+      final a = basis(0);
+      final a2 = rotateTowards(a, basis(1), 0.45);
+      final x = l2Normalize(Float32List(192)
+        ..[0] = 1
+        ..[1] = 0.3);
+      final r = refineSpeakers(
+          items: [('p', a, 6000), ('q', a2, 6000)],
+          knownSpeakers: [knownSpeaker('x', x)],
+          lockedAssignments: {'p': 'x'});
+      expect(r.clusters, hasLength(1));
+      expect(r.speakerIdForSegment('q'), 'x');
+      expect(r.clusters.single.linkReason, ClusterLinkReason.locked);
+    });
+
     test('locked segments without embeddings are reported as skipped', () {
       final r = refineSpeakers(items: [
         ('a', basis(0), 3000),

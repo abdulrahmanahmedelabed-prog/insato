@@ -277,8 +277,8 @@ RefinementResult refineSpeakers({
   final claimed = {for (final a in anchorSpeakers) a};
   final candidates = <(String, Float32List)>[
     for (final s in knownSpeakers)
-      if (!claimed.contains(s.id) && voiceprintOf(s.id) != null)
-        (s.id, voiceprintOf(s.id)!),
+      if (!claimed.contains(s.id))
+        if (voiceprintOf(s.id) case final vp?) (s.id, vp),
   ];
   final free = [for (final g in clusters) if (g.anchor == null) g];
   if (free.isNotEmpty && candidates.isNotEmpty) {
@@ -298,33 +298,41 @@ RefinementResult refineSpeakers({
       free[r].linkReason = ClusterLinkReason.voiceprint;
       free[r].linkSimilarity = sims[r][c];
     }
+  }
 
-    // Unlinked clusters whose best voiceprint went to another cluster: the
-    // clustering probably split one person — merge when centroids agree.
-    final unlinked = [for (final g in free) if (g.linkedSpeakerId == null) g]
-      ..sort((a, b) => b.totalMs.compareTo(a.totalMs));
-    for (final g in unlinked) {
-      final r = free.indexOf(g);
-      var bestC = -1;
-      var bestS = double.negativeInfinity;
-      for (var c = 0; c < candidates.length; c++) {
-        if (sims[r][c] > bestS) {
-          bestS = sims[r][c];
-          bestC = c;
-        }
+  // Unlinked clusters whose best voiceprint went to another cluster (by
+  // voiceprint or by a user lock): the clustering probably split one person
+  // — merge when the centroids agree too.
+  final allVoiceprints = <(String, Float32List)>[
+    for (final s in knownSpeakers)
+      if (voiceprintOf(s.id) case final vp?) (s.id, vp),
+  ];
+  final unlinked = [
+    for (final g in clusters)
+      if (g.linkedSpeakerId == null) g,
+  ]..sort((a, b) => b.totalMs.compareTo(a.totalMs));
+  for (final g in unlinked) {
+    String? bestId;
+    var bestS = double.negativeInfinity;
+    for (final (id, vp) in allVoiceprints) {
+      final s = cosine(g.centroid, vp);
+      if (s > bestS) {
+        bestS = s;
+        bestId = id;
       }
-      if (bestC < 0 || bestS < linkThreshold) continue;
-      final owner = clusters.where(
-          (o) => !identical(o, g) && o.linkedSpeakerId == candidates[bestC].$1);
-      if (owner.isEmpty) continue;
-      final target = owner.first;
-      if (cosine(g.centroid, target.centroid) >= voiceprintMergeThreshold) {
-        target.absorb(g);
-        target.recompute();
-        final vp = voiceprintOf(target.linkedSpeakerId!);
-        if (vp != null) target.linkSimilarity = cosine(target.centroid, vp);
-        clusters.remove(g);
-      }
+    }
+    if (bestId == null || bestS < linkThreshold) continue;
+    _Group? target;
+    for (final o in clusters) {
+      if (!identical(o, g) && o.linkedSpeakerId == bestId) target = o;
+    }
+    if (target == null) continue;
+    if (cosine(g.centroid, target.centroid) >= voiceprintMergeThreshold) {
+      target.absorb(g);
+      target.recompute();
+      final vp = voiceprintOf(bestId);
+      if (vp != null) target.linkSimilarity = cosine(target.centroid, vp);
+      clusters.remove(g);
     }
   }
 
