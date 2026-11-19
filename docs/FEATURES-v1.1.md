@@ -134,3 +134,44 @@ Guardrails (built in, not optional):
 * Built incrementally: per-meeting speaker notes are extracted together with
   the minutes (same engine: Claude / on-device / local server), then merged
   into the profile; “rebuild profile” recomputes from all meetings.
+
+## F17 — Codes, jargon, hidden meanings & references (الشيفرات والرموز)
+A dedicated tab “الرموز والشيفرات” in each meeting, and a section in the
+minutes. Every item shows **who said it** (speaker) and **when** (evidence
+link, F5). Five detectors:
+
+1. **Coded / obfuscated speech (كلام مرمّز أو غير مفهوم):** speech the VAD
+   detected but that does not decode as a known language — invented or
+   “secret” languages, reversed or letter-shuffled words, spelled-out letter
+   or number sequences, heavy whispering.
+   * Pipeline change (important): such segments are **never silently
+     dropped**. When ASR returns empty / low-confidence / hallucination-filtered
+     output for real speech, the segment is stored with
+     `kind = unintelligible` and its audio kept, instead of being discarded.
+   * Characterisation: duration, speaker, whether it looks like a real but
+     unsupported language, a known transformation (e.g. reversed speech —
+     the app can re-run ASR on time-reversed audio), letters/numbers, or
+     unknown.
+   * Interpretation only as clearly labelled *hypotheses* with confidence and
+     evidence; the app never claims to have “broken” a code.
+2. **Internal codes & jargon (رموز ومصطلحات داخلية):** project codenames,
+   abbreviations, team slang — detected, meaning inferred from context
+   (labelled “مستنتج”), first use, who uses them most; can be promoted to the
+   glossary (F2) with a confirmed meaning.
+3. **Spoken source code (كود برمجي يُقال شفهياً):** dictated code, commands,
+   function/variable names, SQL, URLs — reconstructed into properly
+   formatted code blocks with language detection, a short explanation and
+   potential issues, attributed to the speaker; exportable.
+4. **Indirect / implied speech (كلام مُلمَّح):** hints, euphemisms, implied
+   requests or objections — flagged cautiously with the literal text, the
+   possible meanings and why; never presented as fact.
+5. **Reference numbers & identifiers (أرقام ورموز مرجعية):** contract,
+   invoice, ticket, legal-article, product and account numbers, amounts,
+   dates — extracted exactly (digits verified against the transcript),
+   normalised, attributed, and listed in a table.
+
+Engine: extracted together with the minutes (same engine choice F14) via
+an extra `codes` section of the JSON schema; detector 1 also uses audio-level
+signals from the ASR stage. Same transparency rules as F16: findings are
+descriptive and evidence-backed; participants should be informed that
+meetings are recorded and analysed.
