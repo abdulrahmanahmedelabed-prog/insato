@@ -1,5 +1,6 @@
-// Settings: Claude key (with connection test), Claude model and minutes
-// detail, transcription engine (on-device Whisper or Deepgram with key),
+// Settings: minutes engine (Gemini free tier by default with its privacy
+// notice, key and model; Claude key and model; local engines when
+// available) and minutes detail, transcription engine (on-device Whisper or Deepgram with key),
 // Whisper model, language hint, keep-audio, speaker matching sensitivity,
 // models, privacy and about.
 
@@ -10,7 +11,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
+import '../../features/local_llm/local_minutes_backends.dart';
 import '../../minutes/claude_client.dart';
+import '../../minutes/gemini_client.dart';
 import '../../speech/model_catalog.dart';
 import '../format.dart';
 import '../navigation.dart';
@@ -87,27 +90,9 @@ class SettingsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ---------------------------------------------------- Claude
+              // -------------------------------------------- Minutes engine
               const SectionHeader(S.sectionClaude, icon: Icons.auto_awesome),
-              ApiKeyCard(
-                label: S.anthropicKey,
-                helper: S.anthropicKeyHelper,
-                load: () =>
-                    ref.read(secureSettingsProvider).getAnthropicApiKey(),
-                save: (k) =>
-                    ref.read(secureSettingsProvider).setAnthropicApiKey(k),
-                clear: () =>
-                    ref.read(secureSettingsProvider).clearAnthropicApiKey(),
-                onChanged: () => ref.invalidate(anthropicKeyConfiguredProvider),
-                test: (k) => ref
-                    .read(claudeConnectionTesterProvider)
-                    .test(k, model: s.claudeModel),
-              ),
-              const SizedBox(height: 12),
-              ClaudeModelField(
-                value: s.claudeModel,
-                onSave: (m) => _save(context, () => store.setClaudeModel(m)),
-              ),
+              MinutesEngineSettings(settings: s, save: _save),
               const SizedBox(height: 16),
               Text(S.minutesDetail, style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
@@ -532,7 +517,7 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
               ErrorBanner(
                 severity: r.ok ? BannerSeverity.info : BannerSeverity.error,
                 message: r.ok
-                    ? S.connectionOk(ltrIsolate(r.model ?? kDefaultClaudeModel))
+                    ? S.connectionOk(ltrIsolate(r.model ?? '—'))
                     : r.messageAr,
               ),
             ],
@@ -543,13 +528,16 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
   }
 }
 
-/// Text field for the Claude model id.
-class ClaudeModelField extends StatefulWidget {
+/// Text field for a model id (Claude, Gemini).
+class ModelIdField extends StatefulWidget {
   /// Creates the field.
-  const ClaudeModelField({
+  const ModelIdField({
     super.key,
     required this.value,
     required this.onSave,
+    required this.label,
+    required this.helper,
+    required this.defaultModel,
   });
 
   /// Current model id.
@@ -559,17 +547,40 @@ class ClaudeModelField extends StatefulWidget {
   /// callee has already reported the error).
   final Future<bool> Function(String model) onSave;
 
+  /// Field label.
+  final String label;
+
+  /// Helper text.
+  final String helper;
+
+  /// Saved when the field is left blank.
+  final String defaultModel;
+
   @override
-  State<ClaudeModelField> createState() => _ClaudeModelFieldState();
+  State<ModelIdField> createState() => _ModelIdFieldState();
 }
 
-class _ClaudeModelFieldState extends State<ClaudeModelField> {
+/// Text field for the Claude model id.
+class ClaudeModelField extends ModelIdField {
+  /// Creates the field.
+  const ClaudeModelField({
+    super.key,
+    required super.value,
+    required super.onSave,
+  }) : super(
+         label: S.claudeModel,
+         helper: S.claudeModelHelper,
+         defaultModel: kDefaultClaudeModel,
+       );
+}
+
+class _ModelIdFieldState extends State<ModelIdField> {
   late final TextEditingController _c = TextEditingController(
     text: widget.value,
   );
 
   @override
-  void didUpdateWidget(ClaudeModelField old) {
+  void didUpdateWidget(ModelIdField old) {
     super.didUpdateWidget(old);
     if (old.value != widget.value && _c.text != widget.value) {
       _c.text = widget.value;
@@ -583,7 +594,7 @@ class _ClaudeModelFieldState extends State<ClaudeModelField> {
   }
 
   Future<void> _submit() async {
-    final v = _c.text.trim().isEmpty ? kDefaultClaudeModel : _c.text.trim();
+    final v = _c.text.trim().isEmpty ? widget.defaultModel : _c.text.trim();
     _c.text = v;
     final ok = await widget.onSave(v);
     if (!mounted) return;
@@ -603,13 +614,235 @@ class _ClaudeModelFieldState extends State<ClaudeModelField> {
       autocorrect: false,
       onSubmitted: (_) => _submit(),
       decoration: InputDecoration(
-        labelText: S.claudeModel,
-        helperText: S.claudeModelHelper,
-        helperMaxLines: 2,
+        labelText: widget.label,
+        helperText: widget.helper,
+        helperMaxLines: 3,
         suffixIcon: IconButton(
           tooltip: S.save,
           icon: const Icon(Icons.check_rounded),
           onPressed: _submit,
+        ),
+      ),
+    );
+  }
+}
+
+/// The minutes-engine part of Settings: engine choice, then the selected
+/// engine's configuration (Gemini: privacy notice, key, model; Claude: key,
+/// model; local engines: their own settings).
+class MinutesEngineSettings extends ConsumerWidget {
+  /// Creates the section.
+  const MinutesEngineSettings({
+    super.key,
+    required this.settings,
+    required this.save,
+  });
+
+  /// Current settings.
+  final AppSettingsData settings;
+
+  /// Runs a write, reporting errors (see `SettingsScreen._save`).
+  final Future<bool> Function(BuildContext context, Future<void> Function())
+  save;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = settings;
+    final store = ref.read(appSettingsProvider);
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final local = ref.watch(localMinutesBackendBuilderProvider);
+    final server = ref.watch(serverMinutesBackendBuilderProvider);
+    final engines = <ButtonSegment<String>>[
+      const ButtonSegment(
+        value: AppSettingsData.engineGemini,
+        label: Text(S.engineGemini),
+        icon: Icon(Icons.cloud_outlined),
+      ),
+      const ButtonSegment(
+        value: AppSettingsData.engineClaude,
+        label: Text(S.engineClaude),
+        icon: Icon(Icons.auto_awesome_outlined),
+      ),
+      if (local != null || s.minutesEngine == AppSettingsData.engineLocal)
+        const ButtonSegment(
+          value: AppSettingsData.engineLocal,
+          label: Text(S.engineLocal),
+          icon: Icon(Icons.phone_android_rounded),
+        ),
+      if (server != null || s.minutesEngine == AppSettingsData.engineServer)
+        const ButtonSegment(
+          value: AppSettingsData.engineServer,
+          label: Text(S.engineServer),
+          icon: Icon(Icons.dns_outlined),
+        ),
+    ];
+    final selectedBuilder = switch (s.minutesEngine) {
+      AppSettingsData.engineLocal => local,
+      AppSettingsData.engineServer => server,
+      _ => null,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label: S.minutesEngine,
+          child: SegmentedButton<String>(
+            segments: engines,
+            selected: {s.minutesEngine},
+            onSelectionChanged: (v) =>
+                save(context, () => store.setMinutesEngine(v.first)),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(S.minutesEngineHelper(s.minutesEngine), style: muted),
+        const SizedBox(height: 12),
+        if (s.minutesEngine == AppSettingsData.engineGemini) ...[
+          GeminiPrivacyCard(
+            acknowledged: s.geminiPrivacyAcknowledged,
+            onChanged: (v) =>
+                save(context, () => store.setGeminiPrivacyAcknowledged(v)),
+          ),
+          const SizedBox(height: 12),
+          ApiKeyCard(
+            key: const ValueKey('gemini-key'),
+            label: S.geminiKey,
+            helper: S.geminiKeyHelper,
+            load: () => ref.read(secureSettingsProvider).getGeminiApiKey(),
+            save: (k) async {
+              await ref.read(secureSettingsProvider).setGeminiApiKey(k);
+              GeminiRateGate.shared.clear();
+            },
+            clear: () => ref.read(secureSettingsProvider).clearGeminiApiKey(),
+            onChanged: () => ref.invalidate(geminiKeyConfiguredProvider),
+            test: (k) async {
+              final r = await ref
+                  .read(geminiConnectionTesterProvider)
+                  .test(k, model: s.geminiModel);
+              final suggested = r.model;
+              if (r.ok && suggested != null && suggested != s.geminiModel) {
+                await store.setGeminiModel(suggested);
+              }
+              return r;
+            },
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            children: [
+              Text(S.geminiKeyWhere, style: muted),
+              const SelectableText(
+                kGeminiApiKeyUrl,
+                textDirection: TextDirection.ltr,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ModelIdField(
+            value: s.geminiModel,
+            label: S.geminiModel,
+            helper: S.geminiModelHelper,
+            defaultModel: kDefaultGeminiModel,
+            onSave: (m) => save(context, () => store.setGeminiModel(m)),
+          ),
+        ] else if (s.minutesEngine == AppSettingsData.engineClaude) ...[
+          ApiKeyCard(
+            key: const ValueKey('anthropic-key'),
+            label: S.anthropicKey,
+            helper: S.anthropicKeyHelper,
+            load: () => ref.read(secureSettingsProvider).getAnthropicApiKey(),
+            save: (k) => ref.read(secureSettingsProvider).setAnthropicApiKey(k),
+            clear: () =>
+                ref.read(secureSettingsProvider).clearAnthropicApiKey(),
+            onChanged: () => ref.invalidate(anthropicKeyConfiguredProvider),
+            test: (k) => ref
+                .read(claudeConnectionTesterProvider)
+                .test(k, model: s.claudeModel),
+          ),
+          const SizedBox(height: 12),
+          ClaudeModelField(
+            value: s.claudeModel,
+            onSave: (m) => save(context, () => store.setClaudeModel(m)),
+          ),
+        ] else if (selectedBuilder?.settings != null)
+          selectedBuilder!.settings!(context)
+        else
+          const ErrorBanner(
+            severity: BannerSeverity.warning,
+            message: S.engineUnavailable,
+          ),
+      ],
+    );
+  }
+}
+
+/// The Gemini free-tier data notice, accepted before anything is sent.
+class GeminiPrivacyCard extends StatelessWidget {
+  /// Creates the card.
+  const GeminiPrivacyCard({
+    super.key,
+    required this.acknowledged,
+    required this.onChanged,
+  });
+
+  /// Whether the notice was accepted.
+  final bool acknowledged;
+
+  /// Records acceptance / withdrawal.
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Card(
+      color: acknowledged ? null : scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.privacy_tip_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    S.geminiPrivacyTitle,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(S.geminiPrivacyBody, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            if (acknowledged)
+              Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text(S.geminiPrivacyAccepted)),
+                  TextButton(
+                    onPressed: () => onChanged(false),
+                    child: const Text(S.geminiPrivacyWithdraw),
+                  ),
+                ],
+              )
+            else
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: FilledButton.icon(
+                  onPressed: () => onChanged(true),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text(S.geminiPrivacyAccept),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -42,6 +42,7 @@ void main() {
     testWidgets('saving and testing the Anthropic key', (t) async {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();
+      await env.run(t, () => AppSettings(env.db).setMinutesEngine('claude'));
       await pumpScreen(t, env, const SettingsScreen());
 
       final field = find.widgetWithText(TextField, S.anthropicKey);
@@ -63,6 +64,7 @@ void main() {
         ..tester = FakeConnectionTester(
           const ConnectionTestResult(ok: false, messageAr: 'المفتاح غير صالح'),
         );
+      await env.run(t, () => AppSettings(env.db).setMinutesEngine('claude'));
       await pumpScreen(t, env, const SettingsScreen());
       await t.enterText(find.widgetWithText(TextField, S.anthropicKey), 'bad');
       await t.tap(find.text(S.testConnection));

@@ -8,7 +8,8 @@
 // Tests override the seams: [databaseProvider] (in-memory drift DB),
 // [appPathsProvider] (temp dirs), [sessionAudioSourceProvider],
 // [sessionEnginesFactoryProvider], [sessionPlatformHooksProvider],
-// [minutesEngineFactoryProvider], [secureSettingsProvider].
+// [minutesEngineFactoryProvider], [minutesBackendFactoryProvider],
+// [secureSettingsProvider].
 
 import 'dart:io';
 
@@ -20,12 +21,14 @@ import '../audio/audio_capture_service.dart';
 import '../core/interfaces.dart';
 import '../data/repositories.dart';
 import '../data/secure_settings.dart';
-import '../minutes/claude_client.dart';
+import '../features/local_llm/local_minutes_backends.dart';
 import '../minutes/export_service.dart';
+import '../minutes/minutes_backend.dart';
 import '../minutes/minutes_generator.dart';
 import '../minutes/minutes_prompt.dart';
 import '../speech/model_manager.dart';
 import 'meeting_session_controller.dart';
+import 'minutes_engines.dart';
 import 'post_processor.dart';
 
 export '../audio/audio_capture_service.dart' show audioCaptureServiceProvider;
@@ -41,6 +44,8 @@ export '../data/repositories.dart'
         speakerRepositoryProvider,
         speakersByIdProvider,
         speakersProvider;
+export '../data/repositories_v11.dart';
+export '../data/minutes_artifacts.dart' show minutesArtifactsWriterProvider;
 export '../data/secure_settings.dart'
     show appSettingsDataProvider, appSettingsProvider, secureSettingsProvider;
 
@@ -244,26 +249,52 @@ final modelStatesProvider = StreamProvider<Map<String, ModelState>>((
 /// Markdown / PDF / plain-text export of minutes and transcripts.
 final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
-/// Creates a Claude minutes engine from the stored API key and the user's
-/// model / detail settings; yields null when no key is configured.
+/// Creates the backend of the minutes engine selected in Settings (Gemini
+/// by default, Claude, on-device or local server; see
+/// [createMinutesBackend]). Also used by "Ask your meetings" (F8). The
+/// caller closes the backend after use.
 ///
-/// Throws [SecureStorageUnavailableException] when the keystore cannot be
+/// Throws `MinutesEngineNotReadyException` (no key, Gemini notice not
+/// accepted, engine unavailable) and [SecureStorageUnavailableException]
+/// (keystore locked).
+final minutesBackendFactoryProvider = Provider<Future<MinutesBackend> Function()>((
+  ref,
+) {
+  final secure = ref.watch(secureSettingsProvider);
+  final settings = ref.watch(appSettingsProvider);
+  final local = ref.watch(localMinutesBackendBuilderProvider);
+  final server = ref.watch(serverMinutesBackendBuilderProvider);
+  return () async => createMinutesBackend(
+    settings: await settings.load(),
+    secure: secure,
+    local: local,
+    server: server,
+    onGeminiModelDiscovered: (model) {
+      // Remember the model that works for this key; ignore storage errors.
+      settings.setGeminiModel(model).catchError((Object _) {});
+    },
+  );
+});
+
+/// Creates the minutes engine selected in Settings with the user's detail
+/// level (see [minutesBackendFactoryProvider]).
+///
+/// Throws `MinutesEngineNotReadyException` when the engine cannot be used
+/// yet and [SecureStorageUnavailableException] when the keystore cannot be
 /// read right now (the key may exist): callers postpone the run instead of
 /// reporting a missing key (see [PostProcessor.generateMinutesIfPossible]).
 final minutesEngineFactoryProvider = Provider<MinutesEngineFactory>((ref) {
-  final secure = ref.watch(secureSettingsProvider);
+  final backendFactory = ref.watch(minutesBackendFactoryProvider);
   final settings = ref.watch(appSettingsProvider);
   return () async {
-    final key = await secure.getAnthropicApiKey();
-    if (key == null) return null;
+    final backend = await backendFactory();
     final s = await settings.load();
-    final client = ClaudeClient(apiKey: key, model: s.claudeModel);
     return MinutesEngineHandle(
-      ClaudeMinutesEngine(
-        client: client,
+      StructuredMinutesEngine(
+        backend: backend,
         detailLevel: MinutesDetailLevel.parse(s.minutesDetail),
       ),
-      release: client.close,
+      release: backend.close,
     );
   };
 });

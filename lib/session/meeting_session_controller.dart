@@ -37,6 +37,7 @@ import '../data/repositories.dart';
 import '../data/secure_settings.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../speech/asr_outcome.dart';
 import '../speech/cloud_asr_engine.dart';
 import '../speech/model_catalog.dart';
 import '../speech/model_manager.dart';
@@ -766,8 +767,11 @@ class SessionPipeline {
         return;
       }
       final r = o.result!;
-      final text = r.asr.text.trim();
-      if (text.isEmpty) {
+      // F17: real speech without usable text is stored as unintelligible
+      // (never dropped); only silence is skipped.
+      final outcome = classifyAsrOutcome(r.asr);
+      final kind = outcome.kind;
+      if (kind == null) {
         _skipped++;
         return;
       }
@@ -785,10 +789,12 @@ class SessionPipeline {
         index: _nextIndex,
         startMs: r.startMs,
         endMs: math.max(r.startMs, r.endMs),
-        text: text,
+        text: outcome.text,
         speakerId: speaker?.id,
         language: r.asr.language,
         embedding: r.embedding,
+        kind: kind,
+        asrConfidence: outcome.confidence,
       );
       TranscriptSegment stored;
       try {
@@ -837,6 +843,8 @@ class SessionPipeline {
         text: s.text,
         language: s.language,
         embedding: s.embedding,
+        kind: s.kind,
+        asrConfidence: s.asrConfidence,
       );
 
   Future<Speaker?> _resolveSpeaker(SpeakerAssignment a) async {

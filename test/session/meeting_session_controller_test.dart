@@ -665,7 +665,7 @@ void main() {
       final st = container.read(meetingJobsProvider(m.id));
       expect(st.phase, MeetingJobPhase.failed);
       expect(st.needsApiKey, isTrue);
-      expect(st.errorAr, contains('Claude'));
+      expect(st.errorAr, contains('مفتاح محرك المحضر'));
 
       minutes = FakeMinutesEngine();
       expect(await jobs.generateMinutes(), isTrue);

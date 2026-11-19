@@ -259,6 +259,16 @@ details.src summary{cursor:pointer;padding:14px 18px;font-weight:600}
 details.src ol{margin:0;padding:0 18px 16px;padding-inline-start:38px;font-size:13px;display:grid;gap:6px;word-break:break-word}
 details.src li span{color:var(--muted)}
 
+
+/* downloads */
+.dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.dl{grid-template-columns:minmax(0,1fr)}}
+.dlc{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:grid;gap:12px;align-content:start}
+.dlc h3{font-size:20px;display:flex;align-items:center;gap:10px}
+.dlc p{margin:0;font-size:14px;color:var(--ink-2)}
+.dlc .btn{justify-content:center}
+.dlc .alt{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.dl-note{margin-top:16px;font-size:13.5px;color:var(--muted)}
 footer{border-top:1px solid var(--line);padding-block:28px 40px;color:var(--muted);font-size:13px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}
 .ltr{direction:ltr;unicode-bidi:isolate}
@@ -270,6 +280,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <span>Insato</span><span class="ar">إنصاتو</span>
   </a>
   <nav class="nav" aria-label="Sections">
+    <a href="#download" data-i18n="nav_dl">Download</a>
     <a href="#how" data-i18n="nav_how">How it works</a>
     <a href="#compare" data-i18n="nav_compare">Comparison</a>
     <a href="#weak" data-i18n="nav_weak">Weaknesses</a>
@@ -287,7 +298,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <h1><span data-i18n="h1a">Any language in.</span><span class="out" data-i18n="h1b">Arabic minutes out.</span></h1>
     <p class="lede" data-i18n="lede">Insato listens through your phone or PC microphone, transcribes every language it hears, recognizes each person by voice, and writes formal Arabic meeting minutes with decisions and action items. Transcription and voice recognition can run entirely on your device.</p>
     <div class="cta">
-      <a class="btn primary" href="#compare" data-i18n="cta1">See the honest comparison</a>
+      <a class="btn primary" href="#download" data-i18n="cta0">Download the beta</a>
+      <a class="btn" href="#compare" data-i18n="cta1">See the honest comparison</a>
       <a class="btn" href="#weak" data-i18n="cta2">Where we're weaker</a>
     </div>
     <div class="facts"><span data-i18n="f1">Android · iOS · Windows</span><span data-i18n="f2">No meeting bot</span><span data-i18n="f3">Voiceprints stay on device</span><span data-i18n="f4">Claude writes the minutes</span></div>
@@ -306,6 +318,23 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
       </ol>
     </div>
   </div>
+</div></section>
+
+<section id="download" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="dl_eye">Download</p><h2 data-i18n="dl_h">Try the beta on your phone or PC</h2><p class="lede" data-i18n="dl_p">Version 1.0.0 is an early beta: built and tested in code, not yet field-tested on real meetings. Free to download. Speech recognition models (0.6–1 GB) download on first launch over Wi-Fi.</p></div>
+  <div class="dl">
+    <div class="dlc"><h3><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.6 9.5l1.7-3a.4.4 0 0 0-.7-.4l-1.8 3A10.6 10.6 0 0 0 12 8a10.6 10.6 0 0 0-4.8 1.1l-1.8-3a.4.4 0 0 0-.7.4l1.7 3A9.5 9.5 0 0 0 2 17h20a9.5 9.5 0 0 0-4.4-7.5zM7 14.3a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm10 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg><span data-i18n="dl_and">Android</span></h3>
+      <p data-i18n="dl_and_p">For most phones from the last five years. Open the file and allow installing from this source when asked.</p>
+      <a class="btn primary" href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases/latest/download/insato-1.0.0-android-arm64-v8a.apk" data-i18n="dl_and_b">Download APK (arm64)</a>
+      <div class="alt"><a href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases/latest/download/insato-1.0.0-android-armeabi-v7a.apk" data-i18n="dl_and_32">Older 32-bit phones</a><a href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases/latest/download/insato-1.0.0-android-x86_64.apk">x86_64</a></div></div>
+    <div class="dlc"><h3><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.5l7.4-1v7.1H3zm0 13l7.4 1v-7H3zm8.3 1.1L21 21v-8.5h-9.7zm0-15.2v7.2H21V3z"/></svg><span data-i18n="dl_win">Windows</span></h3>
+      <p data-i18n="dl_win_p">Windows 10 or 11, 64-bit. Unzip the folder and run insato.exe. Windows may warn about an unknown publisher; choose More info, then Run anyway.</p>
+      <a class="btn primary" href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases/latest/download/insato-1.0.0-windows-x64.zip" data-i18n="dl_win_b">Download for Windows (ZIP)</a></div>
+    <div class="dlc"><h3><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9a4.7 4.7 0 0 0-3.7-2c-1.6-.2-3 .9-3.8.9s-2-.9-3.3-.9a4.9 4.9 0 0 0-4.1 2.5c-1.8 3-.5 7.5 1.2 10 .8 1.2 1.8 2.6 3.1 2.5 1.3-.1 1.7-.8 3.2-.8s1.9.8 3.2.8 2.2-1.2 3-2.4a10 10 0 0 0 1.4-2.8 4.3 4.3 0 0 1-2.4-3.9zM13.9 5a4.4 4.4 0 0 0 1-3.2 4.5 4.5 0 0 0-2.9 1.5 4.2 4.2 0 0 0-1 3.1A3.7 3.7 0 0 0 13.9 5z"/></svg><span data-i18n="dl_ios">iPhone</span></h3>
+      <p data-i18n="dl_ios_p">Apple does not allow installing apps from a file. TestFlight access is coming. Advanced users can sideload the unsigned build with AltStore or Sideloadly.</p>
+      <a class="btn" href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases/latest/download/insato-1.0.0-ios-unsigned.ipa" data-i18n="dl_ios_b">Unsigned IPA (advanced)</a></div>
+  </div>
+  <p class="dl-note"><span data-i18n="dl_note">Minutes need a free Google Gemini key from AI Studio in v1.1; version 1.0.0 writes minutes with an Anthropic Claude key. Checksums and all versions:</span> <a href="https://github.com/abdulrahmanahmedelabed-prog/insato/releases" data-i18n="dl_all">All releases</a></p>
 </div></section>
 
 <section id="how" style="padding-top:0"><div class="wrap">
@@ -381,7 +410,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
 (function(){
 const D=JSON.parse(document.getElementById('data').textContent);
 const T={
-en:{nav_how:"How it works",nav_compare:"Comparison",nav_weak:"Weaknesses",nav_acc:"Accuracy",nav_road:"Roadmap",
+en:{nav_dl:"Download",cta0:"Download the beta",dl_eye:"Download",dl_h:"Try the beta on your phone or PC",dl_p:"Version 1.0.0 is an early beta: built and tested in code, not yet field-tested on real meetings. Free to download. Speech recognition models (0.6–1 GB) download on first launch over Wi-Fi.",dl_and:"Android",dl_and_p:"For most phones from the last five years. Open the file and allow installing from this source when asked.",dl_and_b:"Download APK (arm64)",dl_and_32:"Older 32-bit phones",dl_win:"Windows",dl_win_p:"Windows 10 or 11, 64-bit. Unzip the folder and run insato.exe. Windows may warn about an unknown publisher; choose More info, then Run anyway.",dl_win_b:"Download for Windows (ZIP)",dl_ios:"iPhone",dl_ios_p:"Apple does not allow installing apps from a file. TestFlight access is coming. Advanced users can sideload the unsigned build with AltStore or Sideloadly.",dl_ios_b:"Unsigned IPA (advanced)",dl_note:"Minutes need a free Google Gemini key from AI Studio in v1.1; version 1.0.0 writes minutes with an Anthropic Claude key. Checksums and all versions:",dl_all:"All releases",nav_how:"How it works",nav_compare:"Comparison",nav_weak:"Weaknesses",nav_acc:"Accuracy",nav_road:"Roadmap",
 status:"Pre-release · built, not yet field-tested",h1a:"Any language in.",h1b:"Arabic minutes out.",
 lede:"Insato listens through your phone or PC microphone, transcribes every language it hears, recognizes each person by voice, and writes formal Arabic meeting minutes with decisions and action items. Transcription and voice recognition can run entirely on your device.",
 cta1:"See the honest comparison",cta2:"Where we're weaker",f1:"Android · iOS · Windows",f2:"No meeting bot",f3:"Voiceprints stay on device",f4:"Claude writes the minutes",
@@ -408,7 +437,7 @@ g1:"Open Universal Arabic ASR Leaderboard (average)",g2:"120-hour Arabic test se
 road:[{v:"v1 · built",h:"Core app",items:["Mic recording on Android, iOS and Windows","On-device Whisper or Deepgram Nova-3","Voiceprints with rename-anywhere","Arabic minutes via Claude, PDF and Markdown export","Field testing and a public benchmark come next"]},
 {v:"v1.1 · next",h:"Depth and control",items:["Voice enrollment and custom vocabulary","Agenda context and evidence links to audio","Ask your meetings, action-item tracking","Word export, Windows system-audio capture","Local or cloud minutes engine, external mics","Opt-in speaker profiles, code and jargon detection"]},
 {v:"v1.2 · then",h:"Official Arabic minutes",items:["Board, committee and government templates","Quorum, Hijri and Gregorian dates, signatures","Vote detection per resolution","Several phones as one microphone array","Contradiction checker across past resolutions"]}]},
-ar:{nav_how:"آلية العمل",nav_compare:"المقارنة",nav_weak:"نقاط الضعف",nav_acc:"الدقة",nav_road:"خارطة الطريق",
+ar:{nav_dl:"التحميل",cta0:"حمّل النسخة التجريبية",dl_eye:"التحميل",dl_h:"جرّب النسخة التجريبية على جوالك أو حاسوبك",dl_p:"الإصدار 1.0.0 نسخة تجريبية مبكرة: بُنيت واختُبرت برمجيًا ولم تُجرَّب بعد في اجتماعات حقيقية. التحميل مجاني، وتُنزَّل نماذج التعرّف على الكلام (0.6 إلى 1 جيجابايت) عند أول تشغيل عبر Wi-Fi.",dl_and:"أندرويد",dl_and_p:"لمعظم الجوالات الصادرة في السنوات الخمس الأخيرة. افتح الملف واسمح بالتثبيت من هذا المصدر عند الطلب.",dl_and_b:"تحميل APK (arm64)",dl_and_32:"للجوالات القديمة (32 بت)",dl_win:"ويندوز",dl_win_p:"ويندوز 10 أو 11، إصدار 64 بت. فك ضغط المجلد وشغّل insato.exe. قد يحذّرك ويندوز من ناشر غير معروف؛ اختر «مزيد من المعلومات» ثم «تشغيل على أي حال».",dl_win_b:"تحميل لويندوز (ZIP)",dl_ios:"آيفون",dl_ios_p:"لا تسمح آبل بتثبيت التطبيقات من ملف. سيتوفر قريبًا عبر TestFlight، ويمكن للمستخدمين المتقدمين تثبيت النسخة غير الموقّعة عبر AltStore أو Sideloadly.",dl_ios_b:"ملف IPA غير موقّع (للمتقدمين)",dl_note:"في الإصدار 1.1 يحتاج المحضر مفتاح Google Gemini مجانيًا من AI Studio، أما الإصدار 1.0.0 فيكتب المحضر بمفتاح Anthropic Claude. البصمات الرقمية للملفات وكل الإصدارات:",dl_all:"كل الإصدارات",nav_how:"آلية العمل",nav_compare:"المقارنة",nav_weak:"نقاط الضعف",nav_acc:"الدقة",nav_road:"خارطة الطريق",
 status:"قبل الإطلاق · مبني ولم يُجرَّب ميدانيًا بعد",h1a:"أي لغة تدخل.",h1b:"ومحضر عربي يخرج.",
 lede:"يستمع إنصاتو عبر مايك جوالك أو حاسوبك، ويفرّغ كل لغة يسمعها، ويتعرّف على كل شخص من صوته، ثم يكتب محضرًا عربيًا رسميًا بالقرارات والمهام. ويمكن أن يجري التفريغ والتعرّف على الأصوات بالكامل على جهازك.",
 cta1:"اطّلع على المقارنة الصريحة",cta2:"أين نحن أضعف",f1:"أندرويد · iOS · ويندوز",f2:"دون روبوت اجتماعات",f3:"البصمات الصوتية تبقى على الجهاز",f4:"Claude يكتب المحضر",

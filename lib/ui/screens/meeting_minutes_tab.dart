@@ -31,14 +31,16 @@ class MeetingMinutesTab extends ConsumerWidget {
 
   Future<void> _openSettings(BuildContext context, WidgetRef ref) async {
     await openSettingsScreen(context);
-    ref.invalidate(anthropicKeyConfiguredProvider);
+    ref
+      ..invalidate(anthropicKeyConfiguredProvider)
+      ..invalidate(geminiKeyConfiguredProvider);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final job = ref.watch(meetingJobsProvider(meeting.id));
     final session = ref.watch(meetingSessionControllerProvider);
-    final keyConfigured = ref.watch(anthropicKeyConfiguredProvider).value;
+    final keyConfigured = ref.watch(minutesEngineReadyProvider);
     final isLive = session.isActive && session.meetingId == meeting.id;
     final minutesJob = job.kind == MeetingJobKind.minutes;
     final generating = minutesJob && job.isRunning;

@@ -4,6 +4,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/secure_settings.dart';
+import '../features/local_llm/local_minutes_backends.dart';
 import '../session/providers.dart';
 import 'format.dart';
 
@@ -40,6 +41,34 @@ final missingModelsProvider = Provider<List<String>?>((ref) {
 final anthropicKeyConfiguredProvider = FutureProvider<bool?>(
   (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getAnthropicApiKey),
 );
+
+/// Whether a Gemini API key is stored; null when unknown (see
+/// [anthropicKeyConfiguredProvider]). Invalidate after changing it.
+final geminiKeyConfiguredProvider = FutureProvider<bool?>(
+  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getGeminiApiKey),
+);
+
+/// Whether the minutes engine selected in Settings can run: its key is
+/// stored (and, for Gemini, the free-tier data notice was accepted; for a
+/// local engine, it is available in this build). Null while unknown (e.g.
+/// a locked keystore). Invalidate [anthropicKeyConfiguredProvider] /
+/// [geminiKeyConfiguredProvider] after changing a key.
+final minutesEngineReadyProvider = Provider<bool?>((ref) {
+  final s = ref.watch(appSettingsDataProvider).value;
+  if (s == null) return null;
+  switch (s.minutesEngine) {
+    case AppSettingsData.engineClaude:
+      return ref.watch(anthropicKeyConfiguredProvider).value;
+    case AppSettingsData.engineLocal:
+      return ref.watch(localMinutesBackendBuilderProvider) != null;
+    case AppSettingsData.engineServer:
+      return ref.watch(serverMinutesBackendBuilderProvider) != null;
+    default:
+      final key = ref.watch(geminiKeyConfiguredProvider).value;
+      if (key == null) return null;
+      return key && s.geminiPrivacyAcknowledged;
+  }
+});
 
 /// Whether a Deepgram API key is stored; null when unknown (see
 /// [anthropicKeyConfiguredProvider]). Invalidate after changing it.

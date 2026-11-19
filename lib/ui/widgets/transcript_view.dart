@@ -170,15 +170,23 @@ class _SegmentText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final dir = detectTextDirection(segment.text);
+    final unintelligible = segment.isUnintelligible;
+    // F17: real speech the recogniser could not decode is shown as a marker
+    // (with the recogniser's guess, if any) instead of an empty line.
+    final shown = unintelligible
+        ? [
+            S.unintelligibleSegment(segment.endMs - segment.startMs),
+            if (segment.text.trim().isNotEmpty) '«${segment.text.trim()}»',
+          ].join(' ')
+        : segment.text;
+    final dir = detectTextDirection(shown);
     final lang = segment.language;
-    final langName = lang == null || lang.startsWith('ar')
+    final langName = unintelligible || lang == null || lang.startsWith('ar')
         ? null
         : S.languageName(lang);
     return Semantics(
       button: onTap != null,
-      label:
-          '$speakerName، ${formatTimestamp(segment.startMs)}: ${segment.text}',
+      label: '$speakerName، ${formatTimestamp(segment.startMs)}: $shown',
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -192,10 +200,15 @@ class _SegmentText extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  segment.text,
+                  shown,
                   textDirection: dir,
                   textAlign: TextAlign.start,
-                  style: theme.textTheme.bodyLarge,
+                  style: unintelligible
+                      ? theme.textTheme.bodyLarge?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: scheme.onSurfaceVariant,
+                        )
+                      : theme.textTheme.bodyLarge,
                 ),
                 if (langName != null || segment.speakerLocked)
                   Padding(

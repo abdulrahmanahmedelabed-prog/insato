@@ -51,7 +51,7 @@ class StructuredMinutesEngine implements MinutesEngine {
         final c = a.startMs.compareTo(b.startMs);
         return c != 0 ? c : a.index.compareTo(b.index);
       });
-    if (!spoken.any((s) => s.text.trim().isNotEmpty || s.isUnintelligible)) {
+    if (spoken.isEmpty) {
       throw const InsatoException(
         'لا يوجد كلام مسجّل في هذا الاجتماع يمكن إعداد محضر منه.',
       );

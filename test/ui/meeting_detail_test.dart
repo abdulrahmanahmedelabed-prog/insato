@@ -67,7 +67,7 @@ void main() {
     // Generating without a key fails with the Arabic message.
     await t.tap(find.text(S.generateMinutes));
     await settle(t, rounds: 10);
-    expect(find.textContaining('مفتاح Claude غير مضبوط'), findsOneWidget);
+    expect(find.textContaining('مفتاح محرك المحضر غير مضبوط'), findsOneWidget);
     await env.dispose(t);
   });
 

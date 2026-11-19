@@ -93,7 +93,7 @@ class MinutesView extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           S.generatedBy(
-            ltrIsolate(m.model.isEmpty ? 'Claude' : m.model),
+            ltrIsolate(m.model.isEmpty ? '—' : m.model),
             formatArabicDateTime(m.generatedAt.toLocal()),
           ),
           style: theme.textTheme.labelSmall?.copyWith(
