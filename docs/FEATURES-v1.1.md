@@ -204,3 +204,65 @@ width** so it uses a large Windows window well.
 * Voiceprints remember the device they were learned on; when a meeting uses a
   different mic, matching thresholds are relaxed slightly and voiceprints are
   updated from confirmed segments so they adapt to the new mic.
+
+---
+# v1.2 — Differentiators (approved: A, B, C, D)
+Goal: Katib becomes *the* app for official Arabic minutes. Scheduled after
+v1.1 is verified on real devices.
+
+## A — Official Arabic minutes (المحضر الرسمي المعتمد)
+* Templates (selected per meeting, F3 `template`): مجلس إدارة، جمعية عمومية،
+  لجنة، اجتماع حكومي/إداري، اجتماع فريق (مبسّط). Each template defines
+  sections, numbering style and wording conventions.
+* Official header: entity name/logo (settings), meeting number (auto
+  sequence per entity/committee), place, Hijri **and** Gregorian date
+  (Umm al-Qura via `intl`/custom converter, unit-tested), start/end time,
+  chair (رئيس الاجتماع) and secretary (أمين السر).
+* Attendance: present / absent (with/without excuse) / invited guests,
+  matched against expected attendees (F3) and voiceprints; **quorum** rule per
+  template (e.g. ≥ half + 1, configurable) → “اكتمل النصاب / لم يكتمل”.
+* Numbered resolutions (قرار رقم 1/2026/…) with formal phrasing
+  (“قرر المجلس …”), linked to votes (B) and evidence (F5).
+* Approval & signatures: minutes lifecycle draft → reviewed → approved;
+  each attendee signs on device (finger/pen signature captured as vector,
+  stored with timestamp); signature block rendered in PDF/DOCX; a SHA-256 hash
+  of the approved content is printed in the footer, any later edit creates a
+  new version (version history kept).
+
+## B — Vote detection (رصد التصويت)
+* The minutes engine identifies voting moments (explicit “نصوّت / من
+  الموافق”, rounds of agreement, objections, abstentions) and each speaker's
+  position: موافق / معترض / ممتنع / لم يصوّت, with evidence links.
+* Result per resolution: counts, names per position, pass/fail per the
+  template's majority rule (simple / two-thirds / unanimity); chair's casting
+  vote rule optional.
+* Never invents votes: implicit consensus is reported as “توافق دون تصويت
+  رسمي”; ambiguous positions are listed as “غير واضح” for the secretary to
+  confirm in a review screen before approval.
+
+## C — Multi-device recording (عدة أجهزة كمايك واحد)
+* One device hosts the meeting; 1–4 other phones/PCs join over the local
+  network (QR code with session id + key; discovery via mDNS where allowed,
+  manual IP fallback). No internet required.
+* Each node streams 16 kHz PCM (or Opus) + timestamps to the host over an
+  encrypted WebSocket (key from the QR). Clock alignment: NTP-style ping
+  exchange + cross-correlation of overlapping audio to refine offsets to
+  < 20 ms; drift tracked continuously.
+* Host fuses channels: per VAD segment choose the channel with the best SNR
+  for ASR (or weighted mix); channel energy differences are an extra
+  diarization cue (which device is nearest a speaker) combined with voice
+  embeddings.
+* Robust to a node dropping out (meeting continues; gap noted); battery and
+  network-quality indicators per node.
+
+## D — Contradiction & consistency checker (كاشف التناقضات)
+* Institutional memory: all approved resolutions and tasks (F9) are indexed
+  (F8 retrieval).
+* After minutes generation (and optionally live every few minutes), the
+  engine checks new statements/decisions against prior ones and reports:
+  contradicts a previous resolution, duplicates an existing task, changes an
+  owner/deadline, revisits a closed topic, or conflicts within the same
+  meeting.
+* Each finding cites both sides (meeting, resolution number, timestamp) and a
+  severity; the user can dismiss or confirm (“تم الإلغاء رسمياً”) which
+  updates the earlier resolution's status.
