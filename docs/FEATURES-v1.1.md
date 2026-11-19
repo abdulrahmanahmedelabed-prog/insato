@@ -106,3 +106,31 @@ Recognition is never a precondition:
 * Library hygiene: “merge duplicates” suggestions when two unnamed voiceprints
   are very similar; unnamed speakers unseen for N months can be cleaned up
   (manual action only).
+
+## F16 — Speaker profile: communication style & demonstrated skills (ملف المتحدث)
+For each speaker, a profile aggregated across **all** meetings, whatever the
+language(s) spoken and the domains discussed (translation-invariant: the
+analysis runs on meaning, output in Arabic).
+
+Contents (every claim carries evidence links — meeting + timestamp, F5):
+* **Demonstrated knowledge & skills** by domain (e.g. مالية، هندسة برمجيات،
+  قانون، تسويق) with level indicators *as evidenced in speech* (mentions,
+  explanations given, questions answered, decisions led) and trend over time.
+* **Languages used** and share of speech per language; code-switching habits.
+* **Communication style**: talk-time share, turn length, questions asked vs.
+  statements, interruptions given/received, clarity, how often they propose
+  vs. decide vs. take tasks, follow-through on tasks (F9).
+* **Contributions**: decisions proposed, action items owned / completed.
+* **Narrative summary** (strengths observed, typical role in meetings).
+
+Guardrails (built in, not optional):
+* Opt-in per speaker (“تفعيل ملف المتحدث”), off by default; a notice that the
+  person should be informed. Profiles stay on device; deletable at any time.
+* Only *observable, evidence-backed* behaviour from what was said. No
+  clinical/psychological diagnosis, no inferences about emotions from voice,
+  health, religion, politics, ethnicity, age, or other sensitive attributes,
+  and no hiring/firing “scores”. Low-evidence items are marked as such or
+  omitted. Wording is descriptive, never judgemental.
+* Built incrementally: per-meeting speaker notes are extracted together with
+  the minutes (same engine: Claude / on-device / local server), then merged
+  into the profile; “rebuild profile” recomputes from all meetings.

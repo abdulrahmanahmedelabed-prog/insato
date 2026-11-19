@@ -38,7 +38,16 @@ Float32List concat(List<Float32List> parts) {
 void main() {
   group('pcm16LeBytesToFloat32', () {
     test('decodes extremes and zero', () {
-      final bytes = Uint8List.fromList([0x00, 0x80, 0xff, 0x7f, 0, 0, 0xff, 0xff]);
+      final bytes = Uint8List.fromList([
+        0x00,
+        0x80,
+        0xff,
+        0x7f,
+        0,
+        0,
+        0xff,
+        0xff,
+      ]);
       final f = pcm16LeBytesToFloat32(bytes);
       expect(f, hasLength(4));
       expect(f[0], -1.0);
@@ -48,7 +57,10 @@ void main() {
     });
 
     test('ignores an odd trailing byte', () {
-      expect(pcm16LeBytesToFloat32(Uint8List.fromList([1, 0, 9])), hasLength(1));
+      expect(
+        pcm16LeBytesToFloat32(Uint8List.fromList([1, 0, 9])),
+        hasLength(1),
+      );
     });
   });
 
@@ -162,7 +174,9 @@ void main() {
       var i = 0;
       while (i < interleaved.length) {
         final n = math.min(rnd.nextInt(5), interleaved.length - i);
-        parts.add(mixer.process(Float32List.sublistView(interleaved, i, i + n)));
+        parts.add(
+          mixer.process(Float32List.sublistView(interleaved, i, i + n)),
+        );
         i += n;
       }
       final got = concat(parts);

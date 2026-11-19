@@ -91,7 +91,11 @@ class WavWriter {
     final raf = await file.open(mode: FileMode.write);
     try {
       await raf.writeFrom(
-        buildWavHeader(sampleRate: sampleRate, channels: channels, dataBytes: 0),
+        buildWavHeader(
+          sampleRate: sampleRate,
+          channels: channels,
+          dataBytes: 0,
+        ),
       );
       await raf.flush();
     } catch (_) {
@@ -135,8 +139,9 @@ class WavWriter {
   /// Duration of the audio accepted so far.
   Duration get duration => Duration(
     microseconds:
-        (_dataBytes ~/ (2 * channels)) * Duration.microsecondsPerSecond ~/
-            sampleRate,
+        (_dataBytes ~/ (2 * channels)) *
+        Duration.microsecondsPerSecond ~/
+        sampleRate,
   );
 
   /// True once [close] has been called.
@@ -153,7 +158,9 @@ class WavWriter {
     final aligned = _aligner.align(bytes);
     if (aligned.isEmpty) return _queue;
     // Copy: the caller may reuse its buffer before the write happens.
-    final copy = identical(aligned, bytes) ? Uint8List.fromList(bytes) : aligned;
+    final copy = identical(aligned, bytes)
+        ? Uint8List.fromList(bytes)
+        : aligned;
     _dataBytes += copy.length;
     return _enqueue(() async {
       await _file.writeFrom(copy);
@@ -179,17 +186,19 @@ class WavWriter {
   Future<void> close() {
     if (_closed) return _queue;
     _closed = true;
-    final done = _queue.then<void>((_) async {
-      if (_error == null) {
-        await _patchHeader();
-      }
-    }).whenComplete(() async {
-      try {
-        await _file.close();
-      } catch (_) {
-        // Already closed or the handle is invalid; nothing more to do.
-      }
-    });
+    final done = _queue
+        .then<void>((_) async {
+          if (_error == null) {
+            await _patchHeader();
+          }
+        })
+        .whenComplete(() async {
+          try {
+            await _file.close();
+          } catch (_) {
+            // Already closed or the handle is invalid; nothing more to do.
+          }
+        });
     _queue = done.catchError((Object _) {});
     return done;
   }

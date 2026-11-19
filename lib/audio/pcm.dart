@@ -204,7 +204,7 @@ Float32List downmixToMono(Float32List interleaved, int channels) {
 class InterleavedDownmixer {
   /// Creates a downmixer for [channels] interleaved channels.
   InterleavedDownmixer(this.channels)
-      : _carry = Float32List(channels > 0 ? channels : 1) {
+    : _carry = Float32List(channels > 0 ? channels : 1) {
     if (channels < 1) {
       throw ArgumentError.value(channels, 'channels', 'must be >= 1');
     }
@@ -277,8 +277,8 @@ int _gcd(int a, int b) {
 class StreamingResampler {
   /// Creates a resampler converting from [inputRate] to [outputRate] Hz.
   StreamingResampler({required this.inputRate, this.outputRate = kSampleRate})
-      : _in = inputRate ~/ _gcd(inputRate, outputRate),
-        _out = outputRate ~/ _gcd(inputRate, outputRate) {
+    : _in = inputRate ~/ _gcd(inputRate, outputRate),
+      _out = outputRate ~/ _gcd(inputRate, outputRate) {
     if (inputRate <= 0) {
       throw ArgumentError.value(inputRate, 'inputRate', 'must be > 0');
     }
@@ -428,9 +428,11 @@ class StreamingResampler {
     var sum = 0.0;
     for (var n = 0; n < taps; n++) {
       final x = n - m / 2;
-      final sinc =
-          x == 0 ? 2 * fc : math.sin(2 * math.pi * fc * x) / (math.pi * x);
-      final window = 0.42 -
+      final sinc = x == 0
+          ? 2 * fc
+          : math.sin(2 * math.pi * fc * x) / (math.pi * x);
+      final window =
+          0.42 -
           0.5 * math.cos(2 * math.pi * n / m) +
           0.08 * math.cos(4 * math.pi * n / m);
       final v = sinc * window;
@@ -476,11 +478,11 @@ class PcmStreamConverter {
     required this.inputSampleRate,
     required this.inputChannels,
     this.outputRate = kSampleRate,
-  })  : _downmixer = InterleavedDownmixer(inputChannels),
-        _resampler = StreamingResampler(
-          inputRate: inputSampleRate,
-          outputRate: outputRate,
-        );
+  }) : _downmixer = InterleavedDownmixer(inputChannels),
+       _resampler = StreamingResampler(
+         inputRate: inputSampleRate,
+         outputRate: outputRate,
+       );
 
   /// Input sample rate in Hz.
   final int inputSampleRate;

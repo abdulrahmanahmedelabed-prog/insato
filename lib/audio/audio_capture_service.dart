@@ -255,7 +255,8 @@ class AudioCaptureService {
   /// number of 16 kHz samples delivered, so it excludes pauses and matches
   /// segment timestamps exactly.
   Duration get elapsed => Duration(
-    microseconds: _samplesEmitted * Duration.microsecondsPerSecond ~/ kSampleRate,
+    microseconds:
+        _samplesEmitted * Duration.microsecondsPerSecond ~/ kSampleRate,
   );
 
   /// Path of the WAV archive of the current (or last) session, if any.
@@ -685,8 +686,7 @@ class AudioCaptureService {
             'حُفظ ما سُجّل حتى الآن.',
       RecordStopReason.routeChange =>
         'توقّف التسجيل لأن جهاز الإدخال الصوتي فُصل. حُفظ ما سُجّل حتى الآن.',
-      _ =>
-        'توقّف التسجيل بسبب خطأ في الميكروفون. حُفظ ما سُجّل حتى الآن.',
+      _ => 'توقّف التسجيل بسبب خطأ في الميكروفون. حُفظ ما سُجّل حتى الآن.',
     };
     _errorsCtrl.add(
       AudioCaptureException(
