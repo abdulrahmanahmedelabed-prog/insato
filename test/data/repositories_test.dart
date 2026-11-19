@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -453,6 +454,94 @@ void main() {
       expect(merged.name, 'علي');
       expect(merged.centroid![0], closeTo(0.6, 1e-6));
       expect(merged.embeddingCount, 2);
+    });
+
+    group('voiceprint ledgers', () {
+      Future<void> putLedger(String meetingId, Map<String, String> l) => db
+          .into(db.settings)
+          .insertOnConflictUpdate(SettingsCompanion.insert(
+              key: '$kVoiceprintLedgerKeyPrefix$meetingId',
+              value: jsonEncode(l)));
+      Future<Map<String, dynamic>?> ledger(String meetingId) async {
+        final r = await (db.select(db.settings)
+              ..where((s) =>
+                  s.key.equals('$kVoiceprintLedgerKeyPrefix$meetingId')))
+            .getSingleOrNull();
+        return r == null ? null : jsonDecode(r.value) as Map<String, dynamic>;
+      }
+
+      test('tombstone helpers', () {
+        expect(voiceprintLedgerTombstone('abc'), '!abc');
+        expect(voiceprintLedgerTombstoneSpeaker('!abc'), 'abc');
+        expect(voiceprintLedgerTombstoneSpeaker('abc'), isNull);
+      });
+
+      test('forgetVoice tombstones the speaker in every meeting ledger',
+          () async {
+        final s = await speakers.create(centroid: vec([1, 0]), embeddingCount: 3);
+        final t = await speakers.create(centroid: vec([0, 1]), embeddingCount: 3);
+        await putLedger('m1', {'s1': s.id, 's2': t.id});
+        await putLedger('m2', {'s3': s.id});
+        await putLedger('m3', {'s4': t.id});
+        // A non-ledger row that merely matches the LIKE pattern is untouched.
+        await db.into(db.settings).insert(SettingsCompanion.insert(
+            key: 'voiceprintXledger:x', value: jsonEncode({'a': s.id})));
+
+        expect(await speakers.forgetVoice(s.id), isTrue);
+        expect((await speakers.get(s.id))!.centroid, isNull);
+        expect(await ledger('m1'), {'s1': '!${s.id}', 's2': t.id});
+        expect(await ledger('m2'), {'s3': '!${s.id}'});
+        expect(await ledger('m3'), {'s4': t.id});
+        final other = await (db.select(db.settings)
+              ..where((r) => r.key.equals('voiceprintXledger:x')))
+            .getSingle();
+        expect(jsonDecode(other.value), {'a': s.id});
+      });
+
+      test('merge moves contributions that the combined voiceprint keeps',
+          () async {
+        final into = await speakers.create(centroid: vec([1, 0]), embeddingCount: 3);
+        final from = await speakers.create(centroid: vec([0, 1]), embeddingCount: 2);
+        await putLedger('m1', {
+          's1': from.id,
+          's2': into.id,
+          's3': '!${from.id}',
+        });
+        await speakers.merge(from.id, into.id);
+        expect(await ledger('m1'), {
+          's1': into.id,
+          's2': into.id,
+          's3': '!${into.id}',
+        });
+      });
+
+      test('merge tombstones a forgotten source', () async {
+        final into = await speakers.create(centroid: vec([1, 0]), embeddingCount: 3);
+        final from = await speakers.create();
+        await putLedger('m1', {'s1': from.id, 's2': into.id});
+        await speakers.merge(from.id, into.id);
+        expect(await ledger('m1'), {'s1': '!${into.id}', 's2': into.id});
+      });
+
+      test('merge tombstones the side dropped on a dimension mismatch',
+          () async {
+        // into has less evidence: its 2-d centroid is replaced by from's.
+        final into = await speakers.create(centroid: vec([1, 0]), embeddingCount: 1);
+        final from =
+            await speakers.create(centroid: vec([0, 1, 0]), embeddingCount: 5);
+        await putLedger('m1', {'s1': from.id, 's2': into.id});
+        final merged = await speakers.merge(from.id, into.id);
+        expect(merged.centroid!.length, 3);
+        expect(await ledger('m1'), {'s1': into.id, 's2': '!${into.id}'});
+
+        // And the other way round: from has less evidence and is dropped.
+        final a = await speakers.create(centroid: vec([1, 0]), embeddingCount: 5);
+        final b =
+            await speakers.create(centroid: vec([0, 1, 0]), embeddingCount: 1);
+        await putLedger('m2', {'s1': b.id, 's2': a.id});
+        await speakers.merge(b.id, a.id);
+        expect(await ledger('m2'), {'s1': '!${a.id}', 's2': a.id});
+      });
     });
 
     test('merge errors and self-merge', () async {

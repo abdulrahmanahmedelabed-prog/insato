@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -214,6 +215,23 @@ void main() {
     await p.drain();
     expect(await segments.getForMeeting(meeting.id), isEmpty);
     expect(p.submittedCount, 2);
+  });
+
+  test('abort lets drain finish without waiting for processing', () async {
+    final asr = FakeAsr()..gate = Completer<void>();
+    final p = pipeline(asr: asr);
+    p.submit(speech(0, 0, 2000, 0));
+    p.submit(speech(1, 2500, 2000, 1));
+    await Future<void>.delayed(Duration.zero);
+    p.abort();
+    expect(p.isAborted, isTrue);
+    // The engine is stuck, yet the queue empties at once.
+    await p.drain().timeout(const Duration(seconds: 2));
+    expect(p.completedCount, 2);
+    expect(p.pendingAudioMs, 0);
+    asr.gate!.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(await segments.getForMeeting(meeting.id), isEmpty);
   });
 
   test('waitForCapacity resolves once the backlog shrinks', () async {

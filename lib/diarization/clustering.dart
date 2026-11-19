@@ -18,8 +18,12 @@
 //    Uses a packed triangular Float32 similarity matrix (n·(n−1)/2 floats,
 //    ≈18 MB for 3000 segments), SIMD dot products and a cached
 //    nearest-neighbour per row, giving ~O(n²) time in practice.
-// 4. Tiny clusters (< `tinyClusterMaxMs` of speech) are merged into the most
-//    similar substantial cluster when similarity ≥ `tinyMergeThreshold`.
+// 4. Tiny clusters (< `tinyClusterMaxMs` of speech) are merged into the
+//    substantial cluster with the highest average linkage when it is
+//    ≥ `tinyMergeThreshold` — except that a tiny cluster matching a known
+//    voiceprint (≥ `linkThreshold`) only merges into a cluster matching the
+//    same voiceprint, so a short utterance of a known speaker is still linked
+//    to them in step 5 instead of being attributed to whoever spoke longest.
 // 5. Anchored clusters link to their locked speaker. The remaining clusters
 //    are linked one-to-one to unclaimed voiceprints by maximum-weight
 //    bipartite matching (Hungarian algorithm) on `sim − linkThreshold`, so two
@@ -146,7 +150,9 @@ class RefinementResult {
 /// * [linkThreshold]: minimum centroid ↔ voiceprint similarity to link.
 /// * [lockedAssignments]: segment id → speaker id fixed by the user. Those
 ///   segments keep their speaker and anchor their cluster to it.
-/// * [tinyClusterMaxMs], [tinyMergeThreshold]: tiny-cluster cleanup.
+/// * [tinyClusterMaxMs], [tinyMergeThreshold]: tiny-cluster cleanup
+///   (average-linkage similarity; see step 4 in the file header). Also the
+///   attach threshold for segments left out of the matrix.
 /// * [voiceprintMergeThreshold]: centroid similarity needed to merge an
 ///   unlinked cluster into the cluster holding its best-matching voiceprint.
 /// * [maxSegmentWeightSec]: cap on one segment's weight, in seconds.
@@ -243,6 +249,11 @@ RefinementResult refineSpeakers({
     anchors: anchors,
     maxMatrixItems: maxMatrixItems,
     fallbackAttachThreshold: tinyMergeThreshold,
+    voiceprints: [
+      for (final s in knownSpeakers)
+        if (isUsableEmbedding(s.centroid, dimension: d)) l2Normalize(s.centroid!),
+    ],
+    voiceprintThreshold: linkThreshold,
   );
 
   final groups = <int, _Group>{};
@@ -255,16 +266,24 @@ RefinementResult refineSpeakers({
     g.recompute();
   }
 
-  // --- 4. Tiny clusters -----------------------------------------------------
-  clusters = _mergeTinyClusters(clusters, tinyClusterMaxMs, tinyMergeThreshold);
-
-  // --- 5. Linking -----------------------------------------------------------
   final speakerById = <String, Speaker>{for (final s in knownSpeakers) s.id: s};
   Float32List? voiceprintOf(String speakerId) {
     final c = speakerById[speakerId]?.centroid;
     return isUsableEmbedding(c, dimension: d) ? l2Normalize(c!) : null;
   }
 
+  final allVoiceprints = <(String, Float32List)>[
+    for (final s in knownSpeakers)
+      if (voiceprintOf(s.id) case final vp?) (s.id, vp),
+  ];
+
+  // --- 4. Tiny clusters -----------------------------------------------------
+  // Before linking, but never absorbing a tiny cluster that is clearly a
+  // known voice into a cluster of someone else: it must reach step 5.
+  clusters = _mergeTinyClusters(clusters, tinyClusterMaxMs, tinyMergeThreshold,
+      allVoiceprints, linkThreshold);
+
+  // --- 5. Linking -----------------------------------------------------------
   for (final g in clusters) {
     final a = g.anchor;
     if (a != null) {
@@ -303,10 +322,6 @@ RefinementResult refineSpeakers({
   // Unlinked clusters whose best voiceprint went to another cluster (by
   // voiceprint or by a user lock): the clustering probably split one person
   // — merge when the centroids agree too.
-  final allVoiceprints = <(String, Float32List)>[
-    for (final s in knownSpeakers)
-      if (voiceprintOf(s.id) case final vp?) (s.id, vp),
-  ];
   final unlinked = [
     for (final g in clusters)
       if (g.linkedSpeakerId == null) g,
@@ -418,6 +433,11 @@ RefinementResult refineSpeakers({
 ///   lowest-weight unanchored vectors are left out of the matrix and attached
 ///   afterwards to the most similar compatible cluster (if similarity ≥
 ///   [fallbackAttachThreshold], else they form their own clusters).
+/// * [voiceprints] / [voiceprintThreshold]: optional L2-normalised known
+///   voiceprints. A deferred vector whose best voiceprint reaches
+///   [voiceprintThreshold] is attached only to a cluster whose best
+///   voiceprint is the same one (also at the threshold); otherwise it keeps
+///   its own cluster so that a later linking step can identify it.
 ///
 /// Returns a cluster label per vector, numbered 0.. in order of first
 /// appearance.
@@ -428,6 +448,8 @@ List<int> agglomerativeCluster(
   List<int?>? anchors,
   int maxMatrixItems = 3000,
   double fallbackAttachThreshold = 0.3,
+  List<Float32List> voiceprints = const [],
+  double voiceprintThreshold = double.infinity,
 }) {
   final n = vectors.length;
   if (weights != null && weights.length != n) {
@@ -620,6 +642,11 @@ List<int> agglomerativeCluster(
     }
     final keys = cents.keys.toList();
     final normed = [for (final k in keys) normalizeAccumulator(cents[k]!)];
+    final vps = [
+      for (final vp in voiceprints)
+        if (vp.length == dim) vp,
+    ];
+    final clusterVp = [for (final c in normed) _bestVoiceprint(c, vps)];
     var nextLabel = m;
     for (final i in deferred) {
       var best = -1;
@@ -631,9 +658,15 @@ List<int> agglomerativeCluster(
           best = c;
         }
       }
-      raw[i] = (best >= 0 && bestS >= fallbackAttachThreshold)
-          ? keys[best]
-          : nextLabel++;
+      var attach = best >= 0 && bestS >= fallbackAttachThreshold;
+      if (attach && vps.isNotEmpty) {
+        final (vi, vs) = _bestVoiceprint(vectors[i], vps);
+        if (vi >= 0 && vs >= voiceprintThreshold) {
+          final (ci, cs) = clusterVp[best];
+          attach = ci == vi && cs >= voiceprintThreshold;
+        }
+      }
+      raw[i] = attach ? keys[best] : nextLabel++;
     }
   }
 
@@ -778,10 +811,49 @@ class _Group {
   void recompute() => centroid = normalizeAccumulator(sum);
 }
 
+/// Index and cosine of the voiceprint in [vps] most similar to [v]
+/// ((-1, -∞) when [vps] is empty).
+(int, double) _bestVoiceprint(Float32List v, List<Float32List> vps) {
+  var best = -1;
+  var bestS = double.negativeInfinity;
+  for (var k = 0; k < vps.length; k++) {
+    final s = cosine(v, vps[k]);
+    if (s > bestS) {
+      bestS = s;
+      best = k;
+    }
+  }
+  return (best, bestS);
+}
+
+/// Weighted average-linkage similarity of two groups of L2-normalised
+/// vectors: `Σᵢ∈A Σⱼ∈B wᵢwⱼ·cos(i,j) / (W_A·W_B)` = `ΣA·ΣB / (W_A·W_B)`.
+/// Unlike the cosine of the two centroids it is not inflated by the spread
+/// of the larger group.
+double _averageLinkage(_Group a, _Group b) {
+  if (a.weight <= 0 || b.weight <= 0) return double.negativeInfinity;
+  var s = 0.0;
+  for (var k = 0; k < a.dim; k++) {
+    s += a.sum[k] * b.sum[k];
+  }
+  return s / (a.weight * b.weight);
+}
+
+/// Merges each unanchored cluster shorter than [tinyMaxMs] into the non-tiny
+/// cluster with the highest average linkage, when it reaches
+/// [mergeThreshold]. A tiny cluster that matches a known voiceprint
+/// (`≥ linkThreshold`) is merged only into a cluster that matches the same
+/// voiceprint; otherwise it is kept so the linking step can identify it.
 List<_Group> _mergeTinyClusters(
-    List<_Group> clusters, int tinyMaxMs, double mergeThreshold) {
+  List<_Group> clusters,
+  int tinyMaxMs,
+  double mergeThreshold,
+  List<(String, Float32List)> voiceprints,
+  double linkThreshold,
+) {
   final result = [...clusters];
   bool isTiny(_Group g) => g.anchor == null && g.totalMs < tinyMaxMs;
+  final vps = [for (final (_, vp) in voiceprints) vp];
   final tiny = result.where(isTiny).toList()
     ..sort((a, b) => a.totalMs.compareTo(b.totalMs));
   for (final t in tiny) {
@@ -789,17 +861,21 @@ List<_Group> _mergeTinyClusters(
     var bestS = double.negativeInfinity;
     for (final g in result) {
       if (identical(g, t) || isTiny(g)) continue;
-      final s = cosine(t.centroid, g.centroid);
+      final s = _averageLinkage(t, g);
       if (s > bestS) {
         bestS = s;
         target = g;
       }
     }
-    if (target != null && bestS >= mergeThreshold) {
-      target.absorb(t);
-      target.recompute();
-      result.remove(t);
+    if (target == null || bestS < mergeThreshold) continue;
+    final (tv, ts) = _bestVoiceprint(t.centroid, vps);
+    if (tv >= 0 && ts >= linkThreshold) {
+      final (gv, gs) = _bestVoiceprint(target.centroid, vps);
+      if (gv != tv || gs < linkThreshold) continue;
     }
+    target.absorb(t);
+    target.recompute();
+    result.remove(t);
   }
   return result;
 }

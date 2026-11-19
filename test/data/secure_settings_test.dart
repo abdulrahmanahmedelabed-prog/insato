@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/data/database.dart';
@@ -108,6 +109,25 @@ void main() {
       expect(await settings.load(), AppSettingsData.defaults);
     });
 
+    test('resetToDefaults keeps non-preference rows (voiceprint ledgers)',
+        () async {
+      await settings.setAsrEngine('cloud');
+      await settings.setLanguageHint('fr');
+      const ledgerKey = 'voiceprint_ledger:meeting-1';
+      await db.into(db.settings).insert(
+          SettingsCompanion.insert(key: ledgerKey, value: '{"s1":"sp1"}'));
+      await settings.resetToDefaults();
+      expect(await settings.load(), AppSettingsData.defaults);
+      final rows = await db.select(db.settings).get();
+      expect(rows.map((r) => r.key), [ledgerKey]);
+      expect(rows.single.value, '{"s1":"sp1"}');
+    });
+
+    test('preferenceKeys covers every key written by save', () {
+      final full = AppSettingsData.defaults.copyWith(languageHint: 'ar');
+      expect(AppSettings.preferenceKeys.toSet(), full.toMap().keys.toSet());
+    });
+
     test('setters validate input', () {
       expect(() => settings.setAsrEngine('x'), throwsArgumentError);
       expect(() => settings.setMinutesDetail('x'), throwsArgumentError);
@@ -160,10 +180,110 @@ void main() {
       expect(await s.getDeepgramApiKey(), isNull);
     });
 
+    test('default storage: readable after first unlock, never backed up',
+        () {
+      final o = SecureSettings.defaultStorage.iOptions;
+      expect(o.accessibility, KeychainAccessibility.first_unlock_this_device);
+      final m = o.toMap();
+      expect(m['accessibility'], 'first_unlock_this_device');
+      expect(m['synchronizable'], 'false');
+    });
+
+    test('a keystore read failure is not reported as "no key"', () async {
+      final storage = _FlakyStorage();
+      final s = SecureSettings(storage: storage);
+      storage.fail = true;
+      await expectLater(s.getDeepgramApiKey(),
+          throwsA(isA<SecureStorageUnavailableException>()));
+
+      storage.fail = false;
+      await s.setDeepgramApiKey('dg-1');
+      expect(await s.getDeepgramApiKey(), 'dg-1');
+      // Device locked mid-meeting: the value read earlier stays available.
+      storage.fail = true;
+      expect(await s.getDeepgramApiKey(), 'dg-1');
+      await expectLater(s.getAnthropicApiKey(),
+          throwsA(isA<SecureStorageUnavailableException>()));
+    });
+
+    test('migrateAccessibility rewrites stored keys once', () async {
+      final storage = _FlakyStorage()
+        ..values[SecureSettings.anthropicApiKeyKey] = 'sk-1';
+      final s = SecureSettings(storage: storage);
+      storage.fail = true;
+      await s.migrateAccessibility(); // locked: retried later, never throws
+      expect(storage.writes, isEmpty);
+      storage.fail = false;
+      await s.migrateAccessibility();
+      expect(storage.writes, [
+        SecureSettings.anthropicApiKeyKey,
+        SecureSettings.accessibilityMigratedKey,
+      ]);
+      expect(storage.values[SecureSettings.anthropicApiKeyKey], 'sk-1');
+      await s.migrateAccessibility();
+      expect(storage.writes.length, 2);
+    });
+
     test('reads pre-existing values', () async {
       FlutterSecureStorage.setMockInitialValues(
           {SecureSettings.anthropicApiKeyKey: 'abc'});
       expect(await SecureSettings().getAnthropicApiKey(), 'abc');
     });
   });
+}
+
+/// In-memory storage whose reads can fail like a locked iOS keychain.
+class _FlakyStorage extends FlutterSecureStorage {
+  final Map<String, String> values = {};
+  final List<String> writes = [];
+  bool fail = false;
+
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (fail) {
+      throw PlatformException(code: '-25308', message: 'interaction not allowed');
+    }
+    return values[key];
+  }
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (fail) throw PlatformException(code: '-25308');
+    writes.add(key);
+    if (value == null) {
+      values.remove(key);
+    } else {
+      values[key] = value;
+    }
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    values.remove(key);
+  }
 }

@@ -98,6 +98,62 @@ int pickSpeakerColor(Iterable<int> usedColors) {
   return best;
 }
 
+// ---------------------------------------------------------------------------
+// Voiceprint ledgers
+// ---------------------------------------------------------------------------
+//
+// The post-processor keeps, per meeting, a ledger `segment id → speaker id`
+// in the `settings` table (key [kVoiceprintLedgerKeyPrefix] + meeting id,
+// JSON object value) recording which voiceprint each segment's embedding was
+// learned into. When a voiceprint stops containing those embeddings (forget,
+// or a merge that drops one side's centroid) the entries are turned into
+// *tombstones*: [voiceprintLedgerTombstone] of the speaker id. A tombstone
+// means "assigned to that speaker, but not contributing to any voiceprint":
+// nothing is unlearned when the segment moves away, and nothing is learned
+// again while it stays with that speaker.
+
+/// Settings-table key prefix of the per-meeting voiceprint ledgers (same
+/// value as the post-processor's `kVoiceprintLedgerPrefix`).
+const String kVoiceprintLedgerKeyPrefix = 'voiceprint_ledger:';
+
+/// Prefix of a ledger tombstone value. Never starts a real (UUID) speaker id.
+const String kVoiceprintLedgerTombstonePrefix = '!';
+
+/// The ledger value recording that a segment belongs to [speakerId] without
+/// contributing to its voiceprint.
+String voiceprintLedgerTombstone(String speakerId) =>
+    '$kVoiceprintLedgerTombstonePrefix$speakerId';
+
+/// The speaker id of a tombstone ledger [value], or null for a live entry.
+String? voiceprintLedgerTombstoneSpeaker(String value) =>
+    value.startsWith(kVoiceprintLedgerTombstonePrefix)
+        ? value.substring(kVoiceprintLedgerTombstonePrefix.length)
+        : null;
+
+Map<String, String> _decodeLedger(String json) {
+  try {
+    final v = jsonDecode(json);
+    if (v is! Map) return {};
+    return {
+      for (final e in v.entries)
+        if (e.key is String && e.value is String)
+          e.key as String: e.value as String,
+    };
+  } on FormatException {
+    return {};
+  }
+}
+
+/// Whether [a] keeps its own centroid in `combineVoiceprints(a, na, b, nb)`
+/// (i.e. the embeddings learned into [a] are still in the result).
+bool _survivesCombine(Float32List? a, int countA, Float32List? b, int countB) {
+  final hasA = a != null && a.isNotEmpty;
+  final hasB = b != null && b.isNotEmpty;
+  if (!hasA) return false;
+  if (!hasB || a.length == b.length) return true;
+  return math.max(countA, 1) >= math.max(countB, 1);
+}
+
 /// Combines two voiceprint centroids weighted by their embedding counts and
 /// L2-normalises the result.
 ///
@@ -665,13 +721,45 @@ class SpeakerRepository {
   /// Forgets the speaker's voiceprint ("not a voiceprint"): the speaker and
   /// its segment assignments stay, but it is never matched by voice again
   /// until re-enrolled. Returns true if it existed.
-  Future<bool> forgetVoice(String id) async {
-    final n = await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
-        .write(const SpeakersCompanion(
-      centroid: Value(null),
-      embeddingCount: Value(0),
-    ));
-    return n > 0;
+  ///
+  /// In the same transaction, every voiceprint-ledger entry of the speaker
+  /// (all meetings) becomes a tombstone: those segments no longer feed any
+  /// voiceprint, so a later correction must not subtract them from a
+  /// re-enrolled voiceprint, nor silently learn them again.
+  Future<bool> forgetVoice(String id) => _db.transaction(() async {
+        final n =
+            await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
+                .write(const SpeakersCompanion(
+          centroid: Value(null),
+          embeddingCount: Value(0),
+        ));
+        await _rewriteLedgers({id: voiceprintLedgerTombstone(id)});
+        return n > 0;
+      });
+
+  /// Rewrites every voiceprint ledger value `v` to `remap[v]` (when present).
+  /// Only changed rows are written.
+  Future<void> _rewriteLedgers(Map<String, String> remap) async {
+    if (remap.isEmpty) return;
+    final rows = await (_db.select(_db.settings)
+          ..where((s) => s.key.like('$kVoiceprintLedgerKeyPrefix%')))
+        .get();
+    for (final row in rows) {
+      // LIKE treats `_` as a wildcard: check the prefix exactly.
+      if (!row.key.startsWith(kVoiceprintLedgerKeyPrefix)) continue;
+      final ledger = _decodeLedger(row.value);
+      var changed = false;
+      for (final e in ledger.entries.toList()) {
+        final to = remap[e.value];
+        if (to != null && to != e.value) {
+          ledger[e.key] = to;
+          changed = true;
+        }
+      }
+      if (!changed) continue;
+      await (_db.update(_db.settings)..where((s) => s.key.equals(row.key)))
+          .write(SettingsCompanion(value: Value(jsonEncode(ledger))));
+    }
   }
 
   /// Merges speaker [fromId] into [intoId] atomically:
@@ -681,7 +769,14 @@ class SpeakerRepository {
   /// 2. the voiceprints are combined, weighted by embedding counts
   ///    ([combineVoiceprints]);
   /// 3. if only [fromId] carried a user-given name, [intoId] adopts it;
-  /// 4. [fromId] is deleted.
+  /// 4. [fromId] is deleted;
+  /// 5. the voiceprint ledgers of all meetings are rewritten: entries of
+  ///    [fromId] move to [intoId] when [fromId]'s centroid went into the
+  ///    combined voiceprint, and become tombstones of [intoId] otherwise (no
+  ///    usable centroid, or the smaller side of a dimension mismatch); the
+  ///    entries of [intoId] become tombstones when its own centroid was
+  ///    dropped. So the ledger only claims contributions the voiceprint
+  ///    really contains.
   ///
   /// Returns the merged speaker. Throws [StateError] if either speaker is
   /// missing. Merging a speaker into itself is a no-op.
@@ -719,6 +814,17 @@ class SpeakerRepository {
         embeddingCount: Value(merged.embeddingCount),
       ));
       await (_db.delete(_db.speakers)..where((s) => s.id.equals(fromId))).go();
+
+      final fromKept = _survivesCombine(from.centroid, from.embeddingCount,
+          into.centroid, into.embeddingCount);
+      final intoKept = _survivesCombine(into.centroid, into.embeddingCount,
+          from.centroid, from.embeddingCount);
+      final intoTomb = voiceprintLedgerTombstone(intoId);
+      await _rewriteLedgers({
+        fromId: fromKept ? intoId : intoTomb,
+        voiceprintLedgerTombstone(fromId): intoTomb,
+        if (!intoKept) intoId: intoTomb,
+      });
       return merged;
     });
   }

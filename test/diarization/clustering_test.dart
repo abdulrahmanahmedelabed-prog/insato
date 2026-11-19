@@ -16,6 +16,15 @@ List<Item> itemsOf(List<Turn> turns) => [
 
 Float32List basis(int k, {int dim = 192}) => Float32List(dim)..[k] = 1;
 
+/// Unit-length combination of basis vectors `(index, coefficient)`.
+Float32List mix(List<(int, double)> parts, {int dim = 192}) {
+  final v = Float32List(dim);
+  for (final (k, c) in parts) {
+    v[k] += c;
+  }
+  return l2Normalize(v);
+}
+
 void main() {
   group('refineSpeakers purity', () {
     for (final speakers in [3, 4, 5, 6]) {
@@ -413,6 +422,61 @@ void main() {
       expect(r.clusters, hasLength(2));
     });
 
+    // Another person's 20 s cluster: four 5 s segments with pairwise cosine
+    // 0.55 around basis(0) (self-similarity ≈ 0.66, so the centroid cosine
+    // of an outsider is inflated by 1/√0.66 ≈ 1.23 over average linkage).
+    List<Item> otherPerson() => [
+          for (var k = 1; k <= 4; k++)
+            ('o$k', mix([(0, math.sqrt(0.55)), (k, math.sqrt(0.45))]), 5000),
+        ];
+
+    test('short utterance of a known voice is not absorbed (centroid '
+        'inflation)', () {
+      // avgSim to the group ≈ 0.25, centroid cosine ≈ 0.31 ≥ 0.3;
+      // cosine 0.8 to Ahmed's voiceprint.
+      final ahmed = mix([(0, 0.34), (10, 0.8), (20, 0.494)]);
+      final r = refineSpeakers(items: [
+        ...otherPerson(),
+        ('ahmed', ahmed, 1500),
+      ], knownSpeakers: [
+        knownSpeaker('ahmed-id', basis(10)),
+      ]);
+      expect(r.clusters, hasLength(2));
+      expect(r.speakerIdForSegment('ahmed'), 'ahmed-id');
+      expect(r.speakerIdForSegment('o1'), isNull);
+    });
+
+    test('tiny cluster matching a voiceprint is kept for linking', () {
+      // Average linkage ≈ 0.33 ≥ tinyMergeThreshold, but the segment is
+      // clearly Ahmed (0.8) and the big cluster is not.
+      final ahmed = mix([(0, 0.45), (10, 0.8), (20, math.sqrt(0.1575))]);
+      final r = refineSpeakers(items: [
+        ...otherPerson(),
+        ('ahmed', ahmed, 1500),
+      ], knownSpeakers: [
+        knownSpeaker('ahmed-id', basis(10)),
+      ]);
+      expect(r.clusters, hasLength(2));
+      expect(r.speakerIdForSegment('ahmed'), 'ahmed-id');
+      // Without the voiceprint it is ordinary noise and is merged.
+      final plain = refineSpeakers(
+          items: [...otherPerson(), ('ahmed', ahmed, 1500)],
+          knownSpeakers: const []);
+      expect(plain.clusters, hasLength(1));
+    });
+
+    test('tiny cluster still merges into a cluster of the same voice', () {
+      final t = rotateTowards(basis(0), basis(30), 0.65);
+      final r = refineSpeakers(items: [
+        ...otherPerson(),
+        ('t', t, 1500),
+      ], knownSpeakers: [
+        knownSpeaker('mona', basis(0)),
+      ]);
+      expect(r.clusters, hasLength(1));
+      expect(r.speakerIdForSegment('t'), 'mona');
+    });
+
     test('anchored tiny clusters are never merged away', () {
       final r = refineSpeakers(
           items: [
@@ -490,6 +554,40 @@ void main() {
       final truth = [for (final t in turns) t.speaker];
       expect(purity(truth, labels), greaterThan(0.95));
       expect(labels.toSet(), hasLength(4));
+    });
+
+    test('deferred item matching another voiceprint keeps its own cluster',
+        () {
+      final group = [
+        for (var k = 1; k <= 4; k++)
+          mix([(0, math.sqrt(0.55)), (k, math.sqrt(0.45))]),
+      ];
+      final t = mix([(0, 0.45), (10, 0.8), (20, math.sqrt(0.1575))]);
+      final vs = [...group, t];
+      final ws = <double>[5, 5, 5, 5, 1.5];
+      // t is left out of the matrix (lowest weight) and would be attached
+      // at centroid cosine ≈ 0.41 ≥ 0.3.
+      expect(
+          agglomerativeCluster(vs,
+              threshold: 0.5, weights: ws, maxMatrixItems: 4),
+          [0, 0, 0, 0, 0]);
+      expect(
+          agglomerativeCluster(vs,
+              threshold: 0.5,
+              weights: ws,
+              maxMatrixItems: 4,
+              voiceprints: [basis(10)],
+              voiceprintThreshold: 0.6),
+          [0, 0, 0, 0, 1]);
+      // Same voice as the cluster: attached as before.
+      expect(
+          agglomerativeCluster(vs,
+              threshold: 0.5,
+              weights: ws,
+              maxMatrixItems: 4,
+              voiceprints: [basis(0)],
+              voiceprintThreshold: 0.3),
+          [0, 0, 0, 0, 0]);
     });
 
     test('2000 × 256 finishes quickly', () {

@@ -1136,9 +1136,10 @@ class PostProcessor {
       final failed = pipeline.failedCount;
       if (failed > 0 &&
           (collected.isEmpty ||
-              failed > maxToleratedReprocessFailures(
-                pipeline.completedCount - pipeline.skippedCount,
-              ))) {
+              failed >
+                  maxToleratedReprocessFailures(
+                    pipeline.completedCount - pipeline.skippedCount,
+                  ))) {
         final last = pipeline.lastError;
         throw InsatoException(
           'تعذّر تفريغ $failed من المقاطع'

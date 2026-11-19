@@ -10,6 +10,7 @@ import 'package:insato/data/repositories.dart';
 import 'package:insato/data/secure_settings.dart';
 import 'package:insato/diarization/vector_math.dart';
 import 'package:insato/session/post_processor.dart';
+import 'package:insato/session/providers.dart';
 
 import 'fakes.dart';
 
@@ -494,6 +495,244 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('review fixes', () {
+    Future<void> writeWav(List<(int?, int)> parts, {String? path}) async {
+      final file = path ?? '${tmp.path}/${meeting.id}.wav';
+      final w = await WavWriter.open(file);
+      for (final (voice, ms) in parts) {
+        await w.appendFloat32(voiceSamples(voice, ms));
+      }
+      await w.close();
+      await meetings.setAudioPath(meeting.id, path == null ? file : null);
+    }
+
+    /// Four voices separated by silence (4 speech segments when re-split).
+    const fourVoices = [
+      (0, 2000),
+      (null, 500),
+      (1, 2000),
+      (null, 500),
+      (0, 2000),
+      (null, 500),
+      (1, 2000),
+    ];
+
+    Future<(Speaker, List<TranscriptSegment>)> oldTranscript() async {
+      final a = await speakers.create(name: 'علي');
+      await addSeg(0, 0, a.id);
+      await addSeg(1, 0, a.id);
+      await addSeg(2, 0, a.id);
+      await post.learnFromCorrections(meeting.id);
+      await meetings.updateStatus(meeting.id, MeetingStatus.ready);
+      return (
+        (await speakers.get(a.id))!,
+        await segments.getForMeeting(meeting.id),
+      );
+    }
+
+    test('reprocess keeps the old transcript when many segments fail '
+        '(session-2)', () async {
+      engines.segmenterBuilder = RunSegmenter.new;
+      engines.asr = FakeAsr(failIndices: {1, 2, 3}); // network dropped
+      await writeWav(fourVoices);
+      final (a, old) = await oldTranscript();
+      await expectLater(
+        post.reprocessFromAudio(meeting.id),
+        throwsA(
+          isA<InsatoException>().having(
+            (e) => e.messageAr,
+            'messageAr',
+            allOf(contains('تعذّر تفريغ 3'), contains('أُبقي على النص السابق')),
+          ),
+        ),
+      );
+      final now = await segments.getForMeeting(meeting.id);
+      expect(now.map((s) => s.id), old.map((s) => s.id));
+      expect(now.map((s) => s.text), old.map((s) => s.text));
+      // Voiceprints were not unlearned; no new speakers left behind.
+      expect((await speakers.get(a.id))!.embeddingCount, a.embeddingCount);
+      expect(await speakers.getAll(), hasLength(1));
+      expect((await meetings.get(meeting.id))!.status, MeetingStatus.ready);
+    });
+
+    test('reprocess tolerates an isolated failure', () async {
+      engines.segmenterBuilder = RunSegmenter.new;
+      engines.asr = FakeAsr(failIndices: {2});
+      await writeWav(fourVoices);
+      await oldTranscript();
+      final report = await post.reprocessFromAudio(meeting.id);
+      expect(report.failedSegments, 1);
+      expect(report.segments, 3);
+      expect((await segments.getForMeeting(meeting.id)).map((s) => s.text), [
+        'كلام 0',
+        'كلام 1',
+        'كلام 3',
+      ]);
+    });
+
+    test('reprocess keeps the old transcript on a VAD error', () async {
+      engines.segmenterBuilder = () => RunSegmenter(errorAfterSegments: 1);
+      await writeWav(fourVoices);
+      final (_, old) = await oldTranscript();
+      await expectLater(
+        post.reprocessFromAudio(meeting.id),
+        throwsA(
+          isA<InsatoException>().having(
+            (e) => e.messageAr,
+            'messageAr',
+            contains('أُبقي على النص السابق'),
+          ),
+        ),
+      );
+      expect(
+        (await segments.getForMeeting(meeting.id)).map((s) => s.id),
+        old.map((s) => s.id),
+      );
+    });
+
+    test('a failed refinement still learns voiceprints (session-3)', () async {
+      final failing = PostProcessor(
+        db: db,
+        meetings: meetings,
+        segments: segments,
+        speakers: speakers,
+        settings: settings,
+        runRefinement: (_) async => throw StateError('out of memory'),
+      );
+      final a = await speakers.create();
+      final b = await speakers.create();
+      await addSeg(0, 0, a.id);
+      await addSeg(1, 0, a.id);
+      await addSeg(2, 1, b.id);
+      await addSeg(3, 1, b.id);
+      await expectLater(
+        failing.refine(meeting.id, sessionCreatedSpeakerIds: {a.id, b.id}),
+        throwsA(isA<StateError>()),
+      );
+      expect((await speakers.get(a.id))!.embeddingCount, 2);
+      expect((await speakers.get(b.id))!.embeddingCount, 2);
+      // Labels untouched.
+      expect(await speakerByIndex(), {0: a.id, 1: a.id, 2: b.id, 3: b.id});
+    });
+
+    test(
+      'a correction after a speaker delete is learned (session-7)',
+      () async {
+        final x = await speakers.create(name: 'س');
+        final y = await speakers.create(name: 'ص');
+        final s0 = await addSeg(0, 0, x.id);
+        await addSeg(1, 1, y.id);
+        await post.learnFromCorrections(meeting.id);
+        expect((await speakers.get(y.id))!.embeddingCount, 1);
+        // The user deletes X (segments become unassigned), then gives X's
+        // segment to Y.
+        await speakers.delete(x.id);
+        await post.reassignSegment(s0.id, y.id);
+        expect((await speakers.get(y.id))!.embeddingCount, 2);
+        final again = await post.learnFromCorrections(meeting.id);
+        expect(again.updatedSpeakers, 0);
+      },
+    );
+
+    test('merging rewrites ledgers: no double count, later corrections '
+        'learned (session-7)', () async {
+      final a = await speakers.create(name: 'علي');
+      final b = await speakers.create(name: 'منى');
+      final c = await speakers.create(name: 'هدى');
+      await addSeg(0, 0, a.id);
+      final moved = await addSeg(1, 1, b.id);
+      await addSeg(2, 2, c.id);
+      await post.learnFromCorrections(meeting.id);
+      await post.mergeSpeakers(b.id, a.id);
+      expect((await speakers.get(a.id))!.embeddingCount, 2);
+      final again = await post.learnFromCorrections(meeting.id);
+      expect(again.updatedSpeakers, 0);
+      expect((await speakers.get(a.id))!.embeddingCount, 2);
+      // The merged contribution can still move on.
+      await post.reassignSegment(moved.id, c.id);
+      expect((await speakers.get(a.id))!.embeddingCount, 1);
+      expect((await speakers.get(c.id))!.embeddingCount, 2);
+    });
+
+    test(
+      'deleteOrphanSpeakers deletes only unused speakers (session-6)',
+      () async {
+        final unused = await speakers.create();
+        final used = await speakers.create();
+        final named = await speakers.create(name: 'هدى');
+        final voiced = await speakers.create(
+          centroid: voiceOf(4),
+          embeddingCount: 7,
+        );
+        await addSeg(0, 0, used.id);
+        final deleted = await post.deleteOrphanSpeakers({
+          unused.id,
+          used.id,
+          named.id,
+          voiced.id,
+        });
+        expect(deleted, [unused.id]);
+        expect(await speakers.get(used.id), isNotNull);
+        expect(await speakers.get(named.id), isNotNull);
+        expect(await speakers.get(voiced.id), isNotNull);
+      },
+    );
+
+    group('recordings stored by file name', () {
+      late PostProcessor withPaths;
+      late String recDir;
+      setUp(() async {
+        final docs = await Directory('${tmp.path}/docs').create();
+        final paths = AppPaths(
+          documentsDir: () async => docs,
+          supportDir: () async => docs,
+          isWindows: false,
+        );
+        recDir = await paths.recordingsDir();
+        withPaths = PostProcessor(
+          db: db,
+          meetings: meetings,
+          segments: segments,
+          speakers: speakers,
+          settings: settings,
+          enginesFactory: engines,
+          paths: paths,
+        );
+      });
+
+      test('reprocess finds the file in the current recordings dir', () async {
+        engines.segmenterBuilder = RunSegmenter.new;
+        await writeWav([(0, 2000)], path: '$recDir/${meeting.id}.wav');
+        // A stale absolute path from an older iOS data container.
+        await meetings.setAudioPath(
+          meeting.id,
+          '/var/mobile/Containers/Data/Application/OLD/Documents/'
+          'recordings/${meeting.id}.wav',
+        );
+        final r = await withPaths.reprocessFromAudio(meeting.id);
+        expect(r.segments, 1);
+      });
+
+      test('deleteMeeting deletes the recording', () async {
+        final file = '$recDir/${meeting.id}.wav';
+        await writeWav([(0, 1000)], path: file);
+        await meetings.setAudioPath(meeting.id, recordingFileName(meeting.id));
+        expect(await withPaths.deleteMeeting(meeting.id), isTrue);
+        expect(File(file).existsSync(), isFalse);
+      });
+
+      test('recovery repairs the recording found by name', () async {
+        final file = '$recDir/${meeting.id}.wav';
+        await writeWav([(0, 4000)], path: file);
+        await meetings.setAudioPath(meeting.id, recordingFileName(meeting.id));
+        expect(await withPaths.recoverInterruptedMeetings(), 1);
+        final m = (await meetings.get(meeting.id))!;
+        expect(m.durationMs, 4000);
+        expect(m.errorMessage, contains('إعادة معالجته من التسجيل الصوتي'));
+      });
     });
   });
 

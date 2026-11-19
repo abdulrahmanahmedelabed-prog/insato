@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -354,6 +355,207 @@ void main() {
     await speak([0]);
     await c.stop();
     expect((await MeetingRepository(db).get(id))!.audioPath, isNull);
+  });
+
+  group('review fixes', () {
+    test(
+      'a failure after the engines loaded does not hang start (session-1)',
+      () async {
+        await consent();
+        // recordingsDir() fails: start() throws before it listens to the
+        // segmenter, whose single-subscription stream never closes.
+        documentsError = const FileSystemException('disk gone');
+        await expectLater(
+          controller().start().timeout(const Duration(seconds: 15)),
+          throwsA(isA<InsatoException>()),
+        );
+        expect(state().phase, SessionPhase.error);
+        expect(state().isActive, isFalse);
+        expect(engines.lastSegmenter!.disposed, isTrue);
+        // The processor was released after the segmenter.
+        expect(engines.asr.disposed, isTrue);
+        expect(await MeetingRepository(db).getAll(), isEmpty);
+      },
+    );
+
+    test('refinement failure still learns voiceprints (session-3)', () async {
+      await consent();
+      refinementRunner = (_) async => throw StateError('isolate died');
+      final c = controller();
+      final id = await c.start();
+      await speak([0, 0, 1, 1]);
+      await c.stop();
+      expect(state().phase, SessionPhase.idle);
+      expect(state().warningAr, contains('أُبقيت التسميات الأولية'));
+      final all = await SpeakerRepository(db).getAll();
+      expect(all, hasLength(2));
+      // Both voices have 4 s of speech: they must be recognisable next time.
+      expect(all.every((s) => s.centroid != null), isTrue);
+      expect(all.every((s) => s.embeddingCount == 2), isTrue);
+      expect(await SegmentRepository(db).getForMeeting(id), hasLength(4));
+    });
+
+    test('a live backlog over the cap pauses live transcription and the '
+        'meeting is completed from the archive (session-4)', () async {
+      await consent();
+      backlogLimitMs = 3000;
+      audio.writeWavOnStop = true;
+      // Live: one segment per chunk; re-processing: split the WAV by voice.
+      engines.segmenterBuilder = () =>
+          engines.created == 1 ? FakeSegmenter() : RunSegmenter();
+      final gate = engines.asr.gate = Completer<void>();
+      final c = controller();
+      final id = await c.start();
+      for (final v in [0, null, 1, null, 0]) {
+        audio.emit(voiceSamples(v, 2000));
+      }
+      await waitUntil(() => state().liveTranscriptionPaused);
+      expect(state().warningAr, contains('أُوقف التفريغ المباشر'));
+      // Only 4.5 s of audio entered the queue, not 10 s.
+      expect(state().pendingAudioMs, lessThanOrEqualTo(4000));
+      gate.complete();
+      engines.asr.gate = null;
+      await c.stop();
+      expect(state().warningAr, contains('يُعاد الآن تفريغ الاجتماع'));
+      await waitUntil(
+        () =>
+            container.read(meetingJobsProvider(id)).kind ==
+                MeetingJobKind.minutes &&
+            container.read(meetingJobsProvider(id)).phase ==
+                MeetingJobPhase.succeeded,
+      );
+      final segs = await SegmentRepository(db).getForMeeting(id);
+      expect(segs.map((s) => s.text), ['كلام 0', 'كلام 1', 'كلام 2']);
+      expect(
+        (await MeetingRepository(db).get(id))!.status,
+        MeetingStatus.ready,
+      );
+    });
+
+    test('an overflowed meeting whose re-processing fails is marked '
+        'incomplete', () async {
+      await consent();
+      backlogLimitMs = 1000; // the archive stays an empty (corrupt) file
+      final gate = engines.asr.gate = Completer<void>();
+      final c = controller();
+      final id = await c.start();
+      audio.emit(voiceSamples(0, 2000));
+      audio.emit(voiceSamples(1, 2000));
+      await waitUntil(() => state().liveTranscriptionPaused);
+      gate.complete();
+      await c.stop();
+      final meetings = MeetingRepository(db);
+      final sw = Stopwatch()..start();
+      while ((await meetings.get(id))!.errorMessage !=
+          kIncompleteTranscriptAr) {
+        if (sw.elapsed > const Duration(seconds: 10)) fail('not marked');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect((await meetings.get(id))!.status, MeetingStatus.failed);
+      expect(
+        container.read(meetingJobsProvider(id)).kind,
+        MeetingJobKind.reprocess,
+      );
+      // The live part of the transcript is kept.
+      expect(await SegmentRepository(db).getForMeeting(id), hasLength(1));
+    });
+
+    test('finishLater skips the remaining transcription (session-4)', () async {
+      await consent();
+      final gate = engines.asr.gate = Completer<void>();
+      final c = controller();
+      final id = await c.start();
+      audio.emit(voiceSamples(0, 2000));
+      audio.emit(voiceSamples(1, 2000));
+      await waitUntil(() => state().pendingProcessing == 2);
+      expect(c.canFinishLater, isFalse); // not stopping yet
+      final stopping = c.stop();
+      await waitUntil(() => c.canFinishLater);
+      expect(c.finishLater(), isTrue);
+      expect(await stopping.timeout(const Duration(seconds: 5)), id);
+      expect(state().phase, SessionPhase.idle);
+      expect(state().lastMeetingId, id);
+      expect(state().warningAr, contains('دون إكمال التفريغ'));
+      final m = (await MeetingRepository(db).get(id))!;
+      expect(m.status, MeetingStatus.failed);
+      expect(m.errorMessage, kIncompleteTranscriptAr);
+      expect(m.audioPath, '$id.wav');
+      // No automatic minutes on an incomplete transcript.
+      expect(
+        container.read(meetingJobsProvider(id)).phase,
+        MeetingJobPhase.idle,
+      );
+      expect(hooks.stopped, 1);
+      gate.complete();
+    });
+
+    test(
+      'discard during an automatic stop keeps the meeting (session-5)',
+      () async {
+        await consent();
+        final c = controller();
+        final id = await c.start();
+        await speak([0]);
+        final gate = engines.asr.gate = Completer<void>();
+        audio.emit(voiceSamples(1, 2000));
+        await waitUntil(() => state().pendingProcessing == 1);
+        expect(c.canDiscard, isTrue);
+        // The platform ends the take while the discard dialog is open.
+        audio.endBySystem();
+        await waitUntil(() => state().phase == SessionPhase.finishing);
+        expect(c.canDiscard, isFalse);
+        final discarding = c.cancel();
+        gate.complete();
+        expect(await discarding, isFalse);
+        expect(state().phase, SessionPhase.idle);
+        expect(state().lastMeetingId, id);
+        expect(await MeetingRepository(db).get(id), isNotNull);
+        expect(await SegmentRepository(db).getForMeeting(id), hasLength(2));
+        expect(hooks.stopped, 1);
+      },
+    );
+
+    test('discard keeps a speaker the user merged an older voice into '
+        '(session-6)', () async {
+      await consent();
+      final speakers = SpeakerRepository(db);
+      final meetings = MeetingRepository(db);
+      // An older unnamed speaker with a voiceprint and a segment elsewhere.
+      final older = await meetings.create(title: 'قديم');
+      final old = await speakers.create(
+        centroid: voiceOf(5),
+        embeddingCount: 12,
+      );
+      await SegmentRepository(db).insert(
+        TranscriptSegment(
+          id: '',
+          meetingId: older.id,
+          index: 0,
+          startMs: 0,
+          endMs: 2000,
+          text: 'قديم',
+          speakerId: old.id,
+        ),
+      );
+      final c = controller();
+      final id = await c.start();
+      await speak([0]);
+      final live = (await SegmentRepository(db).getForMeeting(id))
+          .single
+          .speakerId!;
+      expect(live, isNot(old.id));
+      // During the recording the user merges the older speaker into the
+      // live one, then discards the recording.
+      await container.read(postProcessorProvider).mergeSpeakers(old.id, live);
+      expect(await c.cancel(), isTrue);
+      final kept = await speakers.get(live);
+      expect(kept, isNotNull);
+      expect(kept!.embeddingCount, 12);
+      expect(
+        (await SegmentRepository(db).getForMeeting(older.id)).single.speakerId,
+        live,
+      );
+    });
   });
 
   group('MeetingJobsController', () {

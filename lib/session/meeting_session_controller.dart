@@ -1549,9 +1549,8 @@ class MeetingSessionController extends Notifier<SessionState> {
         await _deleteArchive(session?.archivePath);
         if (session != null) {
           await _safe(
-            () => post.deleteOrphanSpeakers(
-              session!.pipeline.createdSpeakerIds,
-            ),
+            () =>
+                post.deleteOrphanSpeakers(session!.pipeline.createdSpeakerIds),
           );
         }
       }
@@ -1609,7 +1608,8 @@ class MeetingSessionController extends Notifier<SessionState> {
   /// Every queued segment holds its audio in memory until it is processed.
   /// When the queue exceeds [_ActiveSession.backlogLimitMs] of audio (a slow
   /// model on a slow device over a long meeting), live submission pauses
-  /// until the backlog halves; the speech is still in the WAV archive, and
+  /// until the backlog halves (an idle queue always takes the next segment,
+  /// however long); the speech is still in the WAV archive, and
   /// the meeting is re-processed from it after stopping. Without an archive
   /// nothing could recover the speech, so every segment is queued.
   void _onSegment(_ActiveSession s, SpeechSegment segment) {
@@ -1625,7 +1625,7 @@ class MeetingSessionController extends Notifier<SessionState> {
         if (identical(_active, s)) {
           _set(state.copyWith(liveTranscriptionPaused: false));
         }
-      } else if (pending + segment.durationMs > limit) {
+      } else if (pending > 0 && pending + segment.durationMs > limit) {
         s.liveSuspended = true;
         s.overflowed = true;
         s.droppedSegments++;

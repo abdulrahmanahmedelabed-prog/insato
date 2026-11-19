@@ -13,6 +13,7 @@ import 'package:insato/speech/model_catalog.dart';
 import 'package:insato/speech/processing_isolate.dart';
 import 'package:insato/session/meeting_session_controller.dart';
 import 'package:insato/session/post_processor.dart';
+import 'package:insato/session/providers.dart';
 
 import 'fakes.dart';
 
@@ -412,6 +413,145 @@ void main() {
       final after = await proc.process(speech(2, 6000, 2000, 0));
       expect(after.asr.text, 'كلام 2');
       await proc.dispose();
+    });
+  });
+
+  group('review fixes', () {
+    test(
+      'disposeSegmenterSafely returns for an unlistened segmenter',
+      () async {
+        // close() on a single-subscription stream nobody listened to never
+        // completes; disposal must not hang on it.
+        final seg = FakeSegmenter();
+        await disposeSegmenterSafely(
+          seg,
+          timeout: const Duration(milliseconds: 50),
+        ).timeout(const Duration(seconds: 2));
+        expect(seg.disposed, isTrue);
+      },
+    );
+
+    test(
+      'SessionEngines.dispose releases everything without a listener',
+      () async {
+        final seg = FakeSegmenter();
+        final asr = FakeAsr();
+        var extra = false;
+        final engines = SessionEngines(
+          segmenter: seg,
+          processor: InlineSegmentProcessor(asr: asr, embedder: FakeEmbedder()),
+          description: 'x',
+          onDispose: () async => extra = true,
+        );
+        await engines.dispose().timeout(const Duration(seconds: 10));
+        expect(seg.disposed, isTrue);
+        expect(asr.disposed, isTrue);
+        expect(extra, isTrue);
+      },
+    );
+
+    test('maxToleratedReprocessFailures', () {
+      expect(maxToleratedReprocessFailures(0), 2);
+      expect(maxToleratedReprocessFailures(10), 2);
+      expect(maxToleratedReprocessFailures(100), 5);
+      expect(maxToleratedReprocessFailures(101), 6);
+    });
+
+    group('AppPaths', () {
+      late Directory root;
+      late Directory docs;
+      late Directory local;
+      setUp(() async {
+        root = await Directory.systemTemp.createTemp('insato_paths_');
+        docs = await Directory('${root.path}/Documents').create();
+        local = await Directory('${root.path}/LocalAppData/Insato')
+            .create(recursive: true);
+      });
+      tearDown(() => root.delete(recursive: true));
+
+      AppPaths paths({required bool windows}) => AppPaths(
+        documentsDir: () async => docs,
+        supportDir: () async => root,
+        localDataDir: () async => local,
+        isWindows: windows,
+      );
+
+      test('mobile keeps data in the private documents directory', () async {
+        final pp = paths(windows: false);
+        expect(await pp.recordingsDir(), '${docs.path}/recordings');
+        expect(await pp.exportsDir(), '${docs.path}/exports');
+        expect(await pp.databaseDir(), docs.path);
+      });
+
+      test('Windows keeps data out of Documents', () async {
+        final pp = paths(windows: true);
+        expect(await pp.recordingsDir(), '${local.path}/recordings');
+        expect(await pp.exportsDir(), '${local.path}/exports');
+        expect(await pp.databaseDir(), '${local.path}/data');
+      });
+
+      test('Windows migration moves only Insato files', () async {
+        const id = '3c1c8728-6e38-40b0-b899-f2ee38a61eb7';
+        File('${docs.path}/insato.sqlite').writeAsStringSync('db');
+        File('${docs.path}/insato.sqlite-wal').writeAsStringSync('wal');
+        await Directory('${docs.path}/recordings').create();
+        File('${docs.path}/recordings/$id.wav').writeAsStringSync('wav');
+        File('${docs.path}/recordings/holiday.wav').writeAsStringSync('x');
+        File('${docs.path}/other.sqlite').writeAsStringSync('y');
+
+        final pp = paths(windows: true);
+        await pp.migrateLegacyWindowsData();
+        expect(
+          File('${local.path}/data/insato.sqlite').readAsStringSync(),
+          'db',
+        );
+        expect(
+          File('${local.path}/data/insato.sqlite-wal').existsSync(),
+          isTrue,
+        );
+        expect(File('${docs.path}/insato.sqlite').existsSync(), isFalse);
+        expect(File('${local.path}/recordings/$id.wav').existsSync(), isTrue);
+        expect(File('${docs.path}/recordings/$id.wav').existsSync(), isFalse);
+        // Someone else's files stay where they are.
+        expect(
+          File('${docs.path}/recordings/holiday.wav').existsSync(),
+          isTrue,
+        );
+        expect(File('${docs.path}/other.sqlite').existsSync(), isTrue);
+
+        // Idempotent; never overwrites the migrated database.
+        File('${docs.path}/insato.sqlite').writeAsStringSync('stale');
+        await pp.migrateLegacyWindowsData();
+        expect(
+          File('${local.path}/data/insato.sqlite').readAsStringSync(),
+          'db',
+        );
+      });
+
+      test('migration is a no-op off Windows', () async {
+        File('${docs.path}/insato.sqlite').writeAsStringSync('db');
+        await paths(windows: false).migrateLegacyWindowsData();
+        expect(File('${docs.path}/insato.sqlite').existsSync(), isTrue);
+      });
+
+      test('resolveRecording follows the file, not a stale path', () async {
+        const id = '3c1c8728-6e38-40b0-b899-f2ee38a61eb7';
+        final pp = paths(windows: false);
+        final dir = await pp.recordingsDir();
+        expect(recordingFileName(id), '$id.wav');
+        expect(await pp.resolveRecording('$id.wav'), '$dir/$id.wav');
+        // An absolute path of an old iOS container that no longer exists.
+        const stale =
+            '/var/mobile/Containers/Data/Application/OLD/Documents/'
+            'recordings/$id.wav';
+        expect(await pp.resolveRecording(stale), '$dir/$id.wav');
+        // An absolute path that still exists outside the recordings dir.
+        final elsewhere = File('${root.path}/$id.wav')..writeAsStringSync('w');
+        expect(await pp.resolveRecording(elsewhere.path), elsewhere.path);
+        // ...but the recordings dir wins once the file is there.
+        File('$dir/$id.wav').writeAsStringSync('w');
+        expect(await pp.resolveRecording(elsewhere.path), '$dir/$id.wav');
+      });
     });
   });
 }
