@@ -21,7 +21,8 @@ import 'repositories_v11.dart';
 /// Name key used to match a speaker name written by the minutes engine to a
 /// speaker: whitespace collapsed and trimmed (the engine is told to copy
 /// names verbatim).
-String speakerNameKey(String name) => name.replaceAll(RegExp(r'\s+'), ' ').trim();
+String speakerNameKey(String name) =>
+    name.replaceAll(RegExp(r'\s+'), ' ').trim();
 
 /// Resolves speaker names (as written in minutes) to speaker ids. Names that
 /// several speakers share are ambiguous and resolve to null.
@@ -64,16 +65,15 @@ List<CodeFinding> codeFindingsFromMinutes(
     String? speaker,
     List<int> evidence,
     Map<String, dynamic> payload,
-  ) =>
-      CodeFinding(
-        id: 0,
-        meetingId: meetingId,
-        kind: kind,
-        speakerId: names.id(speaker),
-        segmentIds: evidence,
-        payload: payload,
-        createdAt: at,
-      );
+  ) => CodeFinding(
+    id: 0,
+    meetingId: meetingId,
+    kind: kind,
+    speakerId: names.id(speaker),
+    segmentIds: evidence,
+    payload: payload,
+    createdAt: at,
+  );
   return [
     for (final c in codes.codedSpeech)
       f(CodeFindingKind.speechCoded, c.speaker, c.evidence, c.toJson()),
@@ -195,10 +195,10 @@ class MinutesArtifactsReport {
 class MinutesArtifactsWriter {
   /// Creates the writer over [_db].
   MinutesArtifactsWriter(this._db)
-      : _tasks = TaskRepository(_db),
-        _pending = PendingTaskUpdateRepository(_db),
-        _notes = SpeakerMeetingNotesRepository(_db),
-        _codes = CodeFindingRepository(_db);
+    : _tasks = TaskRepository(_db),
+      _pending = PendingTaskUpdateRepository(_db),
+      _notes = SpeakerMeetingNotesRepository(_db),
+      _codes = CodeFindingRepository(_db);
 
   final AppDatabase _db;
   final TaskRepository _tasks;
@@ -272,4 +272,5 @@ class MinutesArtifactsWriter {
 
 /// [MinutesArtifactsWriter] over [databaseProvider].
 final minutesArtifactsWriterProvider = Provider<MinutesArtifactsWriter>(
-    (ref) => MinutesArtifactsWriter(ref.watch(databaseProvider)));
+  (ref) => MinutesArtifactsWriter(ref.watch(databaseProvider)),
+);

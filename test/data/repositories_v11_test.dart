@@ -12,22 +12,21 @@ Minutes minutesWith({
   List<MinutesTaskUpdate> taskUpdates = const [],
   List<MinutesSpeakerNote> speakerNotes = const [],
   MinutesCodes codes = MinutesCodes.empty,
-}) =>
-    Minutes(
-      title: 'ت',
-      summary: 'م',
-      attendees: const [],
-      topics: const [],
-      decisions: const [],
-      actionItems: actionItems,
-      openQuestions: const [],
-      languagesDetected: const [],
-      generatedAt: DateTime.utc(2026, 11, 19),
-      model: 'gemini-flash-latest',
-      taskUpdates: taskUpdates,
-      speakerNotes: speakerNotes,
-      codes: codes,
-    );
+}) => Minutes(
+  title: 'ت',
+  summary: 'م',
+  attendees: const [],
+  topics: const [],
+  decisions: const [],
+  actionItems: actionItems,
+  openQuestions: const [],
+  languagesDetected: const [],
+  generatedAt: DateTime.utc(2026, 11, 19),
+  model: 'gemini-flash-latest',
+  taskUpdates: taskUpdates,
+  speakerNotes: speakerNotes,
+  codes: codes,
+);
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -92,13 +91,15 @@ void main() {
       final repo = GlossaryRepository(db);
       final t = await repo.add(term: 'API');
       expect(
-        await repo.update(GlossaryTerm(
-          id: t.id,
-          term: 'API',
-          arSpelling: 'واجهة برمجة التطبيقات',
-          category: GlossaryCategory.technical,
-          createdAt: t.createdAt,
-        )),
+        await repo.update(
+          GlossaryTerm(
+            id: t.id,
+            term: 'API',
+            arSpelling: 'واجهة برمجة التطبيقات',
+            category: GlossaryCategory.technical,
+            createdAt: t.createdAt,
+          ),
+        ),
         isTrue,
       );
       final g = (await repo.getGlobal()).single;
@@ -133,24 +134,33 @@ void main() {
       expect(await tasks.getOpen(), hasLength(1));
       expect(await tasks.getAll(sourceMeetingId: m2.id), isEmpty);
 
-      final proposed = await pending.replaceForMeeting(m2.id, const [
-        MinutesTaskUpdate(
-          taskId: 0 + 1,
-          newStatus: TaskStatus.done,
-          note: 'أُرسل',
-          evidence: [7],
-        ),
-      ].map((u) => MinutesTaskUpdate(
-            taskId: t.id,
-            newStatus: u.newStatus,
-            note: u.note,
-            evidence: u.evidence,
-          )).toList());
+      final proposed = await pending.replaceForMeeting(
+        m2.id,
+        const [
+              MinutesTaskUpdate(
+                taskId: 0 + 1,
+                newStatus: TaskStatus.done,
+                note: 'أُرسل',
+                evidence: [7],
+              ),
+            ]
+            .map(
+              (u) => MinutesTaskUpdate(
+                taskId: t.id,
+                newStatus: u.newStatus,
+                note: u.note,
+                evidence: u.evidence,
+              ),
+            )
+            .toList(),
+      );
       expect(proposed.single.evidenceSegmentIds, [7]);
       expect(await pending.getAll(meetingId: m2.id), hasLength(1));
 
-      final done = await pending.confirm(proposed.single.id,
-          now: DateTime(2026, 2, 1));
+      final done = await pending.confirm(
+        proposed.single.id,
+        now: DateTime(2026, 2, 1),
+      );
       expect(done!.status, TaskStatus.done);
       expect(done.updatedAt, DateTime(2026, 2, 1));
       expect(await pending.getAll(), isEmpty);
@@ -188,12 +198,14 @@ void main() {
       final m = await meetings.create(title: 'm');
       final sp = await speakers.create(name: 'سارة', isNamedByUser: true);
 
-      await profiles.upsert(SpeakerProfileRecord(
-        speakerId: sp.id,
-        profile: const {'summary': 'ملخص'},
-        evidence: [EvidenceRef(meetingId: m.id, segmentIndex: 3)],
-        updatedAt: DateTime(2026, 3, 1),
-      ));
+      await profiles.upsert(
+        SpeakerProfileRecord(
+          speakerId: sp.id,
+          profile: const {'summary': 'ملخص'},
+          evidence: [EvidenceRef(meetingId: m.id, segmentIndex: 3)],
+          updatedAt: DateTime(2026, 3, 1),
+        ),
+      );
       final p = (await profiles.get(sp.id))!;
       expect(p.profile['summary'], 'ملخص');
       expect(p.evidence.single.segmentIndex, 3);
@@ -220,8 +232,12 @@ void main() {
       expect(f.kind, CodeFindingKind.reference);
       expect(f.segmentIds, [1, 4]);
       expect(await codes.updatePayload(f.id, {'verbatim': 'X'}), isTrue);
-      expect((await codes.getByKind(CodeFindingKind.reference))
-          .single.payload['verbatim'], 'X');
+      expect(
+        (await codes.getByKind(CodeFindingKind.reference))
+            .single
+            .payload['verbatim'],
+        'X',
+      );
 
       await speakers.delete(sp.id);
       expect(await profiles.get(sp.id), isNull);
@@ -302,11 +318,14 @@ void main() {
       expect(notes.keys, ['a']);
 
       expect(
-        validTaskUpdates(const [
-          MinutesTaskUpdate(taskId: 1, newStatus: TaskStatus.done),
-          MinutesTaskUpdate(taskId: 1, newStatus: TaskStatus.open),
-          MinutesTaskUpdate(taskId: 9, newStatus: TaskStatus.done),
-        ], {1, 2}).map((u) => (u.taskId, u.newStatus)),
+        validTaskUpdates(
+          const [
+            MinutesTaskUpdate(taskId: 1, newStatus: TaskStatus.done),
+            MinutesTaskUpdate(taskId: 1, newStatus: TaskStatus.open),
+            MinutesTaskUpdate(taskId: 9, newStatus: TaskStatus.done),
+          ],
+          {1, 2},
+        ).map((u) => (u.taskId, u.newStatus)),
         [(1, TaskStatus.done)],
       );
 
@@ -348,15 +367,18 @@ void main() {
 
     test('planTaskSync keeps edited tasks and drops stale untouched ones', () {
       final t0 = DateTime(2026);
-      TrackedTask task(int id, String text,
-              {TaskStatus status = TaskStatus.open, DateTime? updated}) =>
-          TrackedTask(
-            id: id,
-            task: text,
-            status: status,
-            createdAt: t0,
-            updatedAt: updated ?? t0,
-          );
+      TrackedTask task(
+        int id,
+        String text, {
+        TaskStatus status = TaskStatus.open,
+        DateTime? updated,
+      }) => TrackedTask(
+        id: id,
+        task: text,
+        status: status,
+        createdAt: t0,
+        updatedAt: updated ?? t0,
+      );
       final plan = planTaskSync(
         [
           task(1, 'Send  report'),
@@ -430,10 +452,12 @@ void main() {
       // added, no updates / notes / codes any more.
       final second = await writer.persist(
         meetingId: m.id,
-        minutes: minutesWith(actionItems: const [
-          ActionItem(task: 'إرسال  التقرير'),
-          ActionItem(task: 'حجز القاعة'),
-        ]),
+        minutes: minutesWith(
+          actionItems: const [
+            ActionItem(task: 'إرسال  التقرير'),
+            ActionItem(task: 'حجز القاعة'),
+          ],
+        ),
         speakersById: byId,
         openTaskIds: {earlier.id},
       );
@@ -441,8 +465,10 @@ void main() {
       expect(second.tasksDeleted, 0);
       expect(await tasks.getAll(sourceMeetingId: m.id), hasLength(2));
       expect(await PendingTaskUpdateRepository(db).getAll(), isEmpty);
-      expect(await SpeakerMeetingNotesRepository(db).getForMeeting(m.id),
-          isEmpty);
+      expect(
+        await SpeakerMeetingNotesRepository(db).getForMeeting(m.id),
+        isEmpty,
+      );
       expect(await CodeFindingRepository(db).getForMeeting(m.id), isEmpty);
     });
   });

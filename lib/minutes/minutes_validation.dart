@@ -43,8 +43,10 @@ String _key(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
 /// Returns [m] with the constraints of [c] enforced (see the file comment).
 Minutes sanitizeMinutes(Minutes m, MinutesConstraints c) {
-  List<int> ev(List<int> ids) =>
-      [for (final i in ids) if (c.segmentIds.contains(i)) i];
+  List<int> ev(List<int> ids) => [
+    for (final i in ids)
+      if (c.segmentIds.contains(i)) i,
+  ];
 
   final codes = m.codes;
   return m.copyWith(
@@ -216,20 +218,24 @@ List<MinutesAgendaItem> alignAgendaCoverage(
       match = i;
     }
     if (match < 0) {
-      out.add(MinutesAgendaItem(
-        item: agenda[i],
-        status: AgendaItemStatus.notDiscussed,
-      ));
+      out.add(
+        MinutesAgendaItem(
+          item: agenda[i],
+          status: AgendaItemStatus.notDiscussed,
+        ),
+      );
       continue;
     }
     used.add(match);
     final c = coverage[match];
-    out.add(MinutesAgendaItem(
-      item: agenda[i],
-      status: c.status,
-      note: c.note,
-      evidence: c.evidence,
-    ));
+    out.add(
+      MinutesAgendaItem(
+        item: agenda[i],
+        status: c.status,
+        note: c.note,
+        evidence: c.evidence,
+      ),
+    );
   }
   return out;
 }

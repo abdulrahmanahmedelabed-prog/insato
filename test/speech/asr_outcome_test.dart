@@ -98,7 +98,9 @@ void main() {
         hasLength(kMaxDeepgramKeyterms),
       );
       expect(
-        CloudAsrEngine(apiKeyProvider: () => 'k').buildUri().queryParameters
+        CloudAsrEngine(apiKeyProvider: () => 'k')
+            .buildUri()
+            .queryParameters
             .containsKey('keyterm'),
         isFalse,
       );

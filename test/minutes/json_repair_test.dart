@@ -17,7 +17,9 @@ void main() {
 
   test('trailing commas, comments and raw newlines', () {
     expect(
-      decodeJsonObjectTolerant('{"a": [1, 2,], // note\n "b": "x\ny", /* c */}'),
+      decodeJsonObjectTolerant(
+        '{"a": [1, 2,], // note\n "b": "x\ny", /* c */}',
+      ),
       {
         'a': [1, 2],
         'b': 'x\ny',

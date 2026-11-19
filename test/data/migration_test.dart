@@ -28,7 +28,11 @@ void seedV1(dynamic raw) {
     'summary': 'ملخص',
     'attendees': ['أحمد'],
     'topics': [
-      {'title': 'بند', 'discussion': 'نقاش', 'speakers': ['أحمد']},
+      {
+        'title': 'بند',
+        'discussion': 'نقاش',
+        'speakers': ['أحمد'],
+      },
     ],
     'decisions': [
       {'text': 'قرار', 'proposed_by': 'أحمد'},
@@ -46,8 +50,13 @@ void seedV1(dynamic raw) {
   raw.execute(
     'INSERT INTO speakers (id, name, color, is_named_by_user, created_at, '
     'centroid, embedding_count) VALUES (?, ?, ?, 1, ?, ?, 3)',
-    ['sp1', 'أحمد', 0xFF1565C0, 1700000000000, float32ToBlob(
-        Float32List.fromList([0.6, 0.8]))],
+    [
+      'sp1',
+      'أحمد',
+      0xFF1565C0,
+      1700000000000,
+      float32ToBlob(Float32List.fromList([0.6, 0.8])),
+    ],
   );
   raw.execute(
     'INSERT INTO meetings (id, title, created_at, duration_ms, status, '
@@ -125,16 +134,11 @@ void main() {
 
     // The new tables exist, are empty and usable with foreign keys on.
     expect(await GlossaryRepository(db).getGlobal(), isEmpty);
-    final task = await TaskRepository(db).create(
-      task: 'متابعة',
-      ownerSpeakerId: 'sp1',
-      sourceMeetingId: 'm1',
-    );
+    final task = await TaskRepository(db)
+        .create(task: 'متابعة', ownerSpeakerId: 'sp1', sourceMeetingId: 'm1');
     expect((await TaskRepository(db).get(task.id))!.ownerSpeakerId, 'sp1');
-    await MeetingRepository(db).updateContext(
-      'm1',
-      const MeetingContext(agenda: ['بند 1']),
-    );
+    await MeetingRepository(db)
+        .updateContext('m1', const MeetingContext(agenda: ['بند 1']));
     expect((await MeetingRepository(db).get('m1'))!.context.agenda, ['بند 1']);
   });
 
@@ -157,8 +161,10 @@ void main() {
     final segs = await SegmentRepository(db).getForMeeting('m1');
     expect(segs, hasLength(2));
     expect(segs.first.kind, SegmentKind.speech);
-    expect((await MeetingRepository(db).get('m1'))!.minutes!.title,
-        'اجتماع قديم');
+    expect(
+      (await MeetingRepository(db).get('m1'))!.minutes!.title,
+      'اجتماع قديم',
+    );
   });
 }
 

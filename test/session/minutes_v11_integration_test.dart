@@ -80,10 +80,8 @@ void main() {
       ]);
       await GlossaryRepository(db).add(term: 'Insato');
       await GlossaryRepository(db).add(term: 'KPI', meetingId: m.id);
-      final old = await TaskRepository(db).create(
-        task: 'تجهيز العرض',
-        sourceMeetingId: earlier.id,
-      );
+      final old = await TaskRepository(db)
+          .create(task: 'تجهيز العرض', sourceMeetingId: earlier.id);
       engine.result = Minutes(
         title: 'محضر',
         summary: 'ملخص',
@@ -140,8 +138,10 @@ void main() {
       // The tasks of this meeting are not given back as "open tasks".
       await post.regenerateMinutes(m.id);
       expect(engine.lastInputs.openTasks.map((t) => t.id), [old.id]);
-      expect(await TaskRepository(db).getAll(sourceMeetingId: m.id),
-          hasLength(1));
+      expect(
+        await TaskRepository(db).getAll(sourceMeetingId: m.id),
+        hasLength(1),
+      );
     });
 
     test('an engine that is not ready is reported with its reason', () async {
@@ -149,14 +149,16 @@ void main() {
         title: 'm',
         status: MeetingStatus.processing,
       );
-      await SegmentRepository(db).insert(TranscriptSegment(
-        id: '',
-        meetingId: m.id,
-        index: 0,
-        startMs: 0,
-        endMs: 1000,
-        text: 'نص',
-      ));
+      await SegmentRepository(db).insert(
+        TranscriptSegment(
+          id: '',
+          meetingId: m.id,
+          index: 0,
+          startMs: 0,
+          endMs: 1000,
+          text: 'نص',
+        ),
+      );
       factoryError = const MinutesEngineNotReadyException(
         'وافق على تنبيه الخصوصية',
         reason: MinutesEngineNotReadyReason.privacyNotAcknowledged,
@@ -179,7 +181,8 @@ void main() {
 
     setUp(() => secure = FakeSecureSettings());
 
-    Future<Object> fails(AppSettingsData s, {
+    Future<Object> fails(
+      AppSettingsData s, {
       LocalMinutesBackendBuilder? local,
     }) async {
       try {
@@ -203,7 +206,10 @@ void main() {
 
       secure.gemini = 'AIza-1';
       final noNotice = await fails(s) as MinutesEngineNotReadyException;
-      expect(noNotice.reason, MinutesEngineNotReadyReason.privacyNotAcknowledged);
+      expect(
+        noNotice.reason,
+        MinutesEngineNotReadyReason.privacyNotAcknowledged,
+      );
 
       final b = await createMinutesBackend(
         settings: s.copyWith(

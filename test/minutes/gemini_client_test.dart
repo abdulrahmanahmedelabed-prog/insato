@@ -196,7 +196,8 @@ void main() {
 
     test('non-streaming mode uses generateContent', () async {
       final s = Server([
-        (_) => jsonResponse(chunk('{"ok": false, "note": "x"}', finish: 'STOP')),
+        (_) =>
+            jsonResponse(chunk('{"ok": false, "note": "x"}', finish: 'STOP')),
       ]);
       final c = GeminiClient(
         apiKey: 'k',
@@ -261,17 +262,17 @@ void main() {
       final third = s.requests[2].json;
       final config = third['generationConfig'] as Map;
       expect(config.keys, ['responseMimeType']);
-      final sys = ((third['systemInstruction'] as Map)['parts'] as List)
-          .single['text'] as String;
+      final sys =
+          ((third['systemInstruction'] as Map)['parts'] as List).single['text']
+              as String;
       expect(sys, startsWith('SYS'));
       expect(sys, contains('"additionalProperties":false'));
 
       // The working dialect is remembered.
       await c.generateStructured(system: 'S', user: 'u', schema: schema);
-      expect(
-        (s.requests[3].json['generationConfig'] as Map).keys,
-        ['responseMimeType'],
-      );
+      expect((s.requests[3].json['generationConfig'] as Map).keys, [
+        'responseMimeType',
+      ]);
     });
 
     test('every dialect rejected → Arabic error', () async {
@@ -311,36 +312,39 @@ void main() {
   });
 
   group('errors', () {
-    test('invalid key (400 API_KEY_INVALID) → MissingApiKeyException', () async {
-      final s = Server([
-        (_) => jsonResponse(
-          googleError(
-            400,
-            'INVALID_ARGUMENT',
-            'API key not valid. Please pass a valid API key.',
-            details: [
-              {
-                '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
-                'reason': 'API_KEY_INVALID',
-                'domain': 'googleapis.com',
-              },
-            ],
+    test(
+      'invalid key (400 API_KEY_INVALID) → MissingApiKeyException',
+      () async {
+        final s = Server([
+          (_) => jsonResponse(
+            googleError(
+              400,
+              'INVALID_ARGUMENT',
+              'API key not valid. Please pass a valid API key.',
+              details: [
+                {
+                  '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+                  'reason': 'API_KEY_INVALID',
+                  'domain': 'googleapis.com',
+                },
+              ],
+            ),
+            status: 400,
           ),
-          status: 400,
-        ),
-      ]);
-      await expectLater(
-        client(s).generateStructured(system: 's', user: 'u', schema: schema),
-        throwsA(
-          isA<MissingApiKeyException>().having(
-            (e) => e.messageAr,
-            'messageAr',
-            contains('مفتاح Gemini'),
+        ]);
+        await expectLater(
+          client(s).generateStructured(system: 's', user: 'u', schema: schema),
+          throwsA(
+            isA<MissingApiKeyException>().having(
+              (e) => e.messageAr,
+              'messageAr',
+              contains('مفتاح Gemini'),
+            ),
           ),
-        ),
-      );
-      expect(s.requests, hasLength(1));
-    });
+        );
+        expect(s.requests, hasLength(1));
+      },
+    );
 
     test('403 → MissingApiKeyException', () async {
       final s = Server([
@@ -387,13 +391,16 @@ void main() {
         ),
       ]);
       await expectLater(
-        client(s, model: 'x').generateStructured(
-          system: 's',
-          user: 'u',
-          schema: schema,
-        ),
+        client(
+          s,
+          model: 'x',
+        ).generateStructured(system: 's', user: 'u', schema: schema),
         throwsA(
-          isA<GeminiModelNotFoundException>().having((e) => e.model, 'model', 'x'),
+          isA<GeminiModelNotFoundException>().having(
+            (e) => e.model,
+            'model',
+            'x',
+          ),
         ),
       );
     });
@@ -448,24 +455,26 @@ void main() {
       Future<Object?> run(http.StreamedResponse Function(Req) resp) async {
         final s = Server([resp]);
         try {
-          await client(s).generateStructured(
-            system: 's',
-            user: 'u',
-            schema: schema,
-          );
+          await client(s)
+              .generateStructured(system: 's', user: 'u', schema: schema);
           return null;
         } catch (e) {
           return e;
         }
       }
 
-      final maxTokens = await run((_) => sse([chunk('{"a', finish: 'MAX_TOKENS')]));
+      final maxTokens = await run(
+        (_) => sse([chunk('{"a', finish: 'MAX_TOKENS')]),
+      );
       expect(
         (maxTokens as MinutesGenerationException).messageAr,
         contains('الحد الأقصى'),
       );
       final safety = await run((_) => sse([chunk('', finish: 'SAFETY')]));
-      expect((safety as MinutesGenerationException).messageAr, contains('الأمان'));
+      expect(
+        (safety as MinutesGenerationException).messageAr,
+        contains('الأمان'),
+      );
       final recitation = await run(
         (_) => sse([chunk('{}', finish: 'RECITATION')]),
       );
@@ -488,29 +497,22 @@ void main() {
 
     test('an error object inside the stream is handled', () async {
       final s = Server([
-        (_) => sse([
-          googleError(500, 'INTERNAL', 'boom'),
-        ]),
+        (_) => sse([googleError(500, 'INTERNAL', 'boom')]),
         (_) => answer('{"ok": true, "note": null}'),
       ]);
-      final r = await client(s).generateStructured(
-        system: 's',
-        user: 'u',
-        schema: schema,
-      );
+      final r = await client(s)
+          .generateStructured(system: 's', user: 'u', schema: schema);
       expect(jsonDecode(r.text)['ok'], isTrue);
     });
 
     test('CONTINUATION is followed with the token', () async {
       final s = Server([
-        (_) => sse([chunk('{"ok": true,', finish: 'CONTINUATION', token: 'T1')]),
+        (_) =>
+            sse([chunk('{"ok": true,', finish: 'CONTINUATION', token: 'T1')]),
         (_) => sse([chunk(' "note": null}', finish: 'STOP')]),
       ]);
-      final r = await client(s).generateStructured(
-        system: 's',
-        user: 'u',
-        schema: schema,
-      );
+      final r = await client(s)
+          .generateStructured(system: 's', user: 'u', schema: schema);
       expect(jsonDecode(r.text), {'ok': true, 'note': null});
       expect(s.requests[1].json['continuationToken'], 'T1');
       expect(s.requests[0].json.containsKey('continuationToken'), isFalse);
@@ -518,31 +520,28 @@ void main() {
   });
 
   group('rate limits (never hammer)', () {
-    Map<String, dynamic> quota({
-      required String quotaId,
-      String? retryDelay,
-    }) => googleError(
-      429,
-      'RESOURCE_EXHAUSTED',
-      'You exceeded your current quota.',
-      details: [
-        {
-          '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
-          'violations': [
+    Map<String, dynamic> quota({required String quotaId, String? retryDelay}) =>
+        googleError(
+          429,
+          'RESOURCE_EXHAUSTED',
+          'You exceeded your current quota.',
+          details: [
             {
-              'quotaMetric':
-                  'generativelanguage.googleapis.com/generate_content_free_tier_requests',
-              'quotaId': quotaId,
+              '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+              'violations': [
+                {
+                  'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests',
+                  'quotaId': quotaId,
+                },
+              ],
             },
+            if (retryDelay != null)
+              {
+                '@type': 'type.googleapis.com/google.rpc.RetryInfo',
+                'retryDelay': retryDelay,
+              },
           ],
-        },
-        if (retryDelay != null)
-          {
-            '@type': 'type.googleapis.com/google.rpc.RetryInfo',
-            'retryDelay': retryDelay,
-          },
-      ],
-    );
+        );
 
     test('a short per-minute delay is waited out once', () async {
       final s = Server([
@@ -640,7 +639,8 @@ void main() {
         ),
         (_) => answer('{"ok": true, "note": null}'),
       ]);
-      await client(s).generateStructured(system: 's', user: 'u', schema: schema);
+      await client(s)
+          .generateStructured(system: 's', user: 'u', schema: schema);
       expect(waits.single.inSeconds, 7);
     });
 
@@ -681,7 +681,10 @@ void main() {
         }),
       ]);
       final models = await client(s).listModels();
-      expect(models.map((m) => m.id), ['gemini-2.5-flash', 'text-embedding-004']);
+      expect(models.map((m) => m.id), [
+        'gemini-2.5-flash',
+        'text-embedding-004',
+      ]);
       expect(models.first.canGenerate, isTrue);
       expect(models.first.outputTokenLimit, 65536);
       expect(models.last.canGenerate, isFalse);
@@ -717,7 +720,10 @@ void main() {
         'gemini-3-flash',
       );
       expect(
-        pickPreferredGeminiModel([m('gemini-2.5-flash-001'), m('gemini-2.5-flash')]),
+        pickPreferredGeminiModel([
+          m('gemini-2.5-flash-001'),
+          m('gemini-2.5-flash'),
+        ]),
         'gemini-2.5-flash',
       );
       expect(pickPreferredGeminiModel([m('gemini-2.5-pro')]), isNull);
@@ -791,8 +797,9 @@ void main() {
         n++;
         if (n == 1) {
           return http.StreamedResponse(
-            const Stream<List<int>>.empty().asBroadcastStream()
-                .timeout(const Duration(milliseconds: 1)),
+            const Stream<List<int>>.empty().asBroadcastStream().timeout(
+              const Duration(milliseconds: 1),
+            ),
             200,
           );
         }
@@ -802,7 +809,11 @@ void main() {
       idleTimeout: const Duration(milliseconds: 50),
       delay: (d) async => waits.add(d),
     );
-    final r = await c.generateStructured(system: 's', user: 'u', schema: schema);
+    final r = await c.generateStructured(
+      system: 's',
+      user: 'u',
+      schema: schema,
+    );
     expect(jsonDecode(r.text)['ok'], isTrue);
     expect(n, 2);
   });

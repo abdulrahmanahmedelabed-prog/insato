@@ -741,7 +741,9 @@ String buildMinutesUserMessage({
     b
       ..writeln()
       ..writeln('<open_tasks>')
-      ..writeln('Open tasks from earlier meetings (report progress in task_updates):');
+      ..writeln(
+        'Open tasks from earlier meetings (report progress in task_updates):',
+      );
     for (final t in open) {
       final parts = <String>[
         'task_id=${t.id}',

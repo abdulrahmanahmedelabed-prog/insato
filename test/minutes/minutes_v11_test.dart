@@ -13,18 +13,22 @@ import 'package:insato/minutes/minutes_validation.dart';
 
 import 'fixtures.dart';
 
-TranscriptSegment unintelligible(int index, int start, int end,
-        {String text = '', String? speakerId = 'b'}) =>
-    TranscriptSegment(
-      id: 'u$index',
-      meetingId: 'm1',
-      index: index,
-      startMs: start,
-      endMs: end,
-      text: text,
-      speakerId: speakerId,
-      kind: SegmentKind.unintelligible,
-    );
+TranscriptSegment unintelligible(
+  int index,
+  int start,
+  int end, {
+  String text = '',
+  String? speakerId = 'b',
+}) => TranscriptSegment(
+  id: 'u$index',
+  meetingId: 'm1',
+  index: index,
+  startMs: start,
+  endMs: end,
+  text: text,
+  speakerId: speakerId,
+  kind: SegmentKind.unintelligible,
+);
 
 /// Backend that returns a fixed answer and records the request.
 class FakeBackend implements MinutesBackend {
@@ -46,7 +50,9 @@ class FakeBackend implements MinutesBackend {
     MinutesBackendProgressCallback? onProgress,
   }) async {
     this.request = request;
-    onProgress?.call(const MinutesBackendProgress(MinutesBackendPhase.connecting));
+    onProgress?.call(
+      const MinutesBackendProgress(MinutesBackendPhase.connecting),
+    );
     onProgress?.call(
       const MinutesBackendProgress(
         MinutesBackendPhase.waitingForQuota,
@@ -94,10 +100,11 @@ void main() {
         'items': {'type': 'integer'},
       });
       final update = ((props['task_updates'] as Map)['items'] as Map);
-      expect(
-        ((update['properties'] as Map)['new_status'] as Map)['enum'],
-        ['open', 'done', 'cancelled'],
-      );
+      expect(((update['properties'] as Map)['new_status'] as Map)['enum'], [
+        'open',
+        'done',
+        'cancelled',
+      ]);
       final codes = props['codes'] as Map;
       expect((codes['properties'] as Map).keys, [
         'coded_speech',
@@ -106,8 +113,11 @@ void main() {
         'implied',
         'references',
       ]);
-      final refKind = ((((codes['properties'] as Map)['references'] as Map)['items']
-              as Map)['properties'] as Map)['kind'] as Map;
+      final refKind =
+          ((((codes['properties'] as Map)['references'] as Map)['items']
+                      as Map)['properties']
+                  as Map)['kind']
+              as Map;
       expect(refKind['enum'], contains('legal_article'));
     });
 
@@ -436,15 +446,17 @@ void main() {
       expect(statuses.last, 'اكتمل المحضر');
     });
 
-    test('a meeting with only unintelligible speech still gets minutes',
-        () async {
-      final backend = FakeBackend(jsonEncode(sampleMinutes().contentJson()));
-      final m = await StructuredMinutesEngine(backend: backend).generate(
-        meeting: meeting(),
-        segments: [unintelligible(0, 0, 3000)],
-        speakersById: speakers,
-      );
-      expect(m.summary, isNotEmpty);
-    });
+    test(
+      'a meeting with only unintelligible speech still gets minutes',
+      () async {
+        final backend = FakeBackend(jsonEncode(sampleMinutes().contentJson()));
+        final m = await StructuredMinutesEngine(backend: backend).generate(
+          meeting: meeting(),
+          segments: [unintelligible(0, 0, 3000)],
+          speakersById: speakers,
+        );
+        expect(m.summary, isNotEmpty);
+      },
+    );
   });
 }

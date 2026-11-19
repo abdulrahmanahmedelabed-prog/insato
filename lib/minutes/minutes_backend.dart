@@ -74,8 +74,9 @@ class MinutesBackendProgress {
 }
 
 /// Receives backend progress.
-typedef MinutesBackendProgressCallback =
-    void Function(MinutesBackendProgress progress);
+typedef MinutesBackendProgressCallback = void Function(
+  MinutesBackendProgress progress,
+);
 
 /// The structured pieces a prompt was built from, for backends that need to
 /// re-prompt differently (e.g. map-reduce over transcript chunks on a small

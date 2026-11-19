@@ -104,7 +104,10 @@ class StructuredMinutesEngine implements MinutesEngine {
               report(0.2, 'يكتب $name المحضر…');
             } else {
               final fraction = 1 - math.exp(-chars / expectedChars);
-              report(0.2 + 0.75 * fraction, 'يكتب $name المحضر… ($chars حرفاً)');
+              report(
+                0.2 + 0.75 * fraction,
+                'يكتب $name المحضر… ($chars حرفاً)',
+              );
             }
           case MinutesBackendPhase.retrying:
             report(0.05, 'الخدمة مشغولة، ستُعاد المحاولة بعد لحظات…');

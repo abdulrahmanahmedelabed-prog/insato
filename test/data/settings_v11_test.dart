@@ -68,12 +68,16 @@ void main() {
     });
 
     test('normalisers', () {
-      expect(AppSettingsData.normalizeGeminiModel(' models/gemini-2.5-flash '),
-          'gemini-2.5-flash');
+      expect(
+        AppSettingsData.normalizeGeminiModel(' models/gemini-2.5-flash '),
+        'gemini-2.5-flash',
+      );
       expect(AppSettingsData.normalizeGeminiModel(''), isNull);
       expect(AppSettingsData.normalizeGeminiModel('a b'), isNull);
-      expect(AppSettingsData.normalizeServerUrl('http://localhost:11434//'),
-          'http://localhost:11434');
+      expect(
+        AppSettingsData.normalizeServerUrl('http://localhost:11434//'),
+        'http://localhost:11434',
+      );
       expect(AppSettingsData.normalizeServerUrl('localhost:11434'), isNull);
       expect(AppSettingsData.normalizeServerUrl('https://'), isNull);
     });
@@ -128,7 +132,8 @@ void main() {
 
       await settings.save(e.copyWith(serverModel: 'm', inputDeviceId: 'd'));
       await settings.save(
-          (await settings.load()).copyWith(clearServerModel: true));
+        (await settings.load()).copyWith(clearServerModel: true),
+      );
       expect((await settings.load()).serverModel, isNull);
       expect((await settings.load()).inputDeviceId, 'd');
 

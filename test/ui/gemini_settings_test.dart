@@ -55,20 +55,21 @@ void main() {
       expect(r.model, 'gemini-flash-latest');
     });
 
-    test('suggests the newest Flash model when the configured one is missing',
-        () async {
-      final r = await GeminiConnectionTester(
-        client: models(['gemini-2.0-flash', 'gemini-2.5-flash']),
-      ).test('AIza', model: 'gemini-flash-latest');
-      expect(r.ok, isTrue);
-      expect(r.model, 'gemini-2.5-flash');
-      expect(r.messageAr, contains('gemini-2.5-flash'));
-    });
+    test(
+      'suggests the newest Flash model when the configured one is missing',
+      () async {
+        final r = await GeminiConnectionTester(
+          client: models(['gemini-2.0-flash', 'gemini-2.5-flash']),
+        ).test('AIza', model: 'gemini-flash-latest');
+        expect(r.ok, isTrue);
+        expect(r.model, 'gemini-2.5-flash');
+        expect(r.messageAr, contains('gemini-2.5-flash'));
+      },
+    );
 
     test('invalid key, no Flash model, empty key', () async {
-      final bad = await GeminiConnectionTester(
-        client: models([], status: 400),
-      ).test('x');
+      final bad = await GeminiConnectionTester(client: models([], status: 400))
+          .test('x');
       expect(bad.ok, isFalse);
       expect(bad.messageAr, contains('Gemini'));
       final none = await GeminiConnectionTester(
@@ -138,12 +139,18 @@ void main() {
       );
       final sub = container.listen(minutesEngineReadyProvider, (_, _) {});
       addTearDown(sub.close);
-      await env.run(t, () => container.read(geminiKeyConfiguredProvider.future));
+      await env.run(
+        t,
+        () => container.read(geminiKeyConfiguredProvider.future),
+      );
       await settle(t, rounds: 5);
       expect(container.read(minutesEngineReadyProvider), isFalse);
       env.secure.gemini = 'AIza';
       container.invalidate(geminiKeyConfiguredProvider);
-      await env.run(t, () => container.read(geminiKeyConfiguredProvider.future));
+      await env.run(
+        t,
+        () => container.read(geminiKeyConfiguredProvider.future),
+      );
       await settle(t, rounds: 5);
       expect(container.read(minutesEngineReadyProvider), isFalse);
       await env.run(

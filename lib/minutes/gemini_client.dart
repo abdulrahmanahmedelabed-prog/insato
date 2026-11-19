@@ -229,7 +229,8 @@ String? pickPreferredGeminiModel(Iterable<GeminiModelInfo> models) {
     if (_excludedFlashParts.any(rest.contains)) continue;
     final version = double.tryParse(match.group(1)!) ?? 0;
     final preview = rest.contains('preview') || rest.contains('exp');
-    final dated = RegExp(r'-\d{2}-\d{2,4}').hasMatch(rest) ||
+    final dated =
+        RegExp(r'-\d{2}-\d{2,4}').hasMatch(rest) ||
         RegExp(r'-\d{3}$').hasMatch(rest);
     final stability = preview ? 0 : (dated ? 1 : 2);
     final lite = rest.contains('lite') ? 0 : 1;
@@ -306,7 +307,9 @@ class GeminiApiError {
   factory GeminiApiError.parse(String raw) {
     try {
       final d = jsonDecode(raw);
-      final e = d is Map ? d['error'] : (d is List && d.isNotEmpty ? d.first : null);
+      final e = d is Map
+          ? d['error']
+          : (d is List && d.isNotEmpty ? d.first : null);
       final err = e is Map && e['error'] is Map ? e['error'] as Map : e;
       if (err is! Map) return const GeminiApiError();
       final reasons = <String>[];
@@ -381,11 +384,10 @@ class GeminiApiError {
   }
 
   /// True when a daily quota (requests per day) is exhausted.
-  bool get isDailyQuota =>
-      quotaIds.any((q) {
-        final l = q.toLowerCase();
-        return l.contains('perday') || l.contains('per_day');
-      });
+  bool get isDailyQuota => quotaIds.any((q) {
+    final l = q.toLowerCase();
+    return l.contains('perday') || l.contains('per_day');
+  });
 }
 
 /// Delivered when the configured model does not exist for the key (HTTP
@@ -924,7 +926,10 @@ class GeminiClient {
       throw _SchemaRejected(details);
     }
     if (status == 408 || status == 409 || status >= 500) {
-      throw _Retry(details, wait: parseRetryAfter(response.headers['retry-after']));
+      throw _Retry(
+        details,
+        wait: parseRetryAfter(response.headers['retry-after']),
+      );
     }
     throw MinutesGenerationException(
       'رفضت خدمة Gemini الطلب. ${err.message ?? ''}'.trim(),
@@ -999,10 +1004,7 @@ class GeminiClient {
       final uri = baseUri
           .resolve('models')
           .replace(
-            queryParameters: {
-              'pageSize': '1000',
-              'pageToken': ?pageToken,
-            },
+            queryParameters: {'pageSize': '1000', 'pageToken': ?pageToken},
           );
       http.Response r;
       try {
@@ -1180,7 +1182,9 @@ class _Accumulator {
     final reason = finishReason;
     if (reason == null) {
       if (requireFinish || text.isEmpty) {
-        throw _Retry('stream ended without finishReason (${text.length} chars)');
+        throw _Retry(
+          'stream ended without finishReason (${text.length} chars)',
+        );
       }
       return _Part(
         text: text.toString(),
@@ -1278,14 +1282,18 @@ class GeminiMinutesBackend implements MinutesBackend {
           onPhase: (phase, a, wait) {
             attempt = a;
             onProgress?.call(
-              MinutesBackendProgress(switch (phase) {
-                GeminiPhase.connecting => MinutesBackendPhase.connecting,
-                GeminiPhase.thinking => MinutesBackendPhase.thinking,
-                GeminiPhase.writing => MinutesBackendPhase.writing,
-                GeminiPhase.retrying => MinutesBackendPhase.retrying,
-                GeminiPhase.waitingForQuota =>
-                  MinutesBackendPhase.waitingForQuota,
-              }, attempt: a, wait: wait),
+              MinutesBackendProgress(
+                switch (phase) {
+                  GeminiPhase.connecting => MinutesBackendPhase.connecting,
+                  GeminiPhase.thinking => MinutesBackendPhase.thinking,
+                  GeminiPhase.writing => MinutesBackendPhase.writing,
+                  GeminiPhase.retrying => MinutesBackendPhase.retrying,
+                  GeminiPhase.waitingForQuota =>
+                    MinutesBackendPhase.waitingForQuota,
+                },
+                attempt: a,
+                wait: wait,
+              ),
             );
           },
           onDelta: (chars) => onProgress?.call(
