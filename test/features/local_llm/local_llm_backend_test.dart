@@ -63,7 +63,6 @@ MinutesBackendRequest _minutesRequest(List<TranscriptSegment> segs) {
 
 LocalLlmMinutesBackend _backend(
   FakeGenerator gen, {
-  int? opens,
   LocalLlmBudget budget = const LocalLlmBudget(),
 }) => LocalLlmMinutesBackend(
   engineId: 'local',
@@ -117,28 +116,35 @@ void main() {
       expect(r.system, _system);
       expect(r.user, req.user);
       expect(r.schema, _schema);
-      expect(r.maxTokens, lessThanOrEqualTo(const LocalLlmBudget().maxAnswerTokens));
+      expect(
+        r.maxTokens,
+        lessThanOrEqualTo(const LocalLlmBudget().maxAnswerTokens),
+      );
       expect(phases.first, MinutesBackendPhase.loadingModel);
       expect(phases, contains(MinutesBackendPhase.writing));
       _expectWithinContext(gen, const LocalLlmBudget());
       expect(backend.sendsDataOffDevice, isFalse);
     });
 
-    test('the schema goes into the prompt when the runtime cannot enforce it',
-        () async {
-      final gen = FakeGenerator(responses: [_minutes], enforcesSchema: false);
-      await _backend(gen).generateStructured(_minutesRequest(_segments(2)));
-      expect(gen.requests.single.system, startsWith(_system));
-      expect(gen.requests.single.system, contains('# Output format (strict)'));
-    });
+    test(
+      'the schema goes into the prompt when the runtime cannot enforce it',
+      () async {
+        final gen = FakeGenerator(responses: [_minutes], enforcesSchema: false);
+        await _backend(gen).generateStructured(_minutesRequest(_segments(2)));
+        expect(gen.requests.single.system, startsWith(_system));
+        expect(
+          gen.requests.single.system,
+          contains('# Output format (strict)'),
+        );
+      },
+    );
 
     test('an invalid answer gets one repair pass', () async {
       final gen = FakeGenerator(
         responses: ['Here are the minutes: {"title": "محضر"', _minutes],
       );
-      final out = await _backend(gen).generateStructured(
-        _minutesRequest(_segments(3)),
-      );
+      final out = await _backend(gen)
+          .generateStructured(_minutesRequest(_segments(3)));
       expect(out.text, _minutes);
       expect(gen.requests, hasLength(2));
       final repair = gen.requests.last;
@@ -149,26 +155,29 @@ void main() {
       expect(repair.user, startsWith('<answer>'));
     });
 
-    test('when the repair fails too, the decodable answer is returned',
-        () async {
-      final gen = FakeGenerator(responses: ['{"title": "محضر"}', 'garbage']);
-      final out = await _backend(gen).generateStructured(
-        _minutesRequest(_segments(3)),
-      );
-      expect(out.text, '{"title": "محضر"}');
-    });
+    test(
+      'when the repair fails too, the decodable answer is returned',
+      () async {
+        final gen = FakeGenerator(responses: ['{"title": "محضر"}', 'garbage']);
+        final out = await _backend(gen)
+            .generateStructured(_minutesRequest(_segments(3)));
+        expect(out.text, '{"title": "محضر"}');
+      },
+    );
 
     test('a failing repair request keeps the original answer', () async {
       final gen = FakeGenerator(responses: ['not json']);
       gen.respond = (_) => throw const MinutesGenerationException('x');
-      final out = await _backend(gen).generateStructured(
-        _minutesRequest(_segments(3)),
-      );
+      final out = await _backend(gen)
+          .generateStructured(_minutesRequest(_segments(3)));
       expect(out.text, 'not json');
     });
 
     test('a long non-minutes request is shortened to the window', () async {
-      final gen = FakeGenerator(contextTokens: 4096, responses: ['{"answer": "x"}']);
+      final gen = FakeGenerator(
+        contextTokens: 4096,
+        responses: ['{"answer": "x"}'],
+      );
       final user =
           'السؤال: ما القرارات؟\n<context>\n${List.generate(800, (i) => 'سطر سياق رقم $i').join('\n')}\n</context>\nأجب بإيجاز.';
       final out = await _backend(gen).generateStructured(
@@ -184,7 +193,10 @@ void main() {
       expect(out.text, '{"answer": "x"}');
       final sent = gen.requests.single.user;
       expect(sent.length, lessThan(user.length));
-      expect(sent, startsWith('السؤال: ما القرارات؟\n<context>\nسطر سياق رقم 0'));
+      expect(
+        sent,
+        startsWith('السؤال: ما القرارات؟\n<context>\nسطر سياق رقم 0'),
+      );
       expect(sent, endsWith('</context>\nأجب بإيجاز.'));
       _expectWithinContext(gen, const LocalLlmBudget());
     });
@@ -193,7 +205,11 @@ void main() {
       final gen = FakeGenerator(contextTokens: 1100);
       await expectLater(
         _backend(gen).generateStructured(
-          MinutesBackendRequest(system: 'S', user: 'x' * 20000, schema: _schema),
+          MinutesBackendRequest(
+            system: 'S',
+            user: 'x' * 20000,
+            schema: _schema,
+          ),
         ),
         throwsA(
           isA<MinutesGenerationException>().having(
@@ -276,12 +292,11 @@ void main() {
       const budget = LocalLlmBudget();
       final segs = _segments(120);
       final gen = FakeGenerator(contextTokens: 4096);
-      gen.respond = (r) => r.system.startsWith(_system) ? _minutes : _notesFor(r);
+      gen.respond = (r) =>
+          r.system.startsWith(_system) ? _minutes : _notesFor(r);
       final progress = <MinutesBackendProgress>[];
-      final out = await _backend(gen).generateStructured(
-        _minutesRequest(segs),
-        onProgress: progress.add,
-      );
+      final out = await _backend(gen)
+          .generateStructured(_minutesRequest(segs), onProgress: progress.add);
       expect(out.text, _minutes);
 
       final maps = gen.requests
@@ -296,7 +311,10 @@ void main() {
       ];
       expect(seen, [for (var i = 0; i < 120; i++) i]);
       expect(maps.first.user, contains('part 1 of ${maps.length}'));
-      expect(maps.every((r) => r.schema!['required'].toString() == '[notes]'), isTrue);
+      expect(
+        maps.every((r) => r.schema!['required'].toString() == '[notes]'),
+        isTrue,
+      );
 
       final reduce = gen.requests.last;
       expect(reduce.system, _system);
@@ -378,9 +396,10 @@ void main() {
           ],
         });
       };
-      final out = await _backend(gen, budget: budget).generateStructured(
-        _minutesRequest(segs),
-      );
+      final out = await _backend(
+        gen,
+        budget: budget,
+      ).generateStructured(_minutesRequest(segs));
       expect(out.text, _minutes);
       _expectWithinContext(gen, budget);
       // The beginning of the notes is kept, not just a part header.
@@ -461,7 +480,10 @@ void main() {
     });
 
     test('repair user message wraps the answer', () {
-      expect(buildJsonRepairUserMessage('X'), startsWith('<answer>\nX\n</answer>'));
+      expect(
+        buildJsonRepairUserMessage('X'),
+        startsWith('<answer>\nX\n</answer>'),
+      );
     });
   });
 }

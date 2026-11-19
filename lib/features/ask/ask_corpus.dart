@@ -278,17 +278,28 @@ List<AskDocument> buildAskDocuments(
           topic: i,
         );
       }
-      add(m, AskDocKind.decisions, [
-        for (final d in minutes.decisions) '${d.text} ${d.proposedBy ?? ''}',
-      ].join('\n'));
-      add(m, AskDocKind.actions, [
-        for (final a in minutes.actionItems)
-          '${a.task} ${a.owner ?? ''} ${a.dueDate ?? ''}',
-      ].join('\n'));
-      add(m, AskDocKind.openQuestions, [
-        ...minutes.openQuestions,
-        for (final a in minutes.agendaCoverage) '${a.item} ${a.note ?? ''}',
-      ].join('\n'));
+      add(
+        m,
+        AskDocKind.decisions,
+        [for (final d in minutes.decisions) '${d.text} ${d.proposedBy ?? ''}']
+            .join('\n'),
+      );
+      add(
+        m,
+        AskDocKind.actions,
+        [
+          for (final a in minutes.actionItems)
+            '${a.task} ${a.owner ?? ''} ${a.dueDate ?? ''}',
+        ].join('\n'),
+      );
+      add(
+        m,
+        AskDocKind.openQuestions,
+        [
+          ...minutes.openQuestions,
+          for (final a in minutes.agendaCoverage) '${a.item} ${a.note ?? ''}',
+        ].join('\n'),
+      );
     }
     for (final (first, last) in transcriptWindows(
       src.segments,

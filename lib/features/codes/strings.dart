@@ -156,6 +156,12 @@ abstract final class KS {
   // Jargon
   // ---------------------------------------------------------------------------
 
+  /// «First use: mm:ss».
+  static String firstUse(String stamp) => 'أول استخدام: $stamp';
+
+  /// «Used most by: name».
+  static String mostUsedBy(String name) => 'أكثر من استخدمه: $name';
+
   /// «Inferred meaning: …».
   static String inferredMeaning(String text) => 'المعنى المستنتج: $text';
 
@@ -355,6 +361,24 @@ abstract final class KS {
   // ---------------------------------------------------------------------------
   // Export
   // ---------------------------------------------------------------------------
+
+  /// Tab action: copy the section as Markdown.
+  static const String exportCopy = 'نسخ القسم';
+
+  /// Tab action: share the section as text.
+  static const String exportShare = 'مشاركة القسم';
+
+  /// Tooltip of the export actions.
+  static const String exportHint =
+      'ينسخ أو يشارك الرموز والشيفرات (ومنها كتل الكود) نصًا منسّقًا.';
+
+  /// Share subject.
+  static String exportSubject(String meetingTitle) => meetingTitle.isEmpty
+      ? 'الرموز والشيفرات'
+      : 'الرموز والشيفرات — $meetingTitle';
+
+  /// Failure of copy / share.
+  static const String exportFailed = 'تعذّر تصدير القسم.';
 
   /// Export heading.
   static const String exportTitle = 'الرموز والشيفرات';

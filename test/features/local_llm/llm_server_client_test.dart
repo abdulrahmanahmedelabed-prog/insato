@@ -12,11 +12,10 @@ import 'package:insato/features/local_llm/llm_generator.dart';
 import 'package:insato/features/local_llm/llm_server_client.dart';
 import 'package:insato/features/local_llm/strings.dart';
 
-typedef _Handler =
-    FutureOr<http.StreamedResponse> Function(
-      http.BaseRequest request,
-      String body,
-    );
+typedef _Handler = FutureOr<http.StreamedResponse> Function(
+  http.BaseRequest request,
+  String body,
+);
 
 /// A mock server; records each request with its body.
 class _Server {
@@ -96,8 +95,14 @@ Matcher _serverError(String message) => throwsA(
 void main() {
   group('URL helpers', () {
     test('flavour is encoded by a trailing /v1', () {
-      expect(serverFlavorOfUrl('http://127.0.0.1:11434'), LlmServerFlavor.ollama);
-      expect(serverFlavorOfUrl('http://127.0.0.1:1234/v1'), LlmServerFlavor.openAi);
+      expect(
+        serverFlavorOfUrl('http://127.0.0.1:11434'),
+        LlmServerFlavor.ollama,
+      );
+      expect(
+        serverFlavorOfUrl('http://127.0.0.1:1234/v1'),
+        LlmServerFlavor.openAi,
+      );
       expect(serverFlavorOfUrl('http://h:1234/V1/'), LlmServerFlavor.openAi);
       expect(serverFlavorOfUrl('http://h/v1x'), LlmServerFlavor.ollama);
       expect(serverFlavorOfUrl('not a url ::'), LlmServerFlavor.ollama);
@@ -153,7 +158,10 @@ void main() {
     });
 
     test('serverErrorMessage reads the common error shapes', () {
-      expect(serverErrorMessage('{"error":"model not found"}'), 'model not found');
+      expect(
+        serverErrorMessage('{"error":"model not found"}'),
+        'model not found',
+      );
       expect(
         serverErrorMessage('{"error":{"message":"bad schema","type":"x"}}'),
         'bad schema',
@@ -165,7 +173,10 @@ void main() {
     });
 
     test('model labels', () {
-      expect(serverModelLabel(LlmServerFlavor.ollama, 'qwen3:8b'), 'ollama/qwen3:8b');
+      expect(
+        serverModelLabel(LlmServerFlavor.ollama, 'qwen3:8b'),
+        'ollama/qwen3:8b',
+      );
       expect(
         serverModelLabel(LlmServerFlavor.openAi, 'qwen3-8b'),
         'openai-compatible/qwen3-8b',
@@ -188,7 +199,10 @@ void main() {
           ],
         });
       });
-      final c = LlmServerClient(baseUrl: '$kDefaultOllamaUrl/', client: s.client);
+      final c = LlmServerClient(
+        baseUrl: '$kDefaultOllamaUrl/',
+        client: s.client,
+      );
       expect(c.baseUrl, kDefaultOllamaUrl);
       expect(await c.listModels(), ['llama3.2:3b', 'qwen3:8b']);
     });
@@ -232,24 +246,34 @@ void main() {
     test('probe of an unknown server reports it is not recognised', () async {
       final s = _Server((req, _) => _json({'hello': 'world'}));
       final c = LlmServerClient(baseUrl: 'http://h:1', client: s.client);
-      await expectLater(c.probe(), _serverError(LS.serverNotRecognised('http://h:1')));
-    });
-
-    test('probe of an unreachable server does not try the other flavour', () async {
-      final s = _Server(
-        (req, _) => throw const SocketException('Connection refused'),
-      );
-      final c = LlmServerClient(baseUrl: 'http://h:1', client: s.client);
       await expectLater(
         c.probe(),
-        throwsA(
-          isA<LlmServerException>()
-              .having((e) => e.messageAr, 'messageAr', LS.serverUnreachable('http://h:1'))
-              .having((e) => e.retryable, 'retryable', isTrue),
-        ),
+        _serverError(LS.serverNotRecognised('http://h:1')),
       );
-      expect(s.log, hasLength(1));
     });
+
+    test(
+      'probe of an unreachable server does not try the other flavour',
+      () async {
+        final s = _Server(
+          (req, _) => throw const SocketException('Connection refused'),
+        );
+        final c = LlmServerClient(baseUrl: 'http://h:1', client: s.client);
+        await expectLater(
+          c.probe(),
+          throwsA(
+            isA<LlmServerException>()
+                .having(
+                  (e) => e.messageAr,
+                  'messageAr',
+                  LS.serverUnreachable('http://h:1'),
+                )
+                .having((e) => e.retryable, 'retryable', isTrue),
+          ),
+        );
+        expect(s.log, hasLength(1));
+      },
+    );
 
     test('a slow server times out', () async {
       final s = _Server((req, _) async {
@@ -261,7 +285,10 @@ void main() {
         client: s.client,
         connectTimeout: const Duration(milliseconds: 20),
       );
-      await expectLater(c.listModels(), _serverError(LS.serverTimeout('http://h:1')));
+      await expectLater(
+        c.listModels(),
+        _serverError(LS.serverTimeout('http://h:1')),
+      );
     });
   });
 
@@ -365,7 +392,8 @@ void main() {
 
     test('Ollama: done_reason length marks the answer truncated', () async {
       final s = _Server(
-        (req, _) => _lines([_ollamaLine('{"ok"', done: true, reason: 'length')]),
+        (req, _) =>
+            _lines([_ollamaLine('{"ok"', done: true, reason: 'length')]),
       );
       final c = LlmServerClient(baseUrl: kDefaultOllamaUrl, client: s.client);
       final out = await c.chat(model: 'm', request: _req, numCtx: 4096);
@@ -427,10 +455,15 @@ void main() {
 
     test('OpenAI: finish_reason length marks the answer truncated', () async {
       final s = _Server(
-        (req, _) => _lines([_sse({'content': '{'}, finish: 'length')]),
+        (req, _) => _lines([
+          _sse({'content': '{'}, finish: 'length'),
+        ]),
       );
       final c = LlmServerClient(baseUrl: kDefaultLmStudioUrl, client: s.client);
-      expect((await c.chat(model: 'm', request: _req, numCtx: 1)).truncated, isTrue);
+      expect(
+        (await c.chat(model: 'm', request: _req, numCtx: 1)).truncated,
+        isTrue,
+      );
     });
 
     test('useSchema false sends no schema', () async {
@@ -443,8 +476,7 @@ void main() {
     test('a 400 about the schema signals LlmServerSchemaRejected', () async {
       final s = _Server(
         (req, _) => _json({
-          'error':
-              'json: cannot unmarshal object into Go struct field .format',
+          'error': 'json: cannot unmarshal object into Go struct field .format',
         }, 400),
       );
       final c = LlmServerClient(baseUrl: kDefaultOllamaUrl, client: s.client);
@@ -479,7 +511,11 @@ void main() {
           isA<LlmServerException>()
               .having((e) => e.statusCode, 'statusCode', 503)
               .having((e) => e.retryable, 'retryable', isTrue)
-              .having((e) => e.messageAr, 'messageAr', LS.serverHttpError(503, 'busy')),
+              .having(
+                (e) => e.messageAr,
+                'messageAr',
+                LS.serverHttpError(503, 'busy'),
+              ),
         ),
       );
     });
@@ -622,7 +658,8 @@ void main() {
         ),
       );
       final system =
-          ((s.jsonBody(2)['messages'] as List).first as Map)['content'] as String;
+          ((s.jsonBody(2)['messages'] as List).first as Map)['content']
+              as String;
       expect('# Output format (strict)'.allMatches(system), hasLength(1));
     });
 

@@ -36,8 +36,10 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
-# F13 system-audio capture (WASAPI loopback): COM.
-target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib")
+# F13 system-audio capture (WASAPI loopback): COM (CoCreateInstance,
+# CoTaskMemFree) and MMCSS (AvSetMmThreadCharacteristicsW). The MMDevice /
+# IAudioClient GUIDs come from __uuidof, so no uuid.lib / mmdevapi.lib.
+target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "avrt.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

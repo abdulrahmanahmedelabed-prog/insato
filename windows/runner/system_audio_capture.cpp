@@ -1,13 +1,17 @@
 #include "system_audio_capture.h"
 
-#include <audioclient.h>
-#include <mmdeviceapi.h>
+// windows.h comes first (via the header); mmsystem.h defines WAVE_FORMAT_PCM
+// and WAVEFORMATEX even if a build adds WIN32_LEAN_AND_MEAN later.
+#include <mmsystem.h>
 #include <mmreg.h>
+
+#include <audioclient.h>
+#include <avrt.h>
+#include <mmdeviceapi.h>
 #include <wrl/client.h>
 
 #include <cstring>
 #include <memory>
-#include <system_error>
 #include <utility>
 
 using Microsoft::WRL::ComPtr;
@@ -17,9 +21,15 @@ namespace {
 // Shared-mode buffer the audio engine keeps for us (100-ns units): 200 ms.
 constexpr REFERENCE_TIME kBufferDuration = 2000000;
 
-// How often the capture client is drained. Loopback event callbacks are not
-// signalled reliably on every Windows 10 build, so polling is used.
-constexpr DWORD kPollIntervalMs = 20;
+// Longest wait between two drains of the capture client. The stream event
+// normally wakes the thread every ~10 ms; this timeout covers Windows builds
+// where loopback streams never signal it. Well below kBufferDuration, so the
+// engine's buffer cannot overflow.
+constexpr DWORD kPollIntervalMs = 10;
+
+// Captured frames are handed on in blocks of at least this many ms, so the
+// platform thread sees ~50 events per second instead of one per period.
+constexpr uint32_t kMinBlockMs = 20;
 
 // Pause before reopening after a device change / failure.
 constexpr DWORD kRestartDelayMs = 200;
@@ -39,7 +49,8 @@ bool IsSubtypeOf(const GUID& guid, WORD format_tag) {
 SampleKind KindOf(const WAVEFORMATEX* format) {
   WORD tag = format->wFormatTag;
   if (tag == WAVE_FORMAT_EXTENSIBLE &&
-      format->cbSize >= sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)) {
+      static_cast<size_t>(format->cbSize) >=
+          sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)) {
     const auto* ext = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(format);
     if (IsSubtypeOf(ext->SubFormat, WAVE_FORMAT_IEEE_FLOAT)) {
       tag = WAVE_FORMAT_IEEE_FLOAT;
@@ -181,9 +192,11 @@ SystemAudioCapture::SystemAudioCapture(PacketCallback on_packet,
     : on_packet_(std::move(on_packet)), on_event_(std::move(on_event)) {
   stop_event_ = ::CreateEventW(nullptr, TRUE, FALSE, nullptr);
   restart_event_ = ::CreateEventW(nullptr, TRUE, FALSE, nullptr);
+  audio_event_ = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);
 }
 
 SystemAudioCapture::~SystemAudioCapture() {
+  // Joins the worker first: it is the only user of the event handles.
   Stop();
   if (stop_event_) {
     ::CloseHandle(stop_event_);
@@ -191,10 +204,13 @@ SystemAudioCapture::~SystemAudioCapture() {
   if (restart_event_) {
     ::CloseHandle(restart_event_);
   }
+  if (audio_event_) {
+    ::CloseHandle(audio_event_);
+  }
 }
 
 bool SystemAudioCapture::Start() {
-  if (!stop_event_ || !restart_event_) {
+  if (!stop_event_ || !restart_event_ || !audio_event_) {
     return false;
   }
   if (thread_.joinable()) {
@@ -206,10 +222,12 @@ bool SystemAudioCapture::Start() {
   }
   ::ResetEvent(stop_event_);
   ::ResetEvent(restart_event_);
+  ::ResetEvent(audio_event_);
   running_.store(true);
-  try {
-    thread_ = std::thread(&SystemAudioCapture::Run, this);
-  } catch (const std::system_error&) {
+  // The runner builds with _HAS_EXCEPTIONS=0, so std::thread cannot report
+  // a failure by throwing; check that a thread was actually created.
+  thread_ = std::thread(&SystemAudioCapture::Run, this);
+  if (!thread_.joinable()) {
     running_.store(false);
     return false;
   }
@@ -241,6 +259,10 @@ void SystemAudioCapture::Run() {
     running_.store(false);
     return;
   }
+  // Ask MMCSS to schedule this thread as audio work; optional (the service
+  // can be disabled), capture works without it.
+  DWORD mmcss_task = 0;
+  const HANDLE mmcss = ::AvSetMmThreadCharacteristicsW(L"Audio", &mmcss_task);
   {
     ComPtr<IMMDeviceEnumerator> enumerator;
     HRESULT hr =
@@ -252,15 +274,14 @@ void SystemAudioCapture::Run() {
       DeviceNotifier* notifier = new DeviceNotifier(restart_event_);
       const bool registered =
           SUCCEEDED(enumerator->RegisterEndpointNotificationCallback(notifier));
-      bool first = true;
+      bool started = false;
       const HANDLE waits[2] = {stop_event_, restart_event_};
       for (;;) {
         ::ResetEvent(restart_event_);
-        const Outcome outcome = CaptureOnce(enumerator.Get(), first);
+        const Outcome outcome = CaptureOnce(enumerator.Get(), &started);
         if (outcome == Outcome::kStopped) {
           break;
         }
-        first = false;
         const DWORD delay =
             outcome == Outcome::kRestart ? kRestartDelayMs : kRetryDelayMs;
         // A failed device is retried after a while, or as soon as the
@@ -270,18 +291,23 @@ void SystemAudioCapture::Run() {
           break;
         }
       }
+      // Unregister before the last Release: after this call the enumerator
+      // no longer calls into |notifier|.
       if (registered) {
         enumerator->UnregisterEndpointNotificationCallback(notifier);
       }
       notifier->Release();
     }
   }
+  if (mmcss != nullptr) {
+    ::AvRevertMmThreadCharacteristics(mmcss);
+  }
   ::CoUninitialize();
   running_.store(false);
 }
 
 SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
-    IMMDeviceEnumerator* enumerator, bool first) {
+    IMMDeviceEnumerator* enumerator, bool* started) {
   ComPtr<IMMDevice> device;
   HRESULT hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole,
                                                    device.GetAddressOf());
@@ -301,47 +327,101 @@ SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
   WAVEFORMATEX* raw_format = nullptr;
   hr = client->GetMixFormat(&raw_format);
   if (FAILED(hr) || raw_format == nullptr) {
+    if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
+      return Outcome::kRestart;
+    }
     on_event_("error", "init");
     return Outcome::kFailed;
   }
   std::unique_ptr<WAVEFORMATEX, CoTaskMemDeleter> format(raw_format);
   const SampleKind kind = KindOf(format.get());
   if (kind == SampleKind::kUnsupported || format->nChannels == 0 ||
-      format->nSamplesPerSec == 0) {
+      format->nSamplesPerSec == 0 ||
+      format->nBlockAlign <
+          format->nChannels * (format->wBitsPerSample / 8)) {
     on_event_("error", "format");
     return Outcome::kFailed;
   }
 
-  hr = client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
-                          kBufferDuration, 0, format.get(), nullptr);
+  // Event-driven loopback first. Should a driver / Windows build refuse the
+  // event flag, a fresh client is opened without it and drained by timeout.
+  ::ResetEvent(audio_event_);
+  bool event_driven = true;
+  hr = client->Initialize(
+      AUDCLNT_SHAREMODE_SHARED,
+      AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+      kBufferDuration, 0, format.get(), nullptr);
+  if (SUCCEEDED(hr)) {
+    hr = client->SetEventHandle(audio_event_);
+  }
+  if (FAILED(hr) && hr != AUDCLNT_E_DEVICE_INVALIDATED) {
+    // An IAudioClient can be initialised only once; start over.
+    event_driven = false;
+    client.Reset();
+    hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+                          reinterpret_cast<void**>(client.GetAddressOf()));
+    if (SUCCEEDED(hr) && client) {
+      hr = client->Initialize(AUDCLNT_SHAREMODE_SHARED,
+                              AUDCLNT_STREAMFLAGS_LOOPBACK, kBufferDuration, 0,
+                              format.get(), nullptr);
+    } else if (SUCCEEDED(hr)) {
+      hr = E_POINTER;
+    }
+  }
   if (FAILED(hr)) {
+    if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
+      return Outcome::kRestart;
+    }
     on_event_("error", "init");
-    return hr == AUDCLNT_E_DEVICE_INVALIDATED ? Outcome::kRestart
-                                              : Outcome::kFailed;
+    return Outcome::kFailed;
   }
 
   ComPtr<IAudioCaptureClient> capture;
   hr = client->GetService(IID_PPV_ARGS(capture.GetAddressOf()));
   if (FAILED(hr) || !capture) {
+    if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
+      return Outcome::kRestart;
+    }
     on_event_("error", "init");
     return Outcome::kFailed;
   }
   hr = client->Start();
   if (FAILED(hr)) {
+    if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
+      return Outcome::kRestart;
+    }
     on_event_("error", "init");
-    return hr == AUDCLNT_E_DEVICE_INVALIDATED ? Outcome::kRestart
-                                              : Outcome::kFailed;
+    return Outcome::kFailed;
   }
-  on_event_(first ? "started" : "restarted", "");
+  on_event_(*started ? "restarted" : "started", "");
+  *started = true;
 
   const uint32_t sample_rate = format->nSamplesPerSec;
   const uint32_t channels = format->nChannels;
-  const HANDLE waits[2] = {stop_event_, restart_event_};
+  const size_t min_block_samples =
+      static_cast<size_t>(sample_rate) * kMinBlockMs / 1000 * channels;
+  const HANDLE waits[3] = {stop_event_, restart_event_, audio_event_};
+  const DWORD wait_count = event_driven ? 3 : 2;
   Outcome outcome = Outcome::kStopped;
   std::vector<float> batch;
+  batch.reserve(min_block_samples * 2);
+
+  auto flush = [&]() {
+    if (batch.empty()) {
+      return;
+    }
+    Packet packet;
+    packet.sample_rate = sample_rate;
+    packet.channels = channels;
+    packet.samples = std::move(batch);
+    batch = std::vector<float>();
+    batch.reserve(min_block_samples * 2);
+    on_packet_(std::move(packet));
+  };
+
   for (;;) {
     const DWORD woke =
-        ::WaitForMultipleObjects(2, waits, FALSE, kPollIntervalMs);
+        ::WaitForMultipleObjects(wait_count, waits, FALSE, kPollIntervalMs);
     if (woke == WAIT_OBJECT_0) {
       outcome = Outcome::kStopped;
       break;
@@ -350,12 +430,13 @@ SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
       outcome = Outcome::kRestart;
       break;
     }
-    if (woke != WAIT_TIMEOUT) {
+    if (woke != WAIT_TIMEOUT && woke != WAIT_OBJECT_0 + 2) {
       on_event_("error", "capture");
       outcome = Outcome::kFailed;
       break;
     }
 
+    // Drain every packet the engine holds.
     UINT32 packet_frames = 0;
     for (;;) {
       hr = capture->GetNextPacketSize(&packet_frames);
@@ -369,15 +450,19 @@ SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
       if (FAILED(hr)) {
         break;
       }
-      if (hr == AUDCLNT_S_BUFFER_EMPTY || frames == 0) {
-        capture->ReleaseBuffer(frames);
+      if (hr == AUDCLNT_S_BUFFER_EMPTY) {
+        // Nothing was handed out, so there is nothing to release.
+        hr = S_OK;
         break;
       }
-      if ((flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0 || data == nullptr) {
-        batch.resize(batch.size() + static_cast<size_t>(frames) * channels,
-                     0.0f);
-      } else {
-        AppendFrames(data, frames, format.get(), kind, &batch);
+      if (frames > 0) {
+        if ((flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0 || data == nullptr) {
+          // The engine says "treat as silence"; the bytes are undefined.
+          batch.resize(batch.size() + static_cast<size_t>(frames) * channels,
+                       0.0f);
+        } else {
+          AppendFrames(data, frames, format.get(), kind, &batch);
+        }
       }
       hr = capture->ReleaseBuffer(frames);
       if (FAILED(hr)) {
@@ -393,15 +478,14 @@ SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
       outcome = Outcome::kFailed;
       break;
     }
-    if (!batch.empty()) {
-      Packet packet;
-      packet.sample_rate = sample_rate;
-      packet.channels = channels;
-      packet.samples = std::move(batch);
-      batch = std::vector<float>();
-      on_packet_(std::move(packet));
+    if (batch.size() >= min_block_samples) {
+      flush();
     }
   }
   client->Stop();
+  // Frames read before a device change still belong to the recording.
+  if (outcome != Outcome::kStopped) {
+    flush();
+  }
   return outcome;
 }

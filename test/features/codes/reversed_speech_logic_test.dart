@@ -105,7 +105,11 @@ void main() {
   group('assessReversedAsr', () {
     test('accepts real text', () {
       final v = assessReversedAsr(
-        const AsrResult(text: '  مرحبا   بكم ', language: 'ar', confidence: 0.8),
+        const AsrResult(
+          text: '  مرحبا   بكم ',
+          language: 'ar',
+          confidence: 0.8,
+        ),
         durationMs: 2000,
       );
       expect(v.isAccepted, isTrue);
@@ -183,18 +187,26 @@ void main() {
       expect(back.language, 'ar');
       expect(back.confidence, 0.7);
       expect(back.at, DateTime.utc(2026, 11, 19, 10));
+      expect(const ReversedSpeechResult(segment: 1, text: 'x').toJson().keys, [
+        'segment',
+        'text',
+      ]);
       expect(
-        const ReversedSpeechResult(segment: 1, text: 'x').toJson().keys,
-        ['segment', 'text'],
+        ReversedSpeechResult.tryParse({'segment': -1, 'text': 'x'}),
+        isNull,
       );
-      expect(ReversedSpeechResult.tryParse({'segment': -1, 'text': 'x'}),
-          isNull);
-      expect(ReversedSpeechResult.tryParse({'segment': 1, 'text': ' '}),
-          isNull);
+      expect(
+        ReversedSpeechResult.tryParse({'segment': 1, 'text': ' '}),
+        isNull,
+      );
       expect(ReversedSpeechResult.tryParse('x'), isNull);
       expect(readReversedResults(const {kReversedResultsKey: 'bad'}), isEmpty);
-      expect(readReversedChecked(const {kReversedCheckedKey: [1, 'x', -2]}),
-          {1});
+      expect(
+        readReversedChecked(const {
+          kReversedCheckedKey: [1, 'x', -2],
+        }),
+        {1},
+      );
     });
 
     test('enrichPayload keeps the item and replaces re-checked results', () {
@@ -234,7 +246,10 @@ void main() {
             id: 12,
             meetingId: 'm',
             kind: CodeFindingKind.jargon,
-            payload: const {'term': 'x', 'evidence': [7]},
+            payload: const {
+              'term': 'x',
+              'evidence': [7],
+            },
             segmentIds: const [7],
             createdAt: DateTime(2026),
           ),
@@ -242,7 +257,10 @@ void main() {
         attempts: [
           ReversedAttempt(segment: useg(5), result: ok),
           ReversedAttempt(segment: useg(6)),
-          ReversedAttempt(segment: useg(7, speakerId: 'sp'), result: ok2),
+          ReversedAttempt(
+            segment: useg(7, speakerId: 'sp'),
+            result: ok2,
+          ),
           ReversedAttempt(segment: useg(8)),
         ],
         speakerName: (s) => s.speakerId == 'sp' ? 'سارة' : '',

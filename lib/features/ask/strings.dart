@@ -103,10 +103,10 @@ abstract final class AS {
 
   /// Inline citation marker label for screen readers.
   static String citationSemantics(int number, String label) =>
-      'المصدر $number: $label. اضغط لفتح الاجتماع';
+      'المصدر $number: $label. اضغط لعرضه';
 
   /// Source tile hint for screen readers.
-  static const String openSourceHint = 'فتح الاجتماع عند هذا الموضع';
+  static const String openSourceHint = 'عرض المصدر عند هذا الموضع';
 
   /// Source tile subtitle: meeting date.
   static String sourceDate(DateTime date) => formatArabicShortDate(date);
@@ -165,4 +165,40 @@ abstract final class AS {
 
   /// Error title.
   static const String errorTitle = 'تعذّرت الإجابة';
+
+  // ---------------------------------------------------------------------------
+  // Source sheet
+  // ---------------------------------------------------------------------------
+
+  /// Heading of the cited excerpt.
+  static const String excerptLabel = 'المقطع المستشهد به';
+
+  /// Semantics label of the cited line.
+  static const String citedLine = 'السطر المستشهد به';
+
+  /// Play the recording from the cited line.
+  static const String playFromHere = 'تشغيل من هذه اللحظة';
+
+  /// Pause button while playing, with the position.
+  static String pauseSource(int positionMs) =>
+      'إيقاف مؤقت (${formatTimestamp(positionMs)})';
+
+  /// Open the whole meeting.
+  static const String openMeeting = 'فتح الاجتماع';
+
+  /// The recording of the meeting was not kept.
+  static const String sourceNoAudio =
+      'لم يُحتفظ بتسجيل هذا الاجتماع، فيظهر نص المقطع فقط.';
+
+  /// The meeting is still being recorded.
+  static const String sourceStillRecording =
+      'التسجيل ما زال جارياً؛ يمكن تشغيل المقطع بعد انتهائه.';
+
+  /// The recording could not be played.
+  static const String sourcePlaybackFailed =
+      'تعذّر تشغيل التسجيل. يظهر نص المقطع أعلاه.';
+
+  /// The cited segment no longer exists.
+  static const String sourceSegmentMissing =
+      'لم يعد هذا المقطع موجوداً في نص الاجتماع (ربما حُذف أو عُدّل).';
 }

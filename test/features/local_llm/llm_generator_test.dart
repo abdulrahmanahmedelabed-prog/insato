@@ -7,10 +7,7 @@ void main() {
   test('stripThinking removes closed and unclosed think blocks', () {
     expect(stripThinking('<think>a\nb</think>\n{"x":1}'), '{"x":1}');
     expect(stripThinking('{"x":1}<think>never closed'), '{"x":1}');
-    expect(
-      stripThinking('<think>1</think>A<think>2</think>B'),
-      'AB',
-    );
+    expect(stripThinking('<think>1</think>A<think>2</think>B'), 'AB');
     expect(stripThinking('  plain  '), 'plain');
   });
 

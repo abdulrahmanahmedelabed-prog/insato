@@ -80,7 +80,7 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     required Future<LlmTextGenerator> Function() open,
     this.openPhase = MinutesBackendPhase.loadingModel,
     this.budget = const LocalLlmBudget(),
-  // ignore: prefer_initializing_formals
+    // ignore: prefer_initializing_formals
   }) : _open = open;
 
   @override
@@ -124,15 +124,14 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     }
     final ctx = gen.contextTokens;
     final system = _system(gen, request.system, request.schema);
-    final fixed =
-        await gen.countTokens(system) + budget.templateOverheadTokens;
+    final fixed = await gen.countTokens(system) + budget.templateOverheadTokens;
     final userTokens = await gen.countTokens(request.user);
     final answer = budget.answerTokens(ctx);
 
     if (fixed + userTokens + answer <= ctx) {
-      onProgress?.call(const MinutesBackendProgress(
-        MinutesBackendPhase.connecting,
-      ));
+      onProgress?.call(
+        const MinutesBackendProgress(MinutesBackendPhase.connecting),
+      );
       final text = await _structured(
         gen,
         system: request.system,
@@ -185,10 +184,9 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     LlmTextGenerator gen,
     String system,
     Map<String, dynamic>? schema,
-  ) =>
-      schema == null || gen.enforcesSchema
-          ? system
-          : '$system${schemaPromptSuffix(schema)}';
+  ) => schema == null || gen.enforcesSchema
+      ? system
+      : '$system${schemaPromptSuffix(schema)}';
 
   // -------------------------------------------------------------------------
   // Map-reduce
@@ -283,7 +281,8 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     // Reduce: the normal minutes prompt with the notes as transcript.
     final reduceSystem = _system(gen, request.system, request.schema);
     final answer = budget.answerTokens(ctx);
-    final reduceFixed = await gen.countTokens(reduceSystem) +
+    final reduceFixed =
+        await gen.countTokens(reduceSystem) +
         await gen.countTokens(
           buildReduceUserMessage(context: context, notesText: ''),
         ) +
@@ -300,7 +299,8 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     var notesTokens = await gen.countTokens(notesText);
     while (notesTokens > notesBudget && rounds < budget.maxCondenseRounds) {
       rounds++;
-      final condenseFixed = await gen.countTokens(
+      final condenseFixed =
+          await gen.countTokens(
             _system(gen, kCondenseNotesSystemPrompt, notesSchema),
           ) +
           budget.templateOverheadTokens +
@@ -412,9 +412,8 @@ class LocalLlmMinutesBackend implements MinutesBackend {
   ) async {
     final ctx = gen.contextTokens;
     final system = _system(gen, kJsonRepairSystemPrompt, schema);
-    final fixed = await gen.countTokens(system) +
-        budget.templateOverheadTokens +
-        64;
+    final fixed =
+        await gen.countTokens(system) + budget.templateOverheadTokens + 64;
     final answer = math.min(maxTokens, math.max(256, (ctx - fixed) ~/ 2));
     final room = ctx - fixed - answer;
     if (room < 64) return broken;
@@ -446,9 +445,7 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     final g = _generator;
     _generator = null;
     if (g != null) {
-      unawaited(
-        g.then((gen) => gen.close()).catchError((Object _) {}),
-      );
+      unawaited(g.then((gen) => gen.close()).catchError((Object _) {}));
     }
   }
 }

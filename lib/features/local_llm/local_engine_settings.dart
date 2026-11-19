@@ -11,8 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/errors.dart';
 import '../../core/interfaces.dart' show ModelState, ModelStatus;
 import '../../data/secure_settings.dart';
-import '../../speech/model_manager.dart'
-    show ModelDownloadCancelledException;
+import '../../speech/model_manager.dart' show ModelDownloadCancelledException;
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
@@ -27,8 +26,8 @@ class LocalEngineSettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(appSettingsDataProvider).value ??
-        AppSettingsData.defaults;
+    final s =
+        ref.watch(appSettingsDataProvider).value ?? AppSettingsData.defaults;
     final desktop = ref.watch(localLlmIsDesktopProvider);
     final states = ref.watch(localLlmModelStatesProvider);
     final chosen = LocalLlmCatalog.resolve(s.localLlmModelId, desktop: desktop);
@@ -215,13 +214,13 @@ class LocalModelCard extends ConsumerWidget {
     final Widget action = loading
         ? const SizedBox.shrink()
         : switch (state.status) {
-            ModelStatus.notDownloaded || ModelStatus.failed =>
-              FilledButton.tonalIcon(
-                key: ValueKey('download-${model.id}'),
-                onPressed: () => _download(context, ref),
-                icon: const Icon(Icons.download_rounded),
-                label: const Text(LS.download),
-              ),
+            ModelStatus.notDownloaded ||
+            ModelStatus.failed => FilledButton.tonalIcon(
+              key: ValueKey('download-${model.id}'),
+              onPressed: () => _download(context, ref),
+              icon: const Icon(Icons.download_rounded),
+              label: const Text(LS.download),
+            ),
             ModelStatus.downloading => OutlinedButton.icon(
               key: ValueKey('cancel-${model.id}'),
               onPressed: () => _cancel(context, ref),
@@ -348,16 +347,18 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsetsDirectional.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: 8,
+        vertical: 2,
+      ),
       decoration: BoxDecoration(
         color: scheme.primaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: scheme.onPrimaryContainer,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: scheme.onPrimaryContainer),
       ),
     );
   }

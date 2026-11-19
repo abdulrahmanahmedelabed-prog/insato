@@ -16,6 +16,7 @@ import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../evidence/evidence.dart';
 import 'add_to_glossary_dialog.dart';
+import 'codes_export.dart';
 import 'codes_logic.dart';
 import 'reversed_speech_button.dart';
 import 'reversed_speech_logic.dart';
@@ -79,6 +80,12 @@ class CodesTab extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _IntroNote(),
+              _ExportBar(
+                meetingId: meetingId,
+                findings: findingsAsync.value!,
+                segments: segments,
+                speakers: speakers,
+              ),
               // 1. Coded / unintelligible speech.
               SectionHeader(
                 KS.codedSpeechTitle,
@@ -191,6 +198,93 @@ class _IntroNote extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSecondaryContainer,
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «نسخ القسم» / «مشاركة القسم»: the whole section (code blocks included)
+/// as Markdown, as in exported minutes.
+class _ExportBar extends ConsumerWidget {
+  const _ExportBar({
+    required this.meetingId,
+    required this.findings,
+    required this.segments,
+    required this.speakers,
+  });
+
+  final String meetingId;
+  final List<CodeFinding> findings;
+  final List<TranscriptSegment> segments;
+  final Map<String, Speaker> speakers;
+
+  String _render() => renderCodesSectionFromFindings(
+    findings: findings,
+    segments: segments,
+    speakersById: speakers,
+  );
+
+  Future<void> _run(
+    BuildContext context,
+    Future<void> Function(String text) action, {
+    String? done,
+  }) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final scheme = Theme.of(context).colorScheme;
+    try {
+      await action(_render());
+      if (done != null && messenger != null) {
+        showSnackOn(messenger, scheme, done);
+      }
+    } catch (_) {
+      if (messenger != null) {
+        showSnackOn(messenger, scheme, KS.exportFailed, error: true);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final title = ref.watch(meetingProvider(meetingId)).value?.title ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Tooltip(
+        message: KS.exportHint,
+        child: Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            TextButton.icon(
+              onPressed: () => _run(
+                context,
+                (t) => ref.read(shareGatewayProvider).copyText(t),
+                done: S.copied,
+              ),
+              icon: const Icon(Icons.copy_all_rounded),
+              label: const Text(KS.exportCopy),
+            ),
+            Builder(
+              builder: (button) => TextButton.icon(
+                onPressed: () => _run(context, (t) async {
+                  final box = button.findRenderObject() as RenderBox?;
+                  final origin = box == null || !box.hasSize
+                      ? null
+                      : box.localToGlobal(Offset.zero) & box.size;
+                  await ref
+                      .read(shareGatewayProvider)
+                      .shareText(
+                        t,
+                        subject: KS.exportSubject(title),
+                        origin: origin,
+                      );
+                }),
+                icon: const Icon(Icons.ios_share_rounded),
+                label: const Text(KS.exportShare),
               ),
             ),
           ],
@@ -591,9 +685,14 @@ class _JargonCard extends ConsumerWidget {
       ...global,
       ...local,
     ].any((t) => normalizedKey(t.term) == key);
-    final speakers = item.speakers.isNotEmpty
-        ? item.speakers
+    final used = jargonSpeakers(item, data.segments, data.speakers);
+    final speakers = used.isNotEmpty
+        ? used
         : [data.speakerOf(entry.finding, '')];
+    final firstUse = jargonFirstUseMs(item, data.segments);
+    final muted = theme.textTheme.labelLarge?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     return _ItemCard(
       children: [
         Wrap(
@@ -617,12 +716,11 @@ class _JargonCard extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 6),
-        Text(
-          KS.speakersLine(speakers),
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(KS.speakersLine(speakers), style: muted),
+        if (speakers.length > 1)
+          Text(KS.mostUsedBy(speakers.first), style: muted),
+        if (firstUse != null)
+          Text(KS.firstUse(formatTimestamp(firstUse)), style: muted),
         _Evidence(meetingId: data.meetingId, evidence: item.evidence),
         const SizedBox(height: 8),
         Align(

@@ -149,8 +149,8 @@ class _ServerEngineSettingsState extends ConsumerState<ServerEngineSettings> {
 
   @override
   Widget build(BuildContext context) {
-    final s = ref.watch(appSettingsDataProvider).value ??
-        AppSettingsData.defaults;
+    final s =
+        ref.watch(appSettingsDataProvider).value ?? AppSettingsData.defaults;
     if (_savedUrl != s.serverUrl) {
       // Follow the stored URL (first build, or changed elsewhere).
       _savedUrl = s.serverUrl;

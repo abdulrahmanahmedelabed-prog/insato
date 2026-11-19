@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/repositories_v11.dart';
+import 'package:insato/features/evidence/evidence.dart' show EvidenceChips;
 import 'package:insato/features/tasks/tasks.dart';
 import 'package:insato/ui/strings_ar.dart';
 import 'package:material_ui/material_ui.dart';
@@ -229,6 +230,60 @@ void main() {
       await t.tap(find.text(TS.openTasksScreen));
       await settle(t);
       expect(find.text(TS.tasksTitle), findsOneWidget);
+      await env.dispose(t);
+    });
+
+    testWidgets('shows playable evidence chips inside the meeting', (t) async {
+      setScreenSize(t, const Size(500, 1400));
+      final env = UiTestEnv();
+      late String meetingId;
+      await env.run(t, () async {
+        final meetings = MeetingRepository(env.db);
+        final old = await meetings.create(title: 'السابق');
+        final m = await meetings.create(title: 'الحالي');
+        meetingId = m.id;
+        await SegmentRepository(env.db).insertAll([
+          for (var i = 0; i < 4; i++)
+            TranscriptSegment(
+              id: '',
+              meetingId: m.id,
+              index: i,
+              startMs: i * 10000,
+              endMs: i * 10000 + 5000,
+              text: 'سطر $i',
+            ),
+        ]);
+        final repo = TaskRepository(env.db);
+        final prev = await repo.create(
+          task: 'مهمة سابقة',
+          sourceMeetingId: old.id,
+        );
+        await repo.create(
+          task: 'مهمة بدليل',
+          sourceMeetingId: m.id,
+          evidenceSegmentIds: const [1, 2],
+        );
+        await PendingTaskUpdateRepository(env.db).replaceForMeeting(m.id, [
+          MinutesTaskUpdate(
+            taskId: prev.id,
+            newStatus: TaskStatus.done,
+            evidence: const [3],
+          ),
+        ]);
+      });
+      await pumpScreen(
+        t,
+        env,
+        Scaffold(body: MeetingTasksPanel(meetingId: meetingId)),
+      );
+      expect(find.text('مهمة بدليل'), findsOneWidget);
+      expect(find.byType(EvidenceChips), findsNWidgets(2));
+      expect(find.text('00:00:10'), findsOneWidget);
+      expect(find.text('00:00:20'), findsOneWidget);
+      expect(find.text('00:00:30'), findsOneWidget);
+      // Chips replace the plain count.
+      expect(find.text(TS.evidenceCount(2)), findsNothing);
+      expect(find.text(TS.evidenceCount(1)), findsNothing);
       await env.dispose(t);
     });
 

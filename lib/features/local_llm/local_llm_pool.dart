@@ -12,8 +12,10 @@ import 'llm_catalog.dart';
 import 'llm_generator.dart';
 
 /// Loads [model] from the GGUF file at [path].
-typedef LocalLlmLoader =
-    Future<LlmTextGenerator> Function(LocalLlmModel model, String path);
+typedef LocalLlmLoader = Future<LlmTextGenerator> Function(
+  LocalLlmModel model,
+  String path,
+);
 
 /// Shares one loaded on-device model between backends.
 class LocalLlmPool {

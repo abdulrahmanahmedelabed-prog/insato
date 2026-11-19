@@ -122,8 +122,7 @@ class _FakeBackend implements LlamaBackend {
     List<Map<String, dynamic>> messages, {
     String? customTemplate,
     bool addAssistant = true,
-  }) async =>
-      messages.map((m) => "${m['role']}: ${m['content']}").join('\n');
+  }) async => messages.map((m) => "${m['role']}: ${m['content']}").join('\n');
 }
 
 const _model = LocalLlmCatalog.qwen3_4b;
@@ -259,43 +258,46 @@ void main() {
     await gen.close();
   });
 
-  test('an unsupported schema falls back to the schema in the prompt', () async {
-    backend.responses.add('{"n": 3}');
-    final gen = await load();
-    const schema = {
-      'type': 'object',
-      'required': ['n'],
-      'properties': {
-        'n': {'type': 'integer', 'multipleOf': 3},
-      },
-    };
-    final out = await gen.generate(
-      const LlmGenerationRequest(
-        system: 'SYS',
-        user: 'u',
-        maxTokens: 50,
-        schema: schema,
-      ),
-    );
-    expect(out.text, '{"n": 3}');
-    expect(gen.enforcesSchema, isFalse);
-    expect(backend.prompts.single, contains('# Output format (strict)'));
-    expect(backend.params.single.grammar, isNull);
+  test(
+    'an unsupported schema falls back to the schema in the prompt',
+    () async {
+      backend.responses.add('{"n": 3}');
+      final gen = await load();
+      const schema = {
+        'type': 'object',
+        'required': ['n'],
+        'properties': {
+          'n': {'type': 'integer', 'multipleOf': 3},
+        },
+      };
+      final out = await gen.generate(
+        const LlmGenerationRequest(
+          system: 'SYS',
+          user: 'u',
+          maxTokens: 50,
+          schema: schema,
+        ),
+      );
+      expect(out.text, '{"n": 3}');
+      expect(gen.enforcesSchema, isFalse);
+      expect(backend.prompts.single, contains('# Output format (strict)'));
+      expect(backend.params.single.grammar, isNull);
 
-    // Later requests go straight to the prompt fallback.
-    backend.responses.add('{"ok": false}');
-    await gen.generate(
-      const LlmGenerationRequest(
-        system: 'SYS',
-        user: 'u',
-        maxTokens: 50,
-        schema: _schema,
-      ),
-    );
-    expect(backend.prompts.length, 2);
-    expect(backend.prompts.last, contains('# Output format (strict)'));
-    await gen.close();
-  });
+      // Later requests go straight to the prompt fallback.
+      backend.responses.add('{"ok": false}');
+      await gen.generate(
+        const LlmGenerationRequest(
+          system: 'SYS',
+          user: 'u',
+          maxTokens: 50,
+          schema: _schema,
+        ),
+      );
+      expect(backend.prompts.length, 2);
+      expect(backend.prompts.last, contains('# Output format (strict)'));
+      await gen.close();
+    },
+  );
 
   test('inline <think> blocks are removed from the answer', () async {
     backend.responses.add('<think>hmm</think>\n{"ok": true}');

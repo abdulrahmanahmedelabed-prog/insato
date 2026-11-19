@@ -180,10 +180,7 @@ void main() {
 
     test('other formats: one streaming pass', () async {
       final f = File('${tmp.path}/c.wav')..writeAsBytesSync(wav32(signal));
-      final clips = await readWavClips(f.path, const [
-        (1000, 2000),
-        (0, 500),
-      ]);
+      final clips = await readWavClips(f.path, const [(1000, 2000), (0, 500)]);
       expect(clips[0].length, 16000);
       expect(clips[0].first, closeTo(0.1, 1e-3));
       expect(clips[0].last, closeTo(0.5, 1e-3));
@@ -220,8 +217,7 @@ void main() {
           speakers: speakers,
           findings: findings,
           enginesFactory: factory,
-          loadSettings: () async =>
-              const AppSettingsData(languageHint: 'ar'),
+          loadSettings: () async => const AppSettingsData(languageHint: 'ar'),
           resolveRecording: paths.resolveRecording,
           isMeetingActive: (id) => active && id == meetingId,
           clock: () => DateTime.utc(2026, 11, 19),
@@ -318,59 +314,59 @@ void main() {
 
     tearDown(() => db.close());
 
-    test('enriches findings, creates app findings, keeps the transcript',
-        () async {
-      final progress = <ReversedSpeechProgress>[];
-      final report = await service(batch: 2).run(
-        meetingId,
-        onProgress: progress.add,
-      );
-      expect(report.analysed, 2 + 1, reason: '#1, #2, #3 (#5 failed)');
-      expect(report.found, 2);
-      expect(report.failed, 1);
-      expect(report.cancelled, isFalse);
-      // The short segment is never sent to the engine.
-      expect(asr.calls, [1, 2, 3, 5]);
-      expect(factory.lastRequest!.languageHint, 'ar');
-      expect(factory.disposed, isTrue);
-      expect(asr.disposed, isTrue);
-      expect(progress.first.statusAr, KS.reverseLoading);
-      expect(progress.last.statusAr, KS.reverseSaving);
-      expect(progress.last.fraction, 1);
+    test(
+      'enriches findings, creates app findings, keeps the transcript',
+      () async {
+        final progress = <ReversedSpeechProgress>[];
+        final report = await service(batch: 2)
+            .run(meetingId, onProgress: progress.add);
+        expect(report.analysed, 2 + 1, reason: '#1, #2, #3 (#5 failed)');
+        expect(report.found, 2);
+        expect(report.failed, 1);
+        expect(report.cancelled, isFalse);
+        // The short segment is never sent to the engine.
+        expect(asr.calls, [1, 2, 3, 5]);
+        expect(factory.lastRequest!.languageHint, 'ar');
+        expect(factory.disposed, isTrue);
+        expect(asr.disposed, isTrue);
+        expect(progress.first.statusAr, KS.reverseLoading);
+        expect(progress.last.statusAr, KS.reverseSaving);
+        expect(progress.last.fraction, 1);
 
-      final stored = await findings.getForMeeting(meetingId);
-      expect(stored.map((f) => f.kind), [
-        CodeFindingKind.jargon,
-        CodeFindingKind.speechCoded,
-        CodeFindingKind.speechCoded,
-      ]);
-      expect(stored[0].payload['term'], 'النسر');
-      final enriched = stored[1].payload;
-      expect(enriched['description'], 'وصف');
-      expect(enriched['character'], 'invented_language');
-      expect(readReversedResults(enriched).single.segment, 1);
-      expect(readReversedResults(enriched).single.text, kHidden);
-      expect(readReversedChecked(enriched), {1, 3});
-      final app = stored[2];
-      expect(app.payload[kFindingOriginKey], kOriginApp);
-      expect(app.segmentIds, [2]);
-      expect(app.speakerId, speakerId);
-      expect(app.payload['speaker'], 'سارة');
-      expect(app.payload['description'], KS.appFindingDescription(1000));
-      expect(readReversedResults(app.payload).single.confidence, 0.9);
+        final stored = await findings.getForMeeting(meetingId);
+        expect(stored.map((f) => f.kind), [
+          CodeFindingKind.jargon,
+          CodeFindingKind.speechCoded,
+          CodeFindingKind.speechCoded,
+        ]);
+        expect(stored[0].payload['term'], 'النسر');
+        final enriched = stored[1].payload;
+        expect(enriched['description'], 'وصف');
+        expect(enriched['character'], 'invented_language');
+        expect(readReversedResults(enriched).single.segment, 1);
+        expect(readReversedResults(enriched).single.text, kHidden);
+        expect(readReversedChecked(enriched), {1, 3});
+        final app = stored[2];
+        expect(app.payload[kFindingOriginKey], kOriginApp);
+        expect(app.segmentIds, [2]);
+        expect(app.speakerId, speakerId);
+        expect(app.payload['speaker'], 'سارة');
+        expect(app.payload['description'], KS.appFindingDescription(1000));
+        expect(readReversedResults(app.payload).single.confidence, 0.9);
 
-      // The transcript is never rewritten.
-      final after = await segments.getForMeeting(meetingId);
-      expect(after.where((x) => x.isUnintelligible).map((x) => x.index), [
-        1,
-        2,
-        3,
-        4,
-        5,
-      ]);
-      expect(after.firstWhere((x) => x.index == 2).text, 'تخمين');
-      expect(after.firstWhere((x) => x.index == 1).text, '');
-    });
+        // The transcript is never rewritten.
+        final after = await segments.getForMeeting(meetingId);
+        expect(after.where((x) => x.isUnintelligible).map((x) => x.index), [
+          1,
+          2,
+          3,
+          4,
+          5,
+        ]);
+        expect(after.firstWhere((x) => x.index == 2).text, 'تخمين');
+        expect(after.firstWhere((x) => x.index == 1).text, '');
+      },
+    );
 
     test('second run only updates payloads in place', () async {
       await service().run(meetingId);
@@ -397,44 +393,46 @@ void main() {
       expect(readReversedChecked(stored[1].payload), {1});
     });
 
-    test('refuses without audio, while recording, or engines not ready',
-        () async {
-      active = true;
-      await expectLater(
-        service().run(meetingId),
-        throwsA(
-          isA<InsatoException>().having(
-            (e) => e.messageAr,
-            'messageAr',
-            KS.reverseRecording,
+    test(
+      'refuses without audio, while recording, or engines not ready',
+      () async {
+        active = true;
+        await expectLater(
+          service().run(meetingId),
+          throwsA(
+            isA<InsatoException>().having(
+              (e) => e.messageAr,
+              'messageAr',
+              KS.reverseRecording,
+            ),
           ),
-        ),
-      );
-      active = false;
-      factory.notReady = const ModelException('نماذج ناقصة');
-      await expectLater(
-        service().run(meetingId),
-        throwsA(isA<ModelException>()),
-      );
-      factory.notReady = null;
-      await meetings.setAudioPath(meetingId, null);
-      expect(await service().audioFileOf(meetingId), isNull);
-      await expectLater(
-        service().run(meetingId),
-        throwsA(
-          isA<InsatoException>().having(
-            (e) => e.messageAr,
-            'messageAr',
-            KS.reverseNoAudio,
+        );
+        active = false;
+        factory.notReady = const ModelException('نماذج ناقصة');
+        await expectLater(
+          service().run(meetingId),
+          throwsA(isA<ModelException>()),
+        );
+        factory.notReady = null;
+        await meetings.setAudioPath(meetingId, null);
+        expect(await service().audioFileOf(meetingId), isNull);
+        await expectLater(
+          service().run(meetingId),
+          throwsA(
+            isA<InsatoException>().having(
+              (e) => e.messageAr,
+              'messageAr',
+              KS.reverseNoAudio,
+            ),
           ),
-        ),
-      );
-      await expectLater(
-        service().run('missing'),
-        throwsA(isA<InsatoException>()),
-      );
-      expect(factory.created, 0);
-    });
+        );
+        await expectLater(
+          service().run('missing'),
+          throwsA(isA<InsatoException>()),
+        );
+        expect(factory.created, 0);
+      },
+    );
 
     test('a meeting without unintelligible segments does nothing', () async {
       final m = await meetings.create(title: 'x', status: MeetingStatus.ready);

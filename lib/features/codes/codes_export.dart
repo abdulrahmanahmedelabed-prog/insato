@@ -138,6 +138,10 @@ String renderCodesSection({
           '(${KS.inferred}، ${KS.confidence(j.confidence)})',
         ),
       );
+      final first = jargonFirstUseMs(j, segments);
+      if (first != null) {
+        b.writeln(bullet(KS.firstUse(formatTimestamp(first)), 1));
+      }
       if (j.speakers.isNotEmpty) {
         b.writeln(bullet(KS.speakersLine(j.speakers), 1));
       }
@@ -255,7 +259,8 @@ String renderCodesSection({
 }
 
 /// [renderCodesSection] from the stored findings of a meeting (with their
-/// reversed-speech enrichments) and its transcript.
+/// reversed-speech enrichments) and its transcript. Speaker names follow the
+/// voice library ([resolveSpeakerNames]).
 String renderCodesSectionFromFindings({
   required List<CodeFinding> findings,
   required List<TranscriptSegment> segments,
@@ -263,7 +268,11 @@ String renderCodesSectionFromFindings({
   CodesExportFormat format = CodesExportFormat.markdown,
   int headingLevel = 2,
 }) {
-  final grouped = groupFindings(findings);
+  final grouped = resolveSpeakerNames(
+    groupFindings(findings),
+    segments,
+    speakersById,
+  );
   final reversed = <int, List<ReversedSpeechResult>>{};
   for (final e in grouped.codedSpeech) {
     for (final r in readReversedResults(e.finding.payload)) {

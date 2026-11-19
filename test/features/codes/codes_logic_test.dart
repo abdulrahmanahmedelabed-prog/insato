@@ -73,12 +73,15 @@ void main() {
   });
 
   group('verifyReferenceText', () {
-    ReferenceCheck check(String verbatim, List<String> texts, {String n = ''}) =>
-        verifyReferenceText(
-          verbatim: verbatim,
-          normalized: n,
-          evidenceTexts: texts,
-        );
+    ReferenceCheck check(
+      String verbatim,
+      List<String> texts, {
+      String n = '',
+    }) => verifyReferenceText(
+      verbatim: verbatim,
+      normalized: n,
+      evidenceTexts: texts,
+    );
 
     test('verified when the digits appear as whole groups', () {
       expect(
@@ -86,22 +89,18 @@ void main() {
         ReferenceCheck.verified,
       );
       expect(check('20240042', ['رقم 2024-0042']), ReferenceCheck.verified);
-      expect(check('المادة 77', ['حسب المادة ٧٧ من النظام']),
-          ReferenceCheck.verified);
       expect(
-        check('0042', ['الفاتورة 2024-0042']),
+        check('المادة 77', ['حسب المادة ٧٧ من النظام']),
         ReferenceCheck.verified,
       );
+      expect(check('0042', ['الفاتورة 2024-0042']), ReferenceCheck.verified);
     });
 
     test('unverified when digits differ or only match partially', () {
       expect(check('2024-0043', ['رقم 2024-0042']), ReferenceCheck.unverified);
       expect(check('42', ['رقم 0042']), ReferenceCheck.unverified);
       expect(check('123', ['قال 12 و3']), ReferenceCheck.unverified);
-      expect(
-        check('5000', ['خمسة آلاف ريال']),
-        ReferenceCheck.unverified,
-      );
+      expect(check('5000', ['خمسة آلاف ريال']), ReferenceCheck.unverified);
     });
 
     test('falls back to normalized digits when verbatim has none', () {
@@ -113,8 +112,7 @@ void main() {
 
     test('non-numeric codes are matched as text', () {
       expect(check('ABC-X', ['المنتج abc x متوفر']), ReferenceCheck.verified);
-      expect(check('ABC-Y', ['المنتج abc x متوفر']),
-          ReferenceCheck.unverified);
+      expect(check('ABC-Y', ['المنتج abc x متوفر']), ReferenceCheck.unverified);
     });
 
     test('no evidence text', () {
@@ -142,37 +140,58 @@ void main() {
   group('groupFindings', () {
     test('parses each detector and keeps stored order', () {
       final codes = groupFindings([
-        finding(1, CodeFindingKind.jargon, const JargonItem(
-          term: 'مشروع النسر',
-          inferredMeaning: 'اسم رمزي لنظام الرواتب',
-          confidence: HypothesisConfidence.medium,
-          speakers: ['سارة'],
-          evidence: [3],
-        ).toJson()),
-        finding(2, CodeFindingKind.speechCoded, const CodedSpeechItem(
-          speaker: 'عمر',
-          character: CodedSpeechCharacter.reversedSpeech,
-          description: 'مقطع قصير',
-        ).toJson(), segmentIds: [4, 5]),
-        finding(3, CodeFindingKind.spokenCode, const SpokenCodeItem(
-          language: 'sql',
-          code: 'SELECT 1;',
-          explanation: 'استعلام',
-          speaker: 'سارة',
-        ).toJson()),
-        finding(4, CodeFindingKind.implied, const ImpliedItem(
-          literal: 'لعلنا نعيد النظر',
-          basis: 'نبرة',
-          confidence: HypothesisConfidence.low,
-          speaker: 'عمر',
-        ).toJson()),
-        finding(5, CodeFindingKind.reference, const ReferenceItem(
-          kind: ReferenceKind.invoice,
-          verbatim: '٤٢',
-          normalized: '42',
-          context: 'فاتورة',
-          speaker: 'سارة',
-        ).toJson()),
+        finding(
+          1,
+          CodeFindingKind.jargon,
+          const JargonItem(
+            term: 'مشروع النسر',
+            inferredMeaning: 'اسم رمزي لنظام الرواتب',
+            confidence: HypothesisConfidence.medium,
+            speakers: ['سارة'],
+            evidence: [3],
+          ).toJson(),
+        ),
+        finding(
+          2,
+          CodeFindingKind.speechCoded,
+          const CodedSpeechItem(
+            speaker: 'عمر',
+            character: CodedSpeechCharacter.reversedSpeech,
+            description: 'مقطع قصير',
+          ).toJson(),
+          segmentIds: [4, 5],
+        ),
+        finding(
+          3,
+          CodeFindingKind.spokenCode,
+          const SpokenCodeItem(
+            language: 'sql',
+            code: 'SELECT 1;',
+            explanation: 'استعلام',
+            speaker: 'سارة',
+          ).toJson(),
+        ),
+        finding(
+          4,
+          CodeFindingKind.implied,
+          const ImpliedItem(
+            literal: 'لعلنا نعيد النظر',
+            basis: 'نبرة',
+            confidence: HypothesisConfidence.low,
+            speaker: 'عمر',
+          ).toJson(),
+        ),
+        finding(
+          5,
+          CodeFindingKind.reference,
+          const ReferenceItem(
+            kind: ReferenceKind.invoice,
+            verbatim: '٤٢',
+            normalized: '42',
+            context: 'فاتورة',
+            speaker: 'سارة',
+          ).toJson(),
+        ),
         // Unusable payloads are skipped.
         finding(6, CodeFindingKind.jargon, const {}),
         finding(7, CodeFindingKind.spokenCode, const {'code': '  '}),
@@ -181,8 +200,10 @@ void main() {
       expect(codes.jargon.single.item.evidence, [3]);
       // Evidence falls back to the row's segment ids.
       expect(codes.codedSpeech.single.item.evidence, [4, 5]);
-      expect(codes.codedSpeech.single.item.character,
-          CodedSpeechCharacter.reversedSpeech);
+      expect(
+        codes.codedSpeech.single.item.character,
+        CodedSpeechCharacter.reversedSpeech,
+      );
       expect(codes.spokenCode.single.item.code, 'SELECT 1;');
       expect(codes.implied.single.finding.id, 4);
       expect(codes.references.single.item.normalized, '42');
@@ -209,27 +230,29 @@ void main() {
         seg(2, text: 'كلام'),
       ];
       final codes = groupFindings([
-        finding(1, CodeFindingKind.speechCoded, const CodedSpeechItem(
-          speaker: 'x',
-          character: CodedSpeechCharacter.unknown,
-          description: '',
-          evidence: [3],
-        ).toJson()),
+        finding(
+          1,
+          CodeFindingKind.speechCoded,
+          const CodedSpeechItem(
+            speaker: 'x',
+            character: CodedSpeechCharacter.unknown,
+            description: '',
+            evidence: [3],
+          ).toJson(),
+        ),
       ]);
-      expect(uncoveredUnintelligible(segments, codes).map((s) => s.index),
-          [1]);
+      expect(uncoveredUnintelligible(segments, codes).map((s) => s.index), [1]);
       expect(
-        uncoveredUnintelligible(segments, const GroupedCodes())
-            .map((s) => s.index),
+        uncoveredUnintelligible(
+          segments,
+          const GroupedCodes(),
+        ).map((s) => s.index),
         [1, 3],
       );
       expect(evidenceDurationMs([1, 3, 9], segments), 4000);
       expect(asrGuessesFor([1, 2, 3], segments), ['ربما']);
       expect(
-        segmentSpeakerName(
-          seg(1, speakerId: 'a'),
-          {'a': speaker('a', 'سارة')},
-        ),
+        segmentSpeakerName(seg(1, speakerId: 'a'), {'a': speaker('a', 'سارة')}),
         'سارة',
       );
       expect(segmentSpeakerName(seg(1), const {}), isNull);

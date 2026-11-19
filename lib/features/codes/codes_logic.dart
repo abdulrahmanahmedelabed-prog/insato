@@ -471,3 +471,133 @@ String codeFenceTag(String language) {
     _ => l.replaceAll(RegExp(r'[^a-z0-9_+-]'), ''),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Jargon
+// ---------------------------------------------------------------------------
+
+/// Start (ms) of the first use of a jargon term: the earliest of its
+/// evidence segments in [segments], or null when none is found.
+int? jargonFirstUseMs(JargonItem item, List<TranscriptSegment> segments) {
+  final ids = item.evidence.toSet();
+  int? first;
+  for (final s in segments) {
+    if (!ids.contains(s.index)) continue;
+    if (first == null || s.startMs < first) first = s.startMs;
+  }
+  return first;
+}
+
+/// Speakers of a jargon term, most frequent first: the engine's list when
+/// it gave one, else the voice-library names of the speakers of its
+/// evidence segments counted by use (ties keep first-use order).
+List<String> jargonSpeakers(
+  JargonItem item,
+  List<TranscriptSegment> segments,
+  Map<String, Speaker> speakersById,
+) {
+  final given = [
+    for (final s in item.speakers)
+      if (s.trim().isNotEmpty) s.trim(),
+  ];
+  if (given.isNotEmpty) return given;
+  final ids = item.evidence.toSet();
+  final cited = [
+    for (final s in segments)
+      if (ids.contains(s.index)) s,
+  ]..sort((a, b) => a.startMs.compareTo(b.startMs));
+  final counts = <String, int>{};
+  for (final s in cited) {
+    final n = segmentSpeakerName(s, speakersById);
+    if (n != null) counts[n] = (counts[n] ?? 0) + 1;
+  }
+  final order = counts.keys.toList();
+  final names = [...order]
+    ..sort((a, b) {
+      final c = counts[b]!.compareTo(counts[a]!);
+      return c != 0 ? c : order.indexOf(a).compareTo(order.indexOf(b));
+    });
+  return names;
+}
+
+/// [findings] with each item's speaker name resolved through the voice
+/// library ([findingSpeakerName]) so that exports follow speaker renames.
+/// Jargon findings without a speakers list get [jargonSpeakers].
+GroupedCodes resolveSpeakerNames(
+  GroupedCodes codes,
+  List<TranscriptSegment> segments,
+  Map<String, Speaker> speakersById,
+) {
+  String name(CodeFinding f, String payload) =>
+      findingSpeakerName(f, payload, speakersById) ?? payload;
+  return GroupedCodes(
+    codedSpeech: [
+      for (final e in codes.codedSpeech)
+        CodeEntry(
+          e.finding,
+          CodedSpeechItem(
+            speaker: name(e.finding, e.item.speaker),
+            character: e.item.character,
+            description: e.item.description,
+            hypotheses: e.item.hypotheses,
+            evidence: e.item.evidence,
+          ),
+        ),
+    ],
+    jargon: [
+      for (final e in codes.jargon)
+        CodeEntry(
+          e.finding,
+          JargonItem(
+            term: e.item.term,
+            inferredMeaning: e.item.inferredMeaning,
+            confidence: e.item.confidence,
+            speakers: jargonSpeakers(e.item, segments, speakersById),
+            evidence: e.item.evidence,
+          ),
+        ),
+    ],
+    spokenCode: [
+      for (final e in codes.spokenCode)
+        CodeEntry(
+          e.finding,
+          SpokenCodeItem(
+            language: e.item.language,
+            code: e.item.code,
+            explanation: e.item.explanation,
+            issues: e.item.issues,
+            speaker: name(e.finding, e.item.speaker),
+            evidence: e.item.evidence,
+          ),
+        ),
+    ],
+    implied: [
+      for (final e in codes.implied)
+        CodeEntry(
+          e.finding,
+          ImpliedItem(
+            literal: e.item.literal,
+            possibleMeanings: e.item.possibleMeanings,
+            basis: e.item.basis,
+            confidence: e.item.confidence,
+            speaker: name(e.finding, e.item.speaker),
+            evidence: e.item.evidence,
+          ),
+        ),
+    ],
+    references: [
+      for (final e in codes.references)
+        CodeEntry(
+          e.finding,
+          ReferenceItem(
+            kind: e.item.kind,
+            verbatim: e.item.verbatim,
+            normalized: e.item.normalized,
+            context: e.item.context,
+            speaker: name(e.finding, e.item.speaker),
+            evidence: e.item.evidence,
+          ),
+        ),
+    ],
+  );
+}

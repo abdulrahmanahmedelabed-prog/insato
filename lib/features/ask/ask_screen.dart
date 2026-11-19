@@ -17,23 +17,37 @@ import '../../ui/widgets/dialogs.dart';
 import 'ask_answer.dart';
 import 'ask_controller.dart';
 import 'ask_prompt.dart' show kAskMaxQuestionChars;
+import 'ask_source_sheet.dart';
 import 'strings.dart';
 
 /// Opens the meeting of a citation (at its segment when it has one).
-typedef AskCitationOpener =
-    Future<void> Function(
-      BuildContext context,
-      WidgetRef ref,
-      AskCitation citation,
-    );
-
-/// How a citation is opened. The default opens the meeting; the integrator
-/// overrides it to also jump to `citation.segmentIndex` (F5 evidence
-/// player / transcript scroll).
-final askCitationOpenerProvider = Provider<AskCitationOpener>(
-  (ref) =>
-      (context, ref, citation) => openMeeting(context, ref, citation.meetingId),
+typedef AskCitationOpener = Future<void> Function(
+  BuildContext context,
+  WidgetRef ref,
+  AskCitation citation,
 );
+
+/// How a citation is opened. The default ([openAskCitation]) shows the cited
+/// moment in a sheet (excerpt, playback from that line, open the meeting) and
+/// opens a meeting-level citation directly.
+final askCitationOpenerProvider = Provider<AskCitationOpener>(
+  (ref) => openAskCitation,
+);
+
+/// Default [AskCitationOpener]: a citation of a segment shows
+/// [showAskSourceSheet] (which may then open the meeting); a citation of a
+/// whole meeting opens it.
+Future<void> openAskCitation(
+  BuildContext context,
+  WidgetRef ref,
+  AskCitation citation,
+) async {
+  if (citation.segmentIndex != null) {
+    final open = await showAskSourceSheet(context, citation);
+    if (!open || !context.mounted) return;
+  }
+  await openMeeting(context, ref, citation.meetingId);
+}
 
 /// Opens the settings page (engine not ready).
 final askSettingsOpenerProvider = Provider<Future<void> Function(BuildContext)>(
@@ -187,10 +201,7 @@ class _EmptyAsk extends ConsumerWidget {
             runSpacing: 8,
             children: [
               for (final q in AS.examples)
-                ActionChip(
-                  label: Text(q),
-                  onPressed: () => onExample(q),
-                ),
+                ActionChip(label: Text(q), onPressed: () => onExample(q)),
             ],
           ),
           if (settings != null) ...[
@@ -304,11 +315,8 @@ class _AnswerBubble extends ConsumerWidget {
 
   final AskMessage message;
 
-  Future<void> _open(
-    BuildContext context,
-    WidgetRef ref,
-    AskCitation c,
-  ) => ref.read(askCitationOpenerProvider)(context, ref, c);
+  Future<void> _open(BuildContext context, WidgetRef ref, AskCitation c) =>
+      ref.read(askCitationOpenerProvider)(context, ref, c);
 
   Future<void> _copy(BuildContext context, WidgetRef ref) async {
     final answer = message.answer!;
@@ -491,10 +499,7 @@ class _CitationMarker extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 1,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 child: Text(
                   '${citation.number}',
                   style: TextStyle(

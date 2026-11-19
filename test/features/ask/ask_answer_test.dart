@@ -120,11 +120,13 @@ void main() {
       expect(linked.modelText, 'أ ب [M1] ج');
     });
 
-    test('a meeting cited with and without a missing segment is one source',
-        () {
-      final linked = linkAskAnswer('أ [M1] ب [M1#99]', refs);
-      expect(linked.sources, hasLength(1));
-    });
+    test(
+      'a meeting cited with and without a missing segment is one source',
+      () {
+        final linked = linkAskAnswer('أ [M1] ب [M1#99]', refs);
+        expect(linked.sources, hasLength(1));
+      },
+    );
 
     test('leaves brackets that are not references as text', () {
       final linked = linkAskAnswer('القائمة [1] و[ملاحظة] و[#5]', refs);
@@ -155,8 +157,14 @@ void main() {
     });
 
     test('budgets per engine', () {
-      expect(askPromptCharBudget('claude'), greaterThan(askPromptCharBudget('local')));
-      expect(askPromptCharBudget('gemini'), greaterThan(askPromptCharBudget('server')));
+      expect(
+        askPromptCharBudget('claude'),
+        greaterThan(askPromptCharBudget('local')),
+      );
+      expect(
+        askPromptCharBudget('gemini'),
+        greaterThan(askPromptCharBudget('server')),
+      );
       expect(askPromptCharBudget('unknown'), askPromptCharBudget('server'));
     });
 
@@ -181,8 +189,10 @@ void main() {
         history: const [AskHistoryTurn(question: 'س', answer: 'ج [M1]')],
         noMatches: true,
       );
-      expect(msg.indexOf('<conversation_history>'),
-          lessThan(msg.indexOf('<context>')));
+      expect(
+        msg.indexOf('<conversation_history>'),
+        lessThan(msg.indexOf('<context>')),
+      );
       expect(msg, contains('<question>\nما موعد الإطلاق؟\n</question>'));
       expect(msg, contains('M1 | x'));
       expect(msg, contains('لم يُعثر على مقاطع'));

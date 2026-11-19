@@ -131,7 +131,8 @@ class AskLinkedAnswer {
   final String modelText;
 
   /// The answer text without markers (copying, accessibility).
-  String get plainText => parts.whereType<AskTextPart>().map((p) => p.text).join();
+  String get plainText =>
+      parts.whereType<AskTextPart>().map((p) => p.text).join();
 }
 
 /// The engine's answer before linking.

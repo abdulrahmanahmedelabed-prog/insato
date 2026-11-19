@@ -188,10 +188,14 @@ String buildChunkUserMessage({
 }) {
   final b = StringBuffer()
     ..writeln('<meeting_metadata>')
-    ..writeln('Title given by the user: ${_neutralise(_oneLine(context.meeting.title))}')
-    ..writeln('This is part $index of $total of the transcript '
-        '(${formatTimestamp(chunk.first.startMs)}–'
-        '${formatTimestamp(chunk.last.endMs)}).');
+    ..writeln(
+      'Title given by the user: ${_neutralise(_oneLine(context.meeting.title))}',
+    )
+    ..writeln(
+      'This is part $index of $total of the transcript '
+      '(${formatTimestamp(chunk.first.startMs)}–'
+      '${formatTimestamp(chunk.last.endMs)}).',
+    );
   final agenda = context.meeting.context.agenda
       .map((a) => _neutralise(_oneLine(a)))
       .where((a) => a.isNotEmpty)
@@ -204,8 +208,10 @@ String buildChunkUserMessage({
     b
       ..writeln()
       ..writeln('<glossary>')
-      ..writeln('Canonical spellings (use them when the transcript evidently '
-          'misheard them):');
+      ..writeln(
+        'Canonical spellings (use them when the transcript evidently '
+        'misheard them):',
+      );
     for (final g in context.inputs.glossary) {
       final ar = g.arSpelling == null ? '' : ' — ${_oneLine(g.arSpelling!)}';
       b.writeln('- ${_neutralise(_oneLine(g.term))}${_neutralise(ar)}');
@@ -239,8 +245,10 @@ String buildChunkUserMessage({
     ..writeln('</transcript>')
     ..writeln()
     ..writeln('<instructions>')
-    ..writeln('Extract the notes of this part as JSON {"notes": [...]}. '
-        'Cite segment ids as evidence and copy speaker names verbatim.')
+    ..writeln(
+      'Extract the notes of this part as JSON {"notes": [...]}. '
+      'Cite segment ids as evidence and copy speaker names verbatim.',
+    )
     ..write('</instructions>');
   return b.toString();
 }
@@ -258,9 +266,7 @@ List<ChunkNote>? parseChunkNotes(String text) {
     final kind = item['kind'];
     out.add(
       ChunkNote(
-        kind: kind is String && kChunkNoteKinds.contains(kind)
-            ? kind
-            : 'point',
+        kind: kind is String && kChunkNoteKinds.contains(kind) ? kind : 'point',
         text: _oneLine(t),
         speakers: [
           if (item['speakers'] is List)
@@ -274,7 +280,8 @@ List<ChunkNote>? parseChunkNotes(String text) {
                 e
               else if (e is num && e == e.roundToDouble())
                 e.toInt()
-              else if (e is String && int.tryParse(e.replaceAll('#', '')) != null)
+              else if (e is String &&
+                  int.tryParse(e.replaceAll('#', '')) != null)
                 int.parse(e.replaceAll('#', '')),
         ],
       ),

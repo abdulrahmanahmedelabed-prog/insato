@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
 import '../../data/repositories.dart' show meetingsProvider;
+import '../evidence/evidence_chips.dart' show EvidenceChips;
 import '../../ui/navigation.dart';
 import '../../ui/strings_ar.dart';
 import 'strings.dart';
@@ -77,6 +78,7 @@ class TaskTile extends ConsumerWidget {
     super.key,
     required this.task,
     this.showSource = true,
+    this.evidenceLinks = false,
     this.onOpenMeeting,
   });
 
@@ -85,6 +87,11 @@ class TaskTile extends ConsumerWidget {
 
   /// Whether to show the source meeting line (off inside that meeting).
   final bool showSource;
+
+  /// Whether the cited transcript segments are shown as playable
+  /// [EvidenceChips] (inside the source meeting's page, under its
+  /// `EvidenceScope`) instead of a plain count.
+  final bool evidenceLinks;
 
   /// Opens a meeting (default: [openMeeting]).
   final void Function(String meetingId)? onOpenMeeting;
@@ -110,6 +117,8 @@ class TaskTile extends ConsumerWidget {
     final closed = task.status != TaskStatus.open;
     final muted = theme.colorScheme.onSurfaceVariant;
     final lineStyle = theme.textTheme.bodySmall?.copyWith(color: muted);
+    final chips =
+        evidenceLinks && sourceId != null && task.evidenceSegmentIds.isNotEmpty;
 
     final lines = <Widget>[
       if (owner != null)
@@ -120,7 +129,7 @@ class TaskTile extends ConsumerWidget {
         _Line(icon: Icons.groups_outlined, text: TS.sourceLine(meeting.title)),
       if (showSource && sourceId != null && meeting == null && meetingsLoaded)
         const _Line(icon: Icons.groups_outlined, text: TS.sourceDeleted),
-      if (task.evidenceSegmentIds.isNotEmpty)
+      if (task.evidenceSegmentIds.isNotEmpty && !chips)
         _Line(
           icon: Icons.graphic_eq_rounded,
           text: TS.evidenceCount(task.evidenceSegmentIds.length),
@@ -184,6 +193,11 @@ class TaskTile extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      if (chips)
+                        EvidenceChips(
+                          meetingId: sourceId,
+                          evidence: task.evidenceSegmentIds,
+                        ),
                     ],
                   ),
                 ),
@@ -306,10 +320,15 @@ class PendingUpdatesCard extends ConsumerWidget {
     this.title = TS.pendingHeader,
     this.showSourceMeeting = true,
     this.showExplanation = true,
+    this.evidenceLinks = false,
   });
 
   /// Updates to show (oldest first).
   final List<PendingUpdateView> views;
+
+  /// Whether evidence is shown as playable [EvidenceChips] (inside the
+  /// page of the meeting that proposed the updates).
+  final bool evidenceLinks;
 
   /// Card title.
   final String title;
@@ -363,6 +382,7 @@ class PendingUpdatesCard extends ConsumerWidget {
                 key: ValueKey('pending-${v.update.id}'),
                 view: v,
                 showSourceMeeting: showSourceMeeting,
+                evidenceLinks: evidenceLinks,
               ),
             if (applicable.length > 1)
               Align(
@@ -388,6 +408,7 @@ class PendingUpdateTile extends ConsumerWidget {
     super.key,
     required this.view,
     this.showSourceMeeting = true,
+    this.evidenceLinks = false,
   });
 
   /// The update.
@@ -395,6 +416,10 @@ class PendingUpdateTile extends ConsumerWidget {
 
   /// Whether to name the meeting that proposed it.
   final bool showSourceMeeting;
+
+  /// Whether evidence is shown as playable [EvidenceChips] (the segments
+  /// belong to the meeting that proposed the update).
+  final bool evidenceLinks;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -442,7 +467,12 @@ class PendingUpdateTile extends ConsumerWidget {
               style: theme.textTheme.bodySmall?.copyWith(color: muted),
             ),
           ],
-          if (u.evidenceSegmentIds.isNotEmpty)
+          if (u.evidenceSegmentIds.isNotEmpty && evidenceLinks)
+            EvidenceChips(
+              meetingId: u.meetingId,
+              evidence: u.evidenceSegmentIds,
+            )
+          else if (u.evidenceSegmentIds.isNotEmpty)
             Text(
               TS.evidenceCount(u.evidenceSegmentIds.length),
               style: theme.textTheme.bodySmall?.copyWith(color: muted),

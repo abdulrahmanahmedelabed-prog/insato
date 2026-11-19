@@ -72,14 +72,15 @@ void main() {
 
   group('analyzeSearchText', () {
     test('drops stop words and stems', () {
-      expect(
-        analyzeSearchText('ما هي القرارات التي اتُّخذت بشأن الميزانية؟'),
-        ['قرار', 'اتخذت', 'ميزان'],
-      );
-      expect(
-        analyzeSearchText('What was decided about the budgets?'),
-        ['decid', 'budget'],
-      );
+      expect(analyzeSearchText('ما هي القرارات التي اتُّخذت بشأن الميزانية؟'), [
+        'قرار',
+        'اتخذت',
+        'ميزان',
+      ]);
+      expect(analyzeSearchText('What was decided about the budgets?'), [
+        'decid',
+        'budget',
+      ]);
     });
 
     test('spelling variants produce the same terms', () {
@@ -95,7 +96,11 @@ void main() {
     });
 
     test('mixed scripts', () {
-      expect(analyzeSearchText('نشر Kubernetes غداً'), ['نشر', 'kubernet', 'غدا']);
+      expect(analyzeSearchText('نشر Kubernetes غداً'), [
+        'نشر',
+        'kubernet',
+        'غدا',
+      ]);
     });
   });
 

@@ -46,8 +46,14 @@ void main() {
           reason: '$target',
         );
       }
-      expect(LocalLlmCatalog.recommended(desktop: false), LocalLlmCatalog.qwen3_4b);
-      expect(LocalLlmCatalog.recommended(desktop: true), LocalLlmCatalog.qwen3_8b);
+      expect(
+        LocalLlmCatalog.recommended(desktop: false),
+        LocalLlmCatalog.qwen3_4b,
+      );
+      expect(
+        LocalLlmCatalog.recommended(desktop: true),
+        LocalLlmCatalog.qwen3_8b,
+      );
     });
 
     test('phones only see phone models; PCs see all', () {
@@ -63,7 +69,10 @@ void main() {
         LocalLlmCatalog.resolve('qwen3-14b-q4km', desktop: true),
         LocalLlmCatalog.qwen3_14b,
       );
-      expect(LocalLlmCatalog.resolve(null, desktop: true), LocalLlmCatalog.qwen3_8b);
+      expect(
+        LocalLlmCatalog.resolve(null, desktop: true),
+        LocalLlmCatalog.qwen3_8b,
+      );
       expect(
         LocalLlmCatalog.resolve('unknown', desktop: false),
         LocalLlmCatalog.qwen3_4b,
@@ -118,11 +127,7 @@ void main() {
           }
         }
 
-        return http.StreamedResponse(
-          chunks(),
-          200,
-          contentLength: body.length,
-        );
+        return http.StreamedResponse(chunks(), 200, contentLength: body.length);
       });
       final manager = ModelManager(
         tmp.path,

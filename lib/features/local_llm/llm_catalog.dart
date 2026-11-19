@@ -211,6 +211,7 @@ abstract final class LocalLlmCatalog {
       tryById(id) ?? recommended(desktop: desktop);
 
   /// `ModelManager` catalog of every model.
-  static List<ModelSpec> get modelSpecs =>
-      [for (final m in all) m.toModelSpec()];
+  static List<ModelSpec> get modelSpecs => [
+    for (final m in all) m.toModelSpec(),
+  ];
 }

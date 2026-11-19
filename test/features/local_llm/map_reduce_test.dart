@@ -28,9 +28,8 @@ MinutesPromptContext _context(
   String title = 'اجتماع الميزانية',
   List<String> agenda = const [],
 }) => MinutesPromptContext(
-  meeting: meeting(title: title).copyWith(
-    context: MeetingContext(agenda: agenda),
-  ),
+  meeting: meeting(title: title)
+      .copyWith(context: MeetingContext(agenda: agenda)),
   segments: segments,
   speakersById: _speakers,
   inputs: inputs,
@@ -72,7 +71,11 @@ void main() {
         seg(1, 1000, 2000, 'نص', speakerId: 'b'),
       ];
       expect(
-        splitTranscriptChunks(segs, _speakers, maxChars: 1000).single.single.index,
+        splitTranscriptChunks(
+          segs,
+          _speakers,
+          maxChars: 1000,
+        ).single.single.index,
         1,
       );
       expect(splitTranscriptChunks(const [], _speakers, maxChars: 10), isEmpty);
@@ -203,12 +206,18 @@ void main() {
       renderChunkNote(n),
       '- [action_item] يعد ‹b›التقرير‹/b› (speakers: سارة، متحدث 2) [#4 #5]',
     );
-    expect(renderChunkNote(const ChunkNote(kind: 'point', text: 'x')), '- [point] x');
+    expect(
+      renderChunkNote(const ChunkNote(kind: 'point', text: 'x')),
+      '- [point] x',
+    );
     final text = renderChunkNotes(const [
       ChunkNotes(index: 1, total: 2, startMs: 0, endMs: 60000, notes: [n]),
       ChunkNotes(index: 2, total: 2, startMs: 60000, endMs: 125000, notes: []),
     ]);
-    expect(text, startsWith('Part 1 of 2 (00:00:00–00:01:00):\n- [action_item]'));
+    expect(
+      text,
+      startsWith('Part 1 of 2 (00:00:00–00:01:00):\n- [action_item]'),
+    );
     expect(text, contains('\n\nPart 2 of 2 (00:01:00–00:02:05):\n'));
     expect(text, endsWith('- (nothing substantive in this part)'));
   });
@@ -217,9 +226,13 @@ void main() {
     final s = chunkNotesSchema();
     expect(s['required'], ['notes']);
     final item =
-        ((s['properties'] as Map)['notes'] as Map)['items'] as Map<String, dynamic>;
+        ((s['properties'] as Map)['notes'] as Map)['items']
+            as Map<String, dynamic>;
     expect(item['required'], ['kind', 'text', 'speakers', 'evidence']);
-    expect(((item['properties'] as Map)['kind'] as Map)['enum'], kChunkNoteKinds);
+    expect(
+      ((item['properties'] as Map)['kind'] as Map)['enum'],
+      kChunkNoteKinds,
+    );
   });
 
   group('reduce message', () {
@@ -227,7 +240,12 @@ void main() {
       final segs = _segments(3);
       final ctx = _context(segs);
       final m = buildReduceUserMessage(context: ctx, notesText: 'NOTES');
-      expect(m, contains('<transcript>\n$kReduceTranscriptIntro\n\nNOTES\n</transcript>'));
+      expect(
+        m,
+        contains(
+          '<transcript>\n$kReduceTranscriptIntro\n\nNOTES\n</transcript>',
+        ),
+      );
       expect(m, isNot(contains('[#1 ')));
       // The rest of the minutes message is kept.
       final full = buildMinutesUserMessage(
@@ -235,10 +253,14 @@ void main() {
         segments: segs,
         speakersById: _speakers,
       );
-      expect(m.substring(0, m.indexOf('<transcript>')),
-          full.substring(0, full.indexOf('<transcript>')));
-      expect(m.substring(m.lastIndexOf('</transcript>')),
-          full.substring(full.lastIndexOf('</transcript>')));
+      expect(
+        m.substring(0, m.indexOf('<transcript>')),
+        full.substring(0, full.indexOf('<transcript>')),
+      );
+      expect(
+        m.substring(m.lastIndexOf('</transcript>')),
+        full.substring(full.lastIndexOf('</transcript>')),
+      );
     });
 
     test('replaceTranscriptBlock appends a block when missing', () {

@@ -77,6 +77,7 @@ class MeetingTasksPanel extends ConsumerWidget {
                     key: ValueKey('task-${t.id}'),
                     task: t,
                     showSource: false,
+                    evidenceLinks: true,
                   ),
               ],
       ),
@@ -85,6 +86,7 @@ class MeetingTasksPanel extends ConsumerWidget {
           views: pending,
           title: TS.meetingUpdatesHeader,
           showSourceMeeting: false,
+          evidenceLinks: true,
         ),
     ];
     if (!scrollable) {

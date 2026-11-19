@@ -52,8 +52,7 @@ String _trimSlashes(String url) {
 
 /// Flavour encoded in a saved server [url].
 LlmServerFlavor serverFlavorOfUrl(String url) =>
-    Uri.tryParse(_trimSlashes(url))?.path.toLowerCase().endsWith('/v1') ??
-        false
+    Uri.tryParse(_trimSlashes(url))?.path.toLowerCase().endsWith('/v1') ?? false
     ? LlmServerFlavor.openAi
     : LlmServerFlavor.ollama;
 
@@ -180,15 +179,14 @@ class LlmServerClient {
 
   Future<http.Response> _get(Uri uri) => _short(() => _client.get(uri), uri);
 
-  Future<http.Response> _postJson(Uri uri, Map<String, dynamic> body) =>
-      _short(
-        () => _client.post(
-          uri,
-          headers: const {'content-type': 'application/json'},
-          body: jsonEncode(body),
-        ),
-        uri,
-      );
+  Future<http.Response> _postJson(Uri uri, Map<String, dynamic> body) => _short(
+    () => _client.post(
+      uri,
+      headers: const {'content-type': 'application/json'},
+      body: jsonEncode(body),
+    ),
+    uri,
+  );
 
   Future<http.Response> _short(
     Future<http.Response> Function() send,
@@ -261,11 +259,13 @@ class LlmServerClient {
 
   /// Model names available on the server (Ollama `/api/tags`, OpenAI
   /// `/v1/models`), sorted.
-  Future<List<String>> listModels() =>
-      _listModels(baseUrl, flavor);
+  Future<List<String>> listModels() => _listModels(baseUrl, flavor);
 
   Future<List<String>> _listModels(String base, LlmServerFlavor f) async {
-    final uri = _uri(base, f == LlmServerFlavor.ollama ? '/api/tags' : '/models');
+    final uri = _uri(
+      base,
+      f == LlmServerFlavor.ollama ? '/api/tags' : '/models',
+    );
     final r = await _get(uri);
     if (r.statusCode != 200) throw _httpError(r.statusCode, r.body);
     final j = _json(r.body);
@@ -411,7 +411,9 @@ class LlmServerClient {
     final abort = Completer<void>();
     final req = http.AbortableRequest('POST', uri, abortTrigger: abort.future)
       ..headers['content-type'] = 'application/json'
-      ..headers['accept'] = ollama ? 'application/x-ndjson' : 'text/event-stream'
+      ..headers['accept'] = ollama
+          ? 'application/x-ndjson'
+          : 'text/event-stream'
       ..body = jsonEncode(body);
 
     http.StreamedResponse resp;
@@ -457,11 +459,7 @@ class LlmServerClient {
       if (j == null) return;
       final err = j['error'];
       if (err != null) {
-        throw _httpError(
-          200,
-          jsonEncode({'error': err}),
-          model: model,
-        );
+        throw _httpError(200, jsonEncode({'error': err}), model: model);
       }
       if (j['model'] case final String m when m.isNotEmpty) usedModel = m;
       String? content;
@@ -481,8 +479,8 @@ class LlmServerClient {
           final delta = c['delta'];
           if (delta is Map) {
             content = delta['content'] as String?;
-            thinking = (delta['reasoning_content'] ?? delta['reasoning'])
-                as String?;
+            thinking =
+                (delta['reasoning_content'] ?? delta['reasoning']) as String?;
           }
           finish = c['finish_reason'] as String?;
         }
@@ -603,8 +601,8 @@ class ServerTextGenerator implements LlmTextGenerator {
         _schemaSupported = false;
       }
     }
-    final system = schema != null &&
-            !request.system.contains('# Output format (strict)')
+    final system =
+        schema != null && !request.system.contains('# Output format (strict)')
         ? '${request.system}${schemaPromptSuffix(schema)}'
         : request.system;
     return _client.chat(
@@ -629,4 +627,6 @@ class ServerTextGenerator implements LlmTextGenerator {
 /// A model label for `Minutes.model`: `ollama/<model>` or
 /// `openai-compatible/<model>`.
 String serverModelLabel(LlmServerFlavor flavor, String model) =>
-    flavor == LlmServerFlavor.ollama ? 'ollama/$model' : 'openai-compatible/$model';
+    flavor == LlmServerFlavor.ollama
+    ? 'ollama/$model'
+    : 'openai-compatible/$model';

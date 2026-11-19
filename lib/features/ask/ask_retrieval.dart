@@ -154,9 +154,28 @@ class AskPackedContext {
 }
 
 const Set<String> _recencyTokens = {
-  'اخر', 'الاخر', 'الاخير', 'الاخيره', 'اخير', 'اخيره', 'الماضي', 'الماضيه',
-  'السابق', 'السابقه', 'امس', 'بالامس', 'البارحه', 'اليوم', 'موخرا',
-  'last', 'latest', 'recent', 'recently', 'previous', 'yesterday', 'today',
+  'اخر',
+  'الاخر',
+  'الاخير',
+  'الاخيره',
+  'اخير',
+  'اخيره',
+  'الماضي',
+  'الماضيه',
+  'السابق',
+  'السابقه',
+  'امس',
+  'بالامس',
+  'البارحه',
+  'اليوم',
+  'موخرا',
+  'last',
+  'latest',
+  'recent',
+  'recently',
+  'previous',
+  'yesterday',
+  'today',
 };
 
 /// True when [question] asks about the latest / previous meeting(s).
@@ -178,7 +197,8 @@ Map<String, int> assignAskAliases(
 ) {
   final out = Map<String, int>.of(previous);
   var next = out.values.fold<int>(0, math.max) + 1;
-  final byAge = [...meetings]..sort((a, b) {
+  final byAge = [...meetings]
+    ..sort((a, b) {
       final c = a.createdAt.compareTo(b.createdAt);
       return c != 0 ? c : a.id.compareTo(b.id);
     });

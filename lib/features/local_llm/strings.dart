@@ -29,8 +29,7 @@ abstract final class LS {
   // ---------------------------------------------------------------------------
 
   /// Backend used after close.
-  static const String engineClosed =
-      'أُغلق محرك المحضر المحلي. أعد المحاولة.';
+  static const String engineClosed = 'أُغلق محرك المحضر المحلي. أعد المحاولة.';
 
   /// The model's context window is too small for the prompt.
   static const String contextTooSmall =
@@ -257,6 +256,5 @@ abstract final class LS {
   static String modelChosen(String name) => 'اختير «$name».';
 
   /// Models could not be listed.
-  static const String modelsLoadFailed =
-      'تعذّر قراءة حالة النماذج على الجهاز.';
+  static const String modelsLoadFailed = 'تعذّر قراءة حالة النماذج على الجهاز.';
 }

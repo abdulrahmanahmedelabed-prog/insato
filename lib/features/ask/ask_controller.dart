@@ -82,8 +82,9 @@ final askCorpusLoaderProvider = Provider<AskCorpusLoader>(
 );
 
 /// Runs [runAskRetrieval] (tests may run it inline).
-typedef AskRetrievalRunner =
-    Future<AskPackedContext> Function(AskRetrievalJob job);
+typedef AskRetrievalRunner = Future<AskPackedContext> Function(
+  AskRetrievalJob job,
+);
 
 /// Corpora above this many transcript characters are searched in a
 /// background isolate so the UI stays smooth.
@@ -318,7 +319,9 @@ class AskController extends Notifier<AskState> {
       if (q.role == AskRole.user &&
           a.role == AskRole.assistant &&
           a.answer != null) {
-        turns.add(AskHistoryTurn(question: q.text, answer: a.answer!.modelText));
+        turns.add(
+          AskHistoryTurn(question: q.text, answer: a.answer!.modelText),
+        );
       }
     }
     return turns;

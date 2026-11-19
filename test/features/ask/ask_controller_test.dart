@@ -56,9 +56,7 @@ void main() {
 
   test('answers with linked citations and closes the backend', () async {
     final c = make();
-    nextReplies.add(
-      json('اقتُرح الإطلاق في الأول من ديسمبر [M3#2] [M9#1].'),
-    );
+    nextReplies.add(json('اقتُرح الإطلاق في الأول من ديسمبر [M3#2] [M9#1].'));
     final ok = await c
         .read(askControllerProvider.notifier)
         .ask('  متى موعد إطلاق التطبيق؟ ');
@@ -94,8 +92,7 @@ void main() {
     );
   });
 
-  test('follow-up questions carry the history and earlier citations',
-      () async {
+  test('follow-up questions carry the history and earlier citations', () async {
     final c = make();
     nextReplies.addAll([
       json('في الأول من ديسمبر [M3#2].'),
@@ -193,35 +190,34 @@ void main() {
     expect(await ctrl.retry(999), isFalse);
   });
 
-  test('busy: a second question is refused; cancel discards the answer',
-      () async {
-    final c = make();
-    final pending = Completer<String>();
-    nextReplies.add(pending);
-    final ctrl = c.read(askControllerProvider.notifier);
-    final first = ctrl.ask('متى الإطلاق؟');
-    await pumpEventQueue();
-    expect(c.read(askControllerProvider).busy, isTrue);
-    expect(
-      c.read(askControllerProvider).progress!.phase,
-      AskPhase.thinking,
-    );
-    expect(await ctrl.ask('سؤال آخر'), isFalse);
-    expect(await ctrl.ask('   '), isFalse);
+  test(
+    'busy: a second question is refused; cancel discards the answer',
+    () async {
+      final c = make();
+      final pending = Completer<String>();
+      nextReplies.add(pending);
+      final ctrl = c.read(askControllerProvider.notifier);
+      final first = ctrl.ask('متى الإطلاق؟');
+      await pumpEventQueue();
+      expect(c.read(askControllerProvider).busy, isTrue);
+      expect(c.read(askControllerProvider).progress!.phase, AskPhase.thinking);
+      expect(await ctrl.ask('سؤال آخر'), isFalse);
+      expect(await ctrl.ask('   '), isFalse);
 
-    ctrl.cancel();
-    var s = c.read(askControllerProvider);
-    expect(s.busy, isFalse);
-    expect(s.messages.last.failure, AskFailure.cancelled);
-    expect(s.messages.last.question, 'متى الإطلاق؟');
-    expect(backends.single.closes, greaterThanOrEqualTo(1));
+      ctrl.cancel();
+      var s = c.read(askControllerProvider);
+      expect(s.busy, isFalse);
+      expect(s.messages.last.failure, AskFailure.cancelled);
+      expect(s.messages.last.question, 'متى الإطلاق؟');
+      expect(backends.single.closes, greaterThanOrEqualTo(1));
 
-    pending.complete(json('متأخر [M3#2]'));
-    await first;
-    s = c.read(askControllerProvider);
-    expect(s.messages, hasLength(2));
-    expect(s.messages.last.failure, AskFailure.cancelled);
-  });
+      pending.complete(json('متأخر [M3#2]'));
+      await first;
+      s = c.read(askControllerProvider);
+      expect(s.messages, hasLength(2));
+      expect(s.messages.last.failure, AskFailure.cancelled);
+    },
+  );
 
   test('clear empties the conversation and forgets aliases', () async {
     final c = make();

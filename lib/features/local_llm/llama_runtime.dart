@@ -113,8 +113,8 @@ class LlamadartTextGenerator implements LlmTextGenerator {
         _schemaSupported = false;
       }
     }
-    final system = schema != null &&
-            !request.system.contains('# Output format (strict)')
+    final system =
+        schema != null && !request.system.contains('# Output format (strict)')
         ? '${request.system}${schemaPromptSuffix(schema)}'
         : request.system;
     return _run(

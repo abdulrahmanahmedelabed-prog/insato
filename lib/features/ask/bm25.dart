@@ -85,13 +85,14 @@ class Bm25Index {
         scores[p.doc] = (scores[p.doc] ?? 0) + weight * s;
       }
     });
-    final hits = [
-      for (final e in scores.entries)
-        if (e.value > 0) Bm25Hit(e.key, e.value),
-    ]..sort((a, z) {
-        final c = z.score.compareTo(a.score);
-        return c != 0 ? c : a.doc.compareTo(z.doc);
-      });
+    final hits =
+        [
+          for (final e in scores.entries)
+            if (e.value > 0) Bm25Hit(e.key, e.value),
+        ]..sort((a, z) {
+          final c = z.score.compareTo(a.score);
+          return c != 0 ? c : a.doc.compareTo(z.doc);
+        });
     if (limit != null && hits.length > limit) return hits.sublist(0, limit);
     return hits;
   }
