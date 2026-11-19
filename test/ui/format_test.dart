@@ -1,11 +1,11 @@
 import 'dart:ui' show TextDirection;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/ui/format.dart';
-import 'package:katib/ui/strings_ar.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/ui/format.dart';
+import 'package:insato/ui/strings_ar.dart';
 
 TranscriptSegment seg(
   int i,

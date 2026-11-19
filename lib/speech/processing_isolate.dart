@@ -150,7 +150,7 @@ Future<WorkerEngines> createSherpaWorkerEngines(
 /// A background isolate owning the on-device [AsrEngine] and
 /// [SpeakerEmbedder]. Segments are processed one at a time in the order
 /// [process] was called; failures complete the returned future with a
-/// [KatibException].
+/// [InsatoException].
 class ProcessingIsolate {
   ProcessingIsolate._(this._isolate, this._port, this._errorPort,
       this._exitPort, this.config);
@@ -208,7 +208,7 @@ class ProcessingIsolate {
     ProcessingIsolateConfig config,
     WorkerEngineFactory factory,
   ) async {
-    final port = ReceivePort('katib-processing');
+    final port = ReceivePort('insato-processing');
     final errorPort = ReceivePort();
     final exitPort = ReceivePort();
     final Isolate isolate;
@@ -218,7 +218,7 @@ class ProcessingIsolate {
         _Bootstrap(port.sendPort, config, factory),
         onError: errorPort.sendPort,
         onExit: exitPort.sendPort,
-        debugName: 'katib-processing',
+        debugName: 'insato-processing',
       );
     } catch (e) {
       port.close();
@@ -360,7 +360,7 @@ class ProcessingIsolate {
     if (!_disposedSignal.isCompleted) _disposedSignal.complete();
   }
 
-  void _failAll(KatibException e) {
+  void _failAll(InsatoException e) {
     final all = _pending.values.toList();
     _pending.clear();
     for (final p in all) {
@@ -396,12 +396,12 @@ class _Bootstrap {
 
 /// Encodes [e] into a sendable map (`kind`, `messageAr`, `debug`).
 Map<String, Object?> encodeWorkerError(Object e, [StackTrace? st]) {
-  if (e is KatibException) {
+  if (e is InsatoException) {
     final kind = switch (e) {
       ModelException() => 'model',
       MissingApiKeyException() => 'apiKey',
       AsrException() => 'asr',
-      _ => 'katib',
+      _ => 'insato',
     };
     return {'kind': kind, 'messageAr': e.messageAr, 'debug': e.debugDetails};
   }
@@ -412,20 +412,20 @@ Map<String, Object?> encodeWorkerError(Object e, [StackTrace? st]) {
   };
 }
 
-/// Rebuilds the [KatibException] encoded by [encodeWorkerError].
-KatibException decodeWorkerError(Map msg) {
+/// Rebuilds the [InsatoException] encoded by [encodeWorkerError].
+InsatoException decodeWorkerError(Map msg) {
   final m = (msg['messageAr'] as String?) ??
       'حدث خطأ غير متوقع أثناء معالجة الصوت.';
   final d = msg['debug'] as String?;
   return switch (msg['kind']) {
     'model' => ModelException(m, debugDetails: d),
     'apiKey' => MissingApiKeyException(m, debugDetails: d),
-    'katib' => KatibException(m, debugDetails: d),
+    'insato' => InsatoException(m, debugDetails: d),
     _ => AsrException(m, debugDetails: d),
   };
 }
 
-KatibException _decodeError(Map msg) => decodeWorkerError(msg);
+InsatoException _decodeError(Map msg) => decodeWorkerError(msg);
 
 // ---------------------------------------------------------------------------
 // Worker side.
@@ -523,7 +523,7 @@ Future<Map<String, Object?>> _processOne(
     String? embeddingError;
     try {
       embedding = await engines.embedder.embed(samples);
-    } on KatibException catch (e) {
+    } on InsatoException catch (e) {
       embeddingError = e.messageAr;
     } catch (_) {
       embeddingError = 'تعذّر استخراج البصمة الصوتية لهذا المقطع.';

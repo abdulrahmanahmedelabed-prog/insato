@@ -35,7 +35,7 @@ fun releaseProperty(name: String): String =
         ?: throw GradleException("android/key.properties is missing '$name'")
 
 android {
-    namespace = "app.katib.katib"
+    namespace = "app.insato.insato"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -45,7 +45,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.katib.katib"
+        applicationId = "app.insato.insato"
         // API 24 (Android 7.0) is the highest minimum among the plugins in use:
         // record_android, permission_handler_android and flutter_secure_storage
         // require 24; sherpa_onnx_android_* and flutter_foreground_task need 21.

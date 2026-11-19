@@ -4,10 +4,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/audio/audio_capture_service.dart';
-import 'package:katib/audio/pcm.dart';
-import 'package:katib/audio/wav_writer.dart';
-import 'package:katib/core/errors.dart';
+import 'package:insato/audio/audio_capture_service.dart';
+import 'package:insato/audio/pcm.dart';
+import 'package:insato/audio/wav_writer.dart';
+import 'package:insato/core/errors.dart';
 import 'package:record/record.dart';
 
 /// In-memory stand-in for the native recorder.
@@ -126,7 +126,7 @@ void main() {
   setUp(() async {
     fake = FakeRecordPlatform();
     RecordPlatform.instance = fake;
-    dir = await Directory.systemTemp.createTemp('katib_capture_test');
+    dir = await Directory.systemTemp.createTemp('insato_capture_test');
     service = AudioCaptureService(platform: CapturePlatform.android);
   });
 

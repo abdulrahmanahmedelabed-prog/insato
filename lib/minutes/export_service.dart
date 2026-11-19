@@ -78,7 +78,7 @@ class ExportService {
   final AssetBundle? _bundle;
 
   /// Name of the app, shown in footers.
-  static const String appName = 'كاتب';
+  static const String appName = 'إنصاتو';
 
   // -------------------------------------------------------------------------
   // Helpers shared by all formats

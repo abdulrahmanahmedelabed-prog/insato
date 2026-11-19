@@ -2,8 +2,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/speech/sherpa_speaker_embedder.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/speech/sherpa_speaker_embedder.dart';
 
 void main() {
   test('minimum embedding length is 0.8 s', () {

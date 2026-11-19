@@ -60,7 +60,7 @@ class ClaudeMinutesEngine implements MinutesEngine {
     report(0.02, 'جارٍ تجهيز نص الاجتماع…');
     final spoken = segments.where((s) => s.text.trim().isNotEmpty).toList();
     if (spoken.isEmpty) {
-      throw const KatibException(
+      throw const InsatoException(
         'لا يوجد كلام مسجّل في هذا الاجتماع يمكن إعداد محضر منه.',
       );
     }

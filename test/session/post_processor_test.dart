@@ -2,14 +2,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/audio/wav_writer.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/diarization/vector_math.dart';
-import 'package:katib/session/post_processor.dart';
+import 'package:insato/audio/wav_writer.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/diarization/vector_math.dart';
+import 'package:insato/session/post_processor.dart';
 
 import 'fakes.dart';
 
@@ -46,7 +46,7 @@ void main() {
       enginesFactory: engines,
     );
     meeting = await meetings.create(title: 'اجتماع الاختبار');
-    tmp = await Directory.systemTemp.createTemp('katib_post_');
+    tmp = await Directory.systemTemp.createTemp('insato_post_');
   });
   tearDown(() async {
     await db.close();
@@ -273,11 +273,11 @@ void main() {
 
       await expectLater(
         post.renameSpeaker(a.id, '   '),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       await expectLater(
         post.renameSpeaker('missing', 'س'),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       await post.renameSpeaker(b.id, ' خالد ');
       expect((await speakers.get(b.id))!.name, 'خالد');
@@ -293,7 +293,7 @@ void main() {
       expect((await speakers.get(a.id))!.embeddingCount, count);
       await expectLater(
         post.mergeSpeakers('x', a.id),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
     });
 
@@ -302,11 +302,11 @@ void main() {
       final s = await addSeg(0, 0, a.id);
       await expectLater(
         post.reassignSegment('nope', a.id),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       await expectLater(
         post.reassignSegment(s.id, 'nobody'),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       await post.reassignSegment(s.id, null);
       expect((await segments.get(s.id))!.speakerId, isNull);
@@ -373,7 +373,7 @@ void main() {
     test('missing key / empty transcript', () async {
       await expectLater(
         post.regenerateMinutes(meeting.id),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       await meetings.updateStatus(meeting.id, MeetingStatus.processing);
       expect(
@@ -466,7 +466,7 @@ void main() {
       await addSeg(0, 0, a.id);
       await expectLater(
         post.reprocessFromAudio(meeting.id),
-        throwsA(isA<KatibException>()),
+        throwsA(isA<InsatoException>()),
       );
       expect(await segments.getForMeeting(meeting.id), hasLength(1));
     });
@@ -487,7 +487,7 @@ void main() {
       await expectLater(
         post.reprocessFromAudio(meeting.id),
         throwsA(
-          isA<KatibException>().having(
+          isA<InsatoException>().having(
             (e) => e.messageAr,
             'messageAr',
             contains('تالف'),

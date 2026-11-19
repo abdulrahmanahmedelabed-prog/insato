@@ -43,7 +43,7 @@ final shellTabProvider = NotifierProvider<ShellTabNotifier, int>(
 
 /// True when [context] is laid out with the wide (rail + two panes) layout.
 bool isWideLayout(BuildContext context) =>
-    MediaQuery.sizeOf(context).width >= KatibTheme.wideBreakpoint;
+    MediaQuery.sizeOf(context).width >= InsatoTheme.wideBreakpoint;
 
 /// Opens the meeting [meetingId]: on wide layouts it is selected in the
 /// detail pane (returning to the shell); on phones its page is pushed, or

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/minutes/claude_client.dart';
-import 'package:katib/minutes/minutes_generator.dart';
-import 'package:katib/minutes/minutes_prompt.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/minutes/claude_client.dart';
+import 'package:insato/minutes/minutes_generator.dart';
+import 'package:insato/minutes/minutes_prompt.dart';
 
 import 'fixtures.dart';
 import 'sse_fixtures.dart';
@@ -85,7 +85,7 @@ void main() {
   });
 
   test(
-    'empty transcript throws an Arabic KatibException without calling the API',
+    'empty transcript throws an Arabic InsatoException without calling the API',
     () async {
       final q = QueueClient([]);
       await expectLater(
@@ -95,7 +95,7 @@ void main() {
           speakersById: speakers,
         ),
         throwsA(
-          isA<KatibException>().having(
+          isA<InsatoException>().having(
             (e) => e.messageAr,
             'messageAr',
             contains('لا يوجد كلام مسجّل'),

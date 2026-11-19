@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
       if (context.mounted) {
         showSnack(
           context,
-          e is KatibException ? e.messageAr : S.unexpectedError,
+          e is InsatoException ? e.messageAr : S.unexpectedError,
           error: true,
         );
       }

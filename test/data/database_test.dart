@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/data/database.dart';
+import 'package:insato/data/database.dart';
 
 void main() {
   group('float32 blob codec', () {

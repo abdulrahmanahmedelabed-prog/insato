@@ -17,7 +17,7 @@ import flutter_foreground_task
     SwiftFlutterForegroundTaskPlugin.setPluginRegistrantCallback { registry in
       GeneratedPluginRegistrant.register(with: registry)
     }
-    // Lets the "recording in progress" notification show while Katib is in
+    // Lets the "recording in progress" notification show while Insato is in
     // the foreground.
     UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -47,7 +47,7 @@ import flutter_foreground_task
         values.isExcludedFromBackup = true
         try url.setResourceValues(values)
       } catch {
-        NSLog("Katib: could not exclude %@ from backup: %@", url.path, error.localizedDescription)
+        NSLog("Insato: could not exclude %@ from backup: %@", url.path, error.localizedDescription)
       }
     }
   }

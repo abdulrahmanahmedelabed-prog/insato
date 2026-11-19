@@ -1,4 +1,4 @@
-# Static analysis configuration for Katib (كاتب).
+# Static analysis configuration for Insato (إنصاتو).
 #
 # Base: the Flutter team's recommended set (package:flutter_lints), plus a
 # small number of stricter rules that catch real bugs (unawaited futures,

@@ -9,16 +9,16 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/app.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/session/post_processor.dart';
-import 'package:katib/session/providers.dart';
-import 'package:katib/ui/services/connection_tester.dart';
-import 'package:katib/ui/services/share_gateway.dart';
-import 'package:katib/ui/theme.dart';
+import 'package:insato/app.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/session/post_processor.dart';
+import 'package:insato/session/providers.dart';
+import 'package:insato/ui/services/connection_tester.dart';
+import 'package:insato/ui/services/share_gateway.dart';
+import 'package:insato/ui/theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../session/fakes.dart';
@@ -113,7 +113,7 @@ class UiTestEnv {
   final FakeAudioSource audio = FakeAudioSource();
   final FakeHooks hooks = FakeHooks();
   final FakeEnginesFactory engines = FakeEnginesFactory();
-  final Directory tmp = Directory.systemTemp.createTempSync('katib_ui_');
+  final Directory tmp = Directory.systemTemp.createTempSync('insato_ui_');
   FakeMinutesEngine? minutes;
   FakeConnectionTester tester = FakeConnectionTester(
     const ConnectionTestResult(
@@ -179,7 +179,7 @@ Future<void> pumpApp(WidgetTester t, UiTestEnv env) async {
     ProviderScope(
       overrides: env.overrides,
       retry: (_, _) => null,
-      child: const KatibApp(),
+      child: const InsatoApp(),
     ),
   );
   await settle(t);
@@ -195,7 +195,7 @@ Future<void> pumpScreen(WidgetTester t, UiTestEnv env, Widget child) async {
         locale: const Locale('ar'),
         supportedLocales: const [Locale('ar'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        theme: KatibTheme.light(),
+        theme: InsatoTheme.light(),
         home: child,
       ),
     ),

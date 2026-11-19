@@ -1,10 +1,10 @@
 // Error hierarchy. THIS FILE IS A SHARED CONTRACT.
 //
-// Every user-visible failure is a [KatibException] whose [messageAr] can be
+// Every user-visible failure is a [InsatoException] whose [messageAr] can be
 // shown directly in the UI. [debugDetails] is for logs only.
 
-class KatibException implements Exception {
-  const KatibException(this.messageAr, {this.debugDetails, this.cause});
+class InsatoException implements Exception {
+  const InsatoException(this.messageAr, {this.debugDetails, this.cause});
 
   /// Arabic, user-facing message.
   final String messageAr;
@@ -17,27 +17,27 @@ class KatibException implements Exception {
 }
 
 /// Microphone permission denied or capture device unavailable.
-class AudioCaptureException extends KatibException {
+class AudioCaptureException extends InsatoException {
   const AudioCaptureException(super.messageAr, {super.debugDetails, super.cause});
 }
 
 /// A required on-device model is missing, corrupt, or failed to download.
-class ModelException extends KatibException {
+class ModelException extends InsatoException {
   const ModelException(super.messageAr, {super.debugDetails, super.cause});
 }
 
 /// Speech recognition failed (on-device or cloud).
-class AsrException extends KatibException {
+class AsrException extends InsatoException {
   const AsrException(super.messageAr, {super.debugDetails, super.cause});
 }
 
 /// Missing or invalid API key for a cloud service.
-class MissingApiKeyException extends KatibException {
+class MissingApiKeyException extends InsatoException {
   const MissingApiKeyException(super.messageAr, {super.debugDetails, super.cause});
 }
 
 /// Claude API / network failure while generating minutes.
-class MinutesGenerationException extends KatibException {
+class MinutesGenerationException extends InsatoException {
   const MinutesGenerationException(super.messageAr,
       {super.debugDetails, super.cause, this.retryable = false});
 

@@ -1,4 +1,4 @@
-# Developer setup — Katib (كاتب)
+# Developer setup — Insato (إنصاتو)
 
 This guide covers the toolchain, code generation, platform specifics, CI and
 the release process. For the design see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -20,7 +20,7 @@ flutter doctor -v          # resolve anything relevant to your target platform
 ## 2. First build
 
 ```bash
-git clone <repo-url> katib && cd katib
+git clone <repo-url> insato && cd insato
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter analyze
@@ -107,11 +107,11 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 - Deployment target **iOS 15.0** (plugins need ≥ 13.0; Flutter's default is
   15.0).
 - Plugins are integrated with **Swift Package Manager** (enabled by default
-  in Flutter 3.50; every plugin Katib uses ships a `Package.swift`), so the
+  in Flutter 3.50; every plugin Insato uses ships a `Package.swift`), so the
   project has no `Podfile`.
 - `Info.plist` contains `NSMicrophoneUsageDescription` (Arabic + English),
   `UIBackgroundModes = [audio]` (recording continues with the screen locked),
-  display name **كاتب**, and `CFBundleLocalizations = [ar, en]`.
+  display name **إنصاتو**, and `CFBundleLocalizations = [ar, en]`.
 - **permission_handler** compiles each permission in only when enabled. With
   SwiftPM this is automatic: its `Package.swift` reads `Info.plist` and enables
   `PERMISSION_MICROPHONE` because `NSMicrophoneUsageDescription` is present.
@@ -153,7 +153,7 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 
 ### 4.3 Windows
 
-- Window title **كاتب — محاضر الاجتماعات**, default size 1280×800, minimum
+- Window title **إنصاتو — محاضر الاجتماعات**, default size 1280×800, minimum
   400×640 (logical pixels, DPI-scaled). The title is written as UTF-16
   escapes in `windows/runner/main.cpp`, so no `/utf-8` compiler flag is needed.
 - `runner.exe.manifest` sets the process code page to UTF-8 so native

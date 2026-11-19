@@ -1,24 +1,24 @@
 <div dir="rtl">
 
-# كاتب — محاضر الاجتماعات بالذكاء الاصطناعي
+# إنصاتو — محاضر الاجتماعات بالذكاء الاصطناعي
 
-**كاتب** تطبيق Flutter يعمل على **Android وiOS وWindows**. يسجّل كل ما يسمعه
+**إنصاتو** تطبيق Flutter يعمل على **Android وiOS وWindows**. يسجّل كل ما يسمعه
 ميكروفون الجهاز **بأي لغة**، ويفرّغه نصياً، ويميّز المتحدثين **بأصواتهم**،
 ثم يكتب **محضر اجتماع احترافياً باللغة العربية الفصحى** باستخدام Claude.
 
-[English below ↓](#katib--ai-meeting-minutes)
+[English below ↓](#insato--ai-meeting-minutes)
 
-## ماذا يفعل كاتب؟
+## ماذا يفعل إنصاتو؟
 
 1. تضغط «اجتماع جديد» ويبدأ التسجيل؛ يستمر حتى مع إطفاء الشاشة.
-2. يكتشف كاتب مقاطع الكلام ويتجاهل الصمت، ثم يفرّغ كل مقطع بلغته الأصلية
+2. يكتشف إنصاتو مقاطع الكلام ويتجاهل الصمت، ثم يفرّغ كل مقطع بلغته الأصلية
    (العربية واللهجات والإنجليزية والفرنسية وغيرها، بما في ذلك الخلط بين اللغات
    في الجملة الواحدة).
 3. يستخرج **بصمة صوتية** لكل مقطع، ويسمّي المتحدثين تلقائياً «متحدث 1»،
    «متحدث 2»… أثناء الاجتماع.
-4. يمكنك إعادة تسمية أي متحدث (مثلاً «متحدث 2» ← «أ. سارة»)؛ يتذكّر كاتب
+4. يمكنك إعادة تسمية أي متحدث (مثلاً «متحدث 2» ← «أ. سارة»)؛ يتذكّر إنصاتو
    الصوت ويتعرّف على صاحبه باسمه في الاجتماعات القادمة.
-5. عند الانتهاء يُحسِّن كاتب توزيع المتحدثين على كامل التسجيل، ثم يكتب المحضر
+5. عند الانتهاء يُحسِّن إنصاتو توزيع المتحدثين على كامل التسجيل، ثم يكتب المحضر
    بالعربية: الملخص، والحضور، والمحاور، والقرارات، والمهام مع المسؤولين
    والمواعيد، والنقاط المعلّقة.
 6. تصدير المحضر PDF (بخط عربي مضمَّن) أو Markdown، ومشاركته مباشرة.
@@ -76,7 +76,7 @@ flutter test
 ## التشغيل الأول: تنزيل النماذج
 
 لا تُضمَّن نماذج الذكاء الاصطناعي داخل التطبيق للحفاظ على صغر حجمه؛ يُنزّلها
-كاتب مرة واحدة من صفحة إصدارات sherpa-onnx الرسمية على GitHub عند التشغيل
+إنصاتو مرة واحدة من صفحة إصدارات sherpa-onnx الرسمية على GitHub عند التشغيل
 الأول (يمكن اختيار النموذج من شاشة «النماذج»):
 
 | النموذج | الغرض | حجم التنزيل التقريبي |
@@ -119,7 +119,7 @@ flutter test
 
 تسجيل الأشخاص دون علمهم قد يكون مخالفاً للقانون في بلدك أو مكان عملك، والبصمة
 الصوتية بيانات حيوية حساسة. **أبلِغ جميع الحاضرين بأن الاجتماع يُسجَّل ويُفرَّغ
-ويُحلَّل، واحصل على موافقتهم قبل البدء.** يعرض كاتب تذكيراً بذلك قبل أول
+ويُحلَّل، واحصل على موافقتهم قبل البدء.** يعرض إنصاتو تذكيراً بذلك قبل أول
 تسجيل. أنت المسؤول عن الالتزام بالأنظمة المعمول بها.
 
 ## التقنيات المستخدمة
@@ -140,9 +140,9 @@ Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` 
 
 ---
 
-# Katib — AI meeting minutes
+# Insato — AI meeting minutes
 
-**Katib** (Arabic: كاتب, "scribe") is a Flutter app for **Android, iOS and
+**Insato** (Arabic: إنصاتو, from إنصات "attentive listening") is a Flutter app for **Android, iOS and
 Windows**. It records everything the device microphone hears, **in any
 language**, transcribes it, identifies speakers **by voice**, and writes
 **professional meeting minutes in Modern Standard Arabic** using Claude.
@@ -155,7 +155,7 @@ language**, transcribes it, identifies speakers **by voice**, and writes
    French and ~99 others, including code-switching within a sentence.
 3. A **voiceprint** is extracted per segment and speakers are labelled
    automatically "متحدث 1", "متحدث 2", … (Speaker 1, Speaker 2) live.
-4. Rename any speaker; Katib remembers the voice and recognises that person
+4. Rename any speaker; Insato remembers the voice and recognises that person
    by name in future meetings.
 5. On stop, speaker assignment is refined over the whole recording and the
    Arabic minutes are generated: summary, attendees, topics, decisions,
@@ -214,7 +214,7 @@ Release artifacts are built by GitHub Actions when a `vX.Y.Z` tag is pushed
 
 ## First run: model download
 
-AI models are not bundled, to keep the app small. On first run Katib
+AI models are not bundled, to keep the app small. On first run Insato
 downloads them once from the official sherpa-onnx GitHub releases (choose
 models on the "Models" screen):
 
@@ -261,7 +261,7 @@ Details: [docs/PRIVACY.md](docs/PRIVACY.md).
 Recording people without their knowledge may be illegal where you live or
 work, and voiceprints are sensitive biometric data. **Tell everyone present
 that the meeting is being recorded, transcribed and analysed, and obtain
-their consent before you start.** Katib shows a reminder before the first
+their consent before you start.** Insato shows a reminder before the first
 recording. You are responsible for complying with applicable law.
 
 ## Tech stack

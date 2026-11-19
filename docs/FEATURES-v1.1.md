@@ -1,4 +1,4 @@
-# Katib v1.1 — Feature spec
+# Insato v1.1 — Feature spec
 
 Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
 
@@ -207,7 +207,7 @@ width** so it uses a large Windows window well.
 
 ---
 # v1.2 — Differentiators (approved: A, B, C, D)
-Goal: Katib becomes *the* app for official Arabic minutes. Scheduled after
+Goal: Insato becomes *the* app for official Arabic minutes. Scheduled after
 v1.1 is verified on real devices.
 
 ## A — Official Arabic minutes (المحضر الرسمي المعتمد)

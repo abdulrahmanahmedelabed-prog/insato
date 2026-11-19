@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/ui/screens/models_screen.dart';
-import 'package:katib/ui/screens/settings_screen.dart';
-import 'package:katib/ui/screens/speakers_screen.dart';
-import 'package:katib/ui/services/connection_tester.dart';
-import 'package:katib/ui/strings_ar.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/ui/screens/models_screen.dart';
+import 'package:insato/ui/screens/settings_screen.dart';
+import 'package:insato/ui/screens/speakers_screen.dart';
+import 'package:insato/ui/services/connection_tester.dart';
+import 'package:insato/ui/strings_ar.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'harness.dart';

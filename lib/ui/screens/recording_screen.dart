@@ -56,7 +56,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       } else if (s.phase == SessionPhase.paused) {
         await _controller.resume();
       }
-    } on KatibException catch (e) {
+    } on InsatoException catch (e) {
       if (mounted) showSnack(context, e.messageAr, error: true);
     }
   }
@@ -225,7 +225,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
 
     final content = LayoutBuilder(
       builder: (context, c) {
-        if (c.maxWidth >= KatibTheme.wideBreakpoint) {
+        if (c.maxWidth >= InsatoTheme.wideBreakpoint) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

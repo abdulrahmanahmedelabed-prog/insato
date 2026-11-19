@@ -3,16 +3,16 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/diarization/clustering.dart';
-import 'package:katib/diarization/vector_math.dart';
-import 'package:katib/speech/model_catalog.dart';
-import 'package:katib/speech/processing_isolate.dart';
-import 'package:katib/session/meeting_session_controller.dart';
-import 'package:katib/session/post_processor.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/diarization/clustering.dart';
+import 'package:insato/diarization/vector_math.dart';
+import 'package:insato/speech/model_catalog.dart';
+import 'package:insato/speech/processing_isolate.dart';
+import 'package:insato/session/meeting_session_controller.dart';
+import 'package:insato/session/post_processor.dart';
 
 import 'fakes.dart';
 
@@ -390,7 +390,7 @@ void main() {
     );
 
     test('respawns a crashed worker and retries the segment', () async {
-      final dir = await Directory.systemTemp.createTemp('katib_iso_');
+      final dir = await Directory.systemTemp.createTemp('insato_iso_');
       addTearDown(() => dir.delete(recursive: true));
       final marker = '${dir.path}/crashed';
       var spawns = 0;

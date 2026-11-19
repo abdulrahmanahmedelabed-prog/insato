@@ -56,7 +56,7 @@ const Uuid _uuid = Uuid();
 /// Thrown by [MeetingSessionController.start] when the user has not yet
 /// acknowledged the recording-consent reminder. Show the reminder, then call
 /// `start(consentGiven: true)`.
-class ConsentRequiredException extends KatibException {
+class ConsentRequiredException extends InsatoException {
   /// Creates the exception with the standard Arabic message.
   const ConsentRequiredException()
     : super(
@@ -65,9 +65,9 @@ class ConsentRequiredException extends KatibException {
       );
 }
 
-KatibException _asKatib(Object e, String fallbackAr) {
-  if (e is KatibException) return e;
-  return KatibException(fallbackAr, debugDetails: '$e', cause: e);
+InsatoException _asInsato(Object e, String fallbackAr) {
+  if (e is InsatoException) return e;
+  return InsatoException(fallbackAr, debugDetails: '$e', cause: e);
 }
 
 // ===========================================================================
@@ -79,7 +79,7 @@ KatibException _asKatib(Object e, String fallbackAr) {
 /// chronological order; [SessionPipeline] re-orders nothing itself and
 /// applies results strictly in submission order.
 abstract class SegmentProcessor {
-  /// Transcribes and embeds [segment]. Throws a [KatibException] on failure.
+  /// Transcribes and embeds [segment]. Throws a [InsatoException] on failure.
   Future<ProcessedSegment> process(SpeechSegment segment);
 
   /// Segments submitted to [process] that have not completed yet.
@@ -139,7 +139,7 @@ class InlineSegmentProcessor implements SegmentProcessor {
     String? embeddingError;
     try {
       embedding = await _embedder.embed(segment.samples);
-    } on KatibException catch (e) {
+    } on InsatoException catch (e) {
       embeddingError = e.messageAr;
     } catch (_) {
       embeddingError = 'تعذّر استخراج البصمة الصوتية لهذا المقطع.';
@@ -561,9 +561,9 @@ typedef SegmentSink = Future<TranscriptSegment> Function(
 
 class _Outcome {
   const _Outcome.ok(ProcessedSegment this.result) : error = null;
-  const _Outcome.failed(KatibException this.error) : result = null;
+  const _Outcome.failed(InsatoException this.error) : result = null;
   final ProcessedSegment? result;
-  final KatibException? error;
+  final InsatoException? error;
 }
 
 /// Orchestrates one meeting's segments: every submitted [SpeechSegment] is
@@ -622,7 +622,7 @@ class SessionPipeline {
   Future<void> _tail = Future<void>.value();
   bool _aborted = false;
   Speaker? _current;
-  KatibException? _lastError;
+  InsatoException? _lastError;
   final Set<String> _created = {};
   final Set<String> _recognized = {};
   final Map<String, String> _lastSegmentBySpeaker = {};
@@ -654,7 +654,7 @@ class SessionPipeline {
   Speaker? get currentSpeaker => _current;
 
   /// Most recent processing/storage failure.
-  KatibException? get lastError => _lastError;
+  InsatoException? get lastError => _lastError;
 
   /// Speaker records created by this pipeline.
   Set<String> get createdSpeakerIds => Set.unmodifiable(_created);
@@ -673,7 +673,7 @@ class SessionPipeline {
         .then<_Outcome>(
           _Outcome.ok,
           onError: (Object e) =>
-              _Outcome.failed(_asKatib(e, 'تعذّر تفريغ أحد مقاطع الكلام.')),
+              _Outcome.failed(_asInsato(e, 'تعذّر تفريغ أحد مقاطع الكلام.')),
         );
     _tail = _tail.then((_) => _apply(segment, outcome));
     onChanged?.call();
@@ -761,7 +761,7 @@ class SessionPipeline {
       if (sid != null) _lastSegmentBySpeaker[sid] = stored.id;
     } catch (e) {
       _failed++;
-      _lastError = _asKatib(e, 'تعذّر حفظ أحد مقاطع النص.');
+      _lastError = _asInsato(e, 'تعذّر حفظ أحد مقاطع النص.');
     } finally {
       _completed++;
       _pendingAudioMs = math.max(0, _pendingAudioMs - segment.durationMs);
@@ -923,7 +923,7 @@ abstract class SessionPlatformHooks {
 /// service only keeps the process (and microphone access) alive while
 /// recording in the background.
 @pragma('vm:entry-point')
-void katibForegroundTaskCallback() {
+void insatoForegroundTaskCallback() {
   fft.FlutterForegroundTask.setTaskHandler(_RecordingTaskHandler());
 }
 
@@ -973,18 +973,18 @@ class DefaultSessionPlatformHooks implements SessionPlatformHooks {
         if (status.isPermanentlyDenied || status.isRestricted) {
           throw const AudioCaptureException(
             'إذن الميكروفون مرفوض. يُرجى تفعيله من إعدادات الجهاز '
-            '(التطبيقات ← كاتب ← الأذونات ← الميكروفون) ثم المحاولة مجددًا.',
+            '(التطبيقات ← إنصاتو ← الأذونات ← الميكروفون) ثم المحاولة مجددًا.',
           );
         }
         throw const AudioCaptureException(
-          'يحتاج كاتب إلى إذن الميكروفون لتسجيل الاجتماع.',
+          'يحتاج إنصاتو إلى إذن الميكروفون لتسجيل الاجتماع.',
         );
       }
     }
     if (!await audio.hasPermission()) {
       throw const AudioCaptureException(
         'لا يمكن الوصول إلى الميكروفون. تحقّق من إعدادات الخصوصية في النظام '
-        'واسمح لتطبيق كاتب باستخدام الميكروفون.',
+        'واسمح لتطبيق إنصاتو باستخدام الميكروفون.',
       );
     }
   }
@@ -1023,7 +1023,7 @@ class DefaultSessionPlatformHooks implements SessionPlatformHooks {
     }
     fft.FlutterForegroundTask.init(
       androidNotificationOptions: fft.AndroidNotificationOptions(
-        channelId: 'katib_recording',
+        channelId: 'insato_recording',
         channelName: 'تسجيل الاجتماعات',
         channelDescription: 'يظهر هذا الإشعار طوال مدة تسجيل الاجتماع.',
         onlyAlertOnce: true,
@@ -1041,9 +1041,9 @@ class DefaultSessionPlatformHooks implements SessionPlatformHooks {
     final result = await fft.FlutterForegroundTask.startService(
       serviceId: _serviceId,
       serviceTypes: const [fft.ForegroundServiceTypes.microphone],
-      notificationTitle: 'كاتب يسجّل الاجتماع',
+      notificationTitle: 'إنصاتو يسجّل الاجتماع',
       notificationText: meetingTitle,
-      callback: katibForegroundTaskCallback,
+      callback: insatoForegroundTaskCallback,
     );
     switch (result) {
       case fft.ServiceRequestSuccess():
@@ -1053,7 +1053,7 @@ class DefaultSessionPlatformHooks implements SessionPlatformHooks {
         if (error is fft.ServiceAlreadyStartedException) {
           _serviceStarted = true;
           await fft.FlutterForegroundTask.updateService(
-            notificationTitle: 'كاتب يسجّل الاجتماع',
+            notificationTitle: 'إنصاتو يسجّل الاجتماع',
             notificationText: meetingTitle,
           );
           return null;
@@ -1171,7 +1171,7 @@ class SessionState {
   final String? warningAr;
 
   /// Error of the last failed operation ([SessionPhase.error]).
-  final KatibException? error;
+  final InsatoException? error;
 
   /// Meeting finished most recently (to navigate to its details).
   final String? lastMeetingId;
@@ -1217,7 +1217,7 @@ class SessionState {
     bool clearProgress = false,
     String? warningAr,
     bool clearWarning = false,
-    KatibException? error,
+    InsatoException? error,
     bool clearError = false,
     String? lastMeetingId,
   }) {
@@ -1354,10 +1354,10 @@ class MeetingSessionController extends Notifier<SessionState> {
   /// `recordings/<meetingId>.wav` when "keep audio" is on).
   ///
   /// On failure nothing is left behind, the state becomes
-  /// [SessionPhase.error] and the [KatibException] is rethrown.
+  /// [SessionPhase.error] and the [InsatoException] is rethrown.
   Future<String> start({String? title, bool consentGiven = false}) async {
     if (state.isActive) {
-      throw const KatibException('يوجد تسجيل قيد التشغيل بالفعل.');
+      throw const InsatoException('يوجد تسجيل قيد التشغيل بالفعل.');
     }
     final lastMeeting = state.lastMeetingId;
     _set(
@@ -1455,7 +1455,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       );
       return meeting.id;
     } catch (e) {
-      final error = _asKatib(e, 'تعذّر بدء التسجيل.');
+      final error = _asInsato(e, 'تعذّر بدء التسجيل.');
       _active = null;
       if (session != null) {
         session.pipeline.abort();
@@ -1489,7 +1489,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       onError: (Object e) {
         _set(
           state.copyWith(
-            warningAr: _asKatib(e, 'حدث خطأ أثناء اكتشاف الكلام.').messageAr,
+            warningAr: _asInsato(e, 'حدث خطأ أثناء اكتشاف الكلام.').messageAr,
           ),
         );
       },
@@ -1552,7 +1552,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       await s.audio.pause();
       _set(state.copyWith(phase: SessionPhase.paused, level: 0));
     } catch (e) {
-      final err = _asKatib(e, 'تعذّر إيقاف التسجيل مؤقتًا.');
+      final err = _asInsato(e, 'تعذّر إيقاف التسجيل مؤقتًا.');
       _set(state.copyWith(warningAr: err.messageAr));
       throw err;
     }
@@ -1566,7 +1566,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       await s.audio.resume();
       _set(state.copyWith(phase: SessionPhase.recording, clearWarning: true));
     } catch (e) {
-      final err = _asKatib(e, 'تعذّر استئناف التسجيل.');
+      final err = _asInsato(e, 'تعذّر استئناف التسجيل.');
       _set(state.copyWith(warningAr: err.messageAr));
       throw err;
     }
@@ -1614,7 +1614,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       try {
         duration = await s.audio.stop();
       } catch (e) {
-        warning = _asKatib(e, 'حدث خطأ أثناء إيقاف التسجيل.').messageAr;
+        warning = _asInsato(e, 'حدث خطأ أثناء إيقاف التسجيل.').messageAr;
         duration = s.audio.elapsed;
       }
       // Let already-queued frame events reach the segmenter.
@@ -1695,7 +1695,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       );
       return id;
     } catch (e) {
-      final error = _asKatib(e, 'تعذّر إنهاء الاجتماع.');
+      final error = _asInsato(e, 'تعذّر إنهاء الاجتماع.');
       _active = null;
       s.pipeline.abort();
       await s.cancelAll();

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/minutes/minutes_prompt.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/minutes/minutes_prompt.dart';
 
 import 'fixtures.dart';
 

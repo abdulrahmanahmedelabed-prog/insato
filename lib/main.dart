@@ -1,4 +1,4 @@
-// Katib (كاتب) entry point: bindings, Arabic date formatting, the
+// Insato (إنصاتو) entry point: bindings, Arabic date formatting, the
 // foreground-task communication port, font licences, the single database
 // connection, crash recovery of interrupted meetings, and the provider scope.
 
@@ -34,7 +34,7 @@ Future<void> main() async {
   unawaited(recoverInterruptedMeetings(container));
 
   runApp(
-    UncontrolledProviderScope(container: container, child: const KatibApp()),
+    UncontrolledProviderScope(container: container, child: const InsatoApp()),
   );
 }
 
@@ -52,6 +52,6 @@ Future<void> recoverInterruptedMeetings(ProviderContainer container) async {
   try {
     await container.read(postProcessorProvider).recoverInterruptedMeetings();
   } catch (e, st) {
-    debugPrint('Katib: meeting recovery failed: $e\n$st');
+    debugPrint('Insato: meeting recovery failed: $e\n$st');
   }
 }

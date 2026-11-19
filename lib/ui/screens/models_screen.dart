@@ -35,7 +35,7 @@ class ModelsScreen extends ConsumerWidget {
         error: (e, _) => Padding(
           padding: const EdgeInsets.all(16),
           child: ErrorBanner(
-            message: e is KatibException ? e.messageAr : S.modelsLoadFailed,
+            message: e is InsatoException ? e.messageAr : S.modelsLoadFailed,
             onRetry: () => ref.invalidate(modelManagerProvider),
           ),
         ),
@@ -139,7 +139,7 @@ Future<void> downloadModel(
   } catch (e) {
     messenger?.showSnackBar(
       SnackBar(
-        content: Text(e is KatibException ? e.messageAr : S.modelFailed),
+        content: Text(e is InsatoException ? e.messageAr : S.modelFailed),
         duration: const Duration(seconds: 6),
       ),
     );
@@ -185,7 +185,7 @@ class ModelCard extends ConsumerWidget {
       if (context.mounted) {
         showSnack(
           context,
-          e is KatibException ? e.messageAr : S.unexpectedError,
+          e is InsatoException ? e.messageAr : S.unexpectedError,
           error: true,
         );
       }

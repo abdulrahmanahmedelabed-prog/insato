@@ -1,10 +1,10 @@
-// Material 3 theme of Katib: deep teal / ink seed colour, Noto Naskh Arabic
+// Material 3 theme of Insato: deep teal / ink seed colour, Noto Naskh Arabic
 // with Noto Sans as the Latin fallback, generous tap targets.
 
 import 'package:material_ui/material_ui.dart';
 
 /// Light and dark themes of the app.
-abstract final class KatibTheme {
+abstract final class InsatoTheme {
   /// Seed colour: a deep teal ink.
   static const Color seed = Color(0xFF0E5E6F);
 

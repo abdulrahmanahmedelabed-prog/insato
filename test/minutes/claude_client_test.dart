@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:katib/core/errors.dart';
-import 'package:katib/minutes/claude_client.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/minutes/claude_client.dart';
 
 import 'sse_fixtures.dart';
 

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>كاتب</string>
+	<string>إنصاتو</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,7 +22,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>katib</string>
+	<string>insato</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -34,7 +34,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>يستخدم كاتب الميكروفون لتسجيل الاجتماع وتفريغه نصياً والتعرّف على المتحدثين بأصواتهم، ثم إعداد محضر الاجتماع. — Katib records the meeting through the microphone to transcribe it, recognise speakers by voice and write the minutes.</string>
+	<string>يستخدم إنصاتو الميكروفون لتسجيل الاجتماع وتفريغه نصياً والتعرّف على المتحدثين بأصواتهم، ثم إعداد محضر الاجتماع. — Insato records the meeting through the microphone to transcribe it, recognise speakers by voice and write the minutes.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIBackgroundModes</key>

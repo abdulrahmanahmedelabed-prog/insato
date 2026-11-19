@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/ui/screens/meeting_detail_screen.dart';
-import 'package:katib/ui/screens/meeting_transcript_tab.dart';
-import 'package:katib/ui/strings_ar.dart';
-import 'package:katib/ui/widgets/minutes_view.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/ui/screens/meeting_detail_screen.dart';
+import 'package:insato/ui/screens/meeting_transcript_tab.dart';
+import 'package:insato/ui/strings_ar.dart';
+import 'package:insato/ui/widgets/minutes_view.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../session/fakes.dart';

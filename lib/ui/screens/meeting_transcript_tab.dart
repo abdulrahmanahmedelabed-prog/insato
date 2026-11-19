@@ -98,7 +98,7 @@ class _SegmentSheetState extends ConsumerState<SegmentSheet> {
       await f();
     } catch (e) {
       error = true;
-      message = e is KatibException ? e.messageAr : S.unexpectedError;
+      message = e is InsatoException ? e.messageAr : S.unexpectedError;
     }
     if (!mounted) return;
     setState(() => _busy = false);

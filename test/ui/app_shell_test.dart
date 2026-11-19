@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/session/meeting_session_controller.dart';
-import 'package:katib/session/providers.dart';
-import 'package:katib/ui/screens/home_shell.dart';
-import 'package:katib/ui/screens/meeting_detail_screen.dart';
-import 'package:katib/ui/strings_ar.dart';
-import 'package:katib/ui/widgets/dialogs.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/session/meeting_session_controller.dart';
+import 'package:insato/session/providers.dart';
+import 'package:insato/ui/screens/home_shell.dart';
+import 'package:insato/ui/screens/meeting_detail_screen.dart';
+import 'package:insato/ui/strings_ar.dart';
+import 'package:insato/ui/widgets/dialogs.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

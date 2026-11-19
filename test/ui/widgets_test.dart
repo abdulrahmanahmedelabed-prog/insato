@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/ui/format.dart';
-import 'package:katib/ui/strings_ar.dart';
-import 'package:katib/ui/theme.dart';
-import 'package:katib/ui/widgets/common.dart';
-import 'package:katib/ui/widgets/level_meter.dart';
-import 'package:katib/ui/widgets/minutes_view.dart';
-import 'package:katib/ui/widgets/speaker_avatar.dart';
-import 'package:katib/ui/widgets/transcript_view.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/ui/format.dart';
+import 'package:insato/ui/strings_ar.dart';
+import 'package:insato/ui/theme.dart';
+import 'package:insato/ui/widgets/common.dart';
+import 'package:insato/ui/widgets/level_meter.dart';
+import 'package:insato/ui/widgets/minutes_view.dart';
+import 'package:insato/ui/widgets/speaker_avatar.dart';
+import 'package:insato/ui/widgets/transcript_view.dart';
 import 'package:material_ui/material_ui.dart';
 
 Future<void> pumpRtl(WidgetTester t, Widget child, {double width = 420}) async {
@@ -19,7 +19,7 @@ Future<void> pumpRtl(WidgetTester t, Widget child, {double width = 420}) async {
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: KatibTheme.light(),
+      theme: InsatoTheme.light(),
       home: Scaffold(body: child),
     ),
   );
@@ -35,11 +35,11 @@ Speaker speaker(String id, String name, {bool named = true}) => Speaker(
 
 void main() {
   test('themes use the bundled Arabic font in both brightnesses', () {
-    for (final th in [KatibTheme.light(), KatibTheme.dark()]) {
-      expect(th.textTheme.bodyLarge?.fontFamily, KatibTheme.arabicFont);
+    for (final th in [InsatoTheme.light(), InsatoTheme.dark()]) {
+      expect(th.textTheme.bodyLarge?.fontFamily, InsatoTheme.arabicFont);
       expect(th.textTheme.bodyLarge?.fontFamilyFallback, contains('NotoSans'));
     }
-    expect(KatibTheme.dark().brightness, Brightness.dark);
+    expect(InsatoTheme.dark().brightness, Brightness.dark);
     expect(onColor(const Color(0xFF000000)), Colors.white);
     expect(onColor(const Color(0xFFFFFFFF)), Colors.black);
   });

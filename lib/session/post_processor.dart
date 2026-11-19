@@ -220,7 +220,7 @@ Future<RefinementResult> runRefinementInBackground(RefinementInput input) {
   if (input.items.length <= 150) return Future.value(_refineSync(input));
   return Isolate.run(
     () => _refineSync(input),
-    debugName: 'katib-refine-speakers',
+    debugName: 'insato-refine-speakers',
   );
 }
 
@@ -746,14 +746,14 @@ class PostProcessor {
   // -------------------------------------------------------------------------
 
   /// Renames a speaker everywhere (all meetings, future recognition).
-  /// Throws [KatibException] for a blank name or unknown speaker.
+  /// Throws [InsatoException] for a blank name or unknown speaker.
   Future<void> renameSpeaker(String speakerId, String name) async {
     final t = name.trim();
     if (t.isEmpty) {
-      throw const KatibException('يُرجى إدخال اسم للمتحدث.');
+      throw const InsatoException('يُرجى إدخال اسم للمتحدث.');
     }
     if (!await _speakers.rename(speakerId, t)) {
-      throw const KatibException('المتحدث غير موجود.');
+      throw const InsatoException('المتحدث غير موجود.');
     }
   }
 
@@ -764,7 +764,7 @@ class PostProcessor {
     try {
       return await _speakers.merge(fromId, intoId);
     } on StateError catch (e) {
-      throw KatibException(
+      throw InsatoException(
         'أحد المتحدثَين غير موجود.',
         debugDetails: e.message,
         cause: e,
@@ -776,9 +776,9 @@ class PostProcessor {
   /// refinement keeps it; the voiceprints learn from the correction.
   Future<void> reassignSegment(String segmentId, String? speakerId) async {
     final seg = await _segments.get(segmentId);
-    if (seg == null) throw const KatibException('المقطع غير موجود.');
+    if (seg == null) throw const InsatoException('المقطع غير موجود.');
     if (speakerId != null && await _speakers.get(speakerId) == null) {
-      throw const KatibException('المتحدث غير موجود.');
+      throw const InsatoException('المتحدث غير موجود.');
     }
     await _segments.reassignSpeaker(segmentId, speakerId, locked: true);
     await learnFromCorrections(seg.meetingId);
@@ -788,7 +788,7 @@ class PostProcessor {
   /// Voiceprints keep what they learned from it.
   Future<bool> deleteMeeting(String meetingId) async {
     if (_isActive(meetingId)) {
-      throw const KatibException(
+      throw const InsatoException(
         'لا يمكن حذف اجتماع قيد التسجيل. أوقف التسجيل أولًا.',
       );
     }
@@ -804,7 +804,7 @@ class PostProcessor {
   /// Generates (or regenerates) the minutes of [meetingId] and stores them
   /// (status `ready`). While generating the status is `processing`.
   ///
-  /// Throws [KatibException] when the transcript is empty,
+  /// Throws [InsatoException] when the transcript is empty,
   /// [MissingApiKeyException] without an Anthropic key, and the engine's
   /// [MinutesGenerationException] on API failure — then the meeting keeps
   /// its previous minutes (status `ready`) or, without minutes, becomes
@@ -814,10 +814,10 @@ class PostProcessor {
     void Function(double progress, String statusAr)? onProgress,
   }) async {
     final meeting = await _meetings.get(meetingId);
-    if (meeting == null) throw const KatibException('الاجتماع غير موجود.');
+    if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
     final segs = await _segments.getForMeeting(meetingId);
     if (segs.isEmpty) {
-      throw const KatibException(
+      throw const InsatoException(
         'لا يوجد كلام مسجّل في هذا الاجتماع لكتابة محضر له.',
       );
     }
@@ -839,7 +839,7 @@ class PostProcessor {
     void Function(double progress, String statusAr)? onProgress,
   }) async {
     final meeting = await _meetings.get(meetingId);
-    if (meeting == null) throw const KatibException('الاجتماع غير موجود.');
+    if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
     final segs = await _segments.getForMeeting(meetingId);
     if (segs.isEmpty) {
       await _markReadyIfProcessing(meetingId);
@@ -871,7 +871,7 @@ class PostProcessor {
       await _meetings.saveMinutes(meeting.id, minutes);
       return minutes;
     } catch (e) {
-      final err = e is KatibException
+      final err = e is InsatoException
           ? e
           : MinutesGenerationException(
               'تعذّر إنشاء المحضر.',
@@ -907,23 +907,23 @@ class PostProcessor {
   /// User-locked speaker assignments are carried over by time overlap
   /// ([carryOverLocks]); manual text edits of the old transcript are lost.
   /// The minutes are left as they are (regenerate them afterwards). On
-  /// failure the old transcript is kept and a [KatibException] is thrown.
+  /// failure the old transcript is kept and a [InsatoException] is thrown.
   Future<ReprocessReport> reprocessFromAudio(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
   }) async {
     final factory = _enginesFactory;
     if (factory == null) {
-      throw const KatibException('إعادة المعالجة غير متاحة.');
+      throw const InsatoException('إعادة المعالجة غير متاحة.');
     }
     if (_isActive(meetingId)) {
-      throw const KatibException('لا يمكن إعادة معالجة اجتماع قيد التسجيل.');
+      throw const InsatoException('لا يمكن إعادة معالجة اجتماع قيد التسجيل.');
     }
     final meeting = await _meetings.get(meetingId);
-    if (meeting == null) throw const KatibException('الاجتماع غير موجود.');
+    if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
     final path = meeting.audioPath;
     if (path == null || !await File(path).exists()) {
-      throw const KatibException(
+      throw const InsatoException(
         'لا يوجد تسجيل صوتي محفوظ لهذا الاجتماع، لذا تتعذّر إعادة معالجته.',
       );
     }
@@ -935,7 +935,7 @@ class PostProcessor {
       await WavWriter.repair(path);
       info = await readWavInfo(path);
     } on Object catch (e) {
-      throw KatibException(
+      throw InsatoException(
         'ملف التسجيل الصوتي تالف أو بصيغة غير مدعومة.',
         debugDetails: '$e',
         cause: e,
@@ -996,13 +996,13 @@ class PostProcessor {
           );
         }
       } on FormatException catch (e) {
-        throw KatibException(
+        throw InsatoException(
           'ملف التسجيل الصوتي تالف أو بصيغة غير مدعومة.',
           debugDetails: e.message,
           cause: e,
         );
       } on FileSystemException catch (e) {
-        throw KatibException(
+        throw InsatoException(
           'تعذّرت قراءة ملف التسجيل الصوتي.',
           debugDetails: e.message,
           cause: e,
@@ -1023,7 +1023,7 @@ class PostProcessor {
         },
       );
       if (segmenterError != null && collected.isEmpty) {
-        throw _katib(segmenterError!, 'حدث خطأ أثناء تحليل الصوت.');
+        throw _insato(segmenterError!, 'حدث خطأ أثناء تحليل الصوت.');
       }
       if (collected.isEmpty &&
           pipeline.failedCount > 0 &&
@@ -1068,7 +1068,7 @@ class PostProcessor {
       );
     } catch (e) {
       pipeline.abort();
-      throw _katib(e, 'تعذّرت إعادة معالجة الاجتماع.');
+      throw _insato(e, 'تعذّرت إعادة معالجة الاجتماع.');
     } finally {
       await sub.cancel();
       await engines.dispose();
@@ -1196,9 +1196,9 @@ class PostProcessor {
     return recovered;
   }
 
-  static KatibException _katib(Object e, String fallbackAr) {
-    if (e is KatibException) return e;
-    return KatibException(fallbackAr, debugDetails: '$e', cause: e);
+  static InsatoException _insato(Object e, String fallbackAr) {
+    if (e is InsatoException) return e;
+    return InsatoException(fallbackAr, debugDetails: '$e', cause: e);
   }
 }
 
@@ -1333,7 +1333,7 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           MeetingJobState(
             kind: kind,
             phase: MeetingJobPhase.failed,
-            errorAr: e is KatibException
+            errorAr: e is InsatoException
                 ? e.messageAr
                 : 'حدث خطأ غير متوقع أثناء معالجة الاجتماع.',
             needsApiKey: e is MissingApiKeyException,

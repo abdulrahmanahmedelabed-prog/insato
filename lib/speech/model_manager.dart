@@ -3,7 +3,7 @@
 // Layout below [ModelManager.baseDir]:
 //
 //   <id>/                      installed model (atomic: renamed from staging)
-//   <id>/.katib-model.json     install marker
+//   <id>/.insato-model.json     install marker
 //   .downloads/<id>.part       partial download (resumable)
 //   .downloads/<id>.part.json  resume metadata (url, validator, total size)
 //   .staging/<id>-<ts>/        extraction / verification area
@@ -33,7 +33,7 @@ class ModelDownloadCancelledException extends ModelException {
 }
 
 /// Name of the marker file written into every installed model directory.
-const String kModelMarkerFile = '.katib-model.json';
+const String kModelMarkerFile = '.insato-model.json';
 
 /// Manages the lifecycle of the models in [ModelCatalog] (or a custom
 /// catalog): status tracking, resumable downloads with retries and

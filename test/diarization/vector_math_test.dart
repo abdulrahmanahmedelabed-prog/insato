@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/diarization/vector_math.dart';
+import 'package:insato/diarization/vector_math.dart';
 
 Float32List v(List<double> xs) => Float32List.fromList(xs);
 

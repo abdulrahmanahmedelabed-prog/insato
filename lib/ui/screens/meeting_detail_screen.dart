@@ -211,7 +211,7 @@ class _MeetingDetail extends ConsumerWidget {
       if (context.mounted) {
         showSnack(
           context,
-          e is KatibException ? e.messageAr : S.exportFailed,
+          e is InsatoException ? e.messageAr : S.exportFailed,
           error: true,
         );
       }
@@ -229,7 +229,7 @@ class _ExportData {
 
   static Future<_ExportData> load(WidgetRef ref, String meetingId) async {
     final meeting = await ref.read(meetingRepositoryProvider).get(meetingId);
-    if (meeting == null) throw const KatibException(S.meetingNotFound);
+    if (meeting == null) throw const InsatoException(S.meetingNotFound);
     final segments = await ref
         .read(segmentRepositoryProvider)
         .getForMeeting(meetingId);
@@ -408,7 +408,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
     try {
       final data = await _ExportData.load(ref, widget.meetingId);
       final minutes = data.meeting.minutes;
-      if (minutes == null) throw const KatibException(S.noMinutesToExport);
+      if (minutes == null) throw const InsatoException(S.noMinutesToExport);
       final export = ref.read(exportServiceProvider);
       final gateway = ref.read(shareGatewayProvider);
       Future<Uint8List> pdf() => export.toPdf(
@@ -447,7 +447,7 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
       }
     } catch (e) {
       isError = true;
-      message = e is KatibException ? e.messageAr : S.exportFailed;
+      message = e is InsatoException ? e.messageAr : S.exportFailed;
     }
     if (!mounted) return;
     setState(() => _busy = false);

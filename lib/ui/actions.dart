@@ -17,7 +17,7 @@ import 'widgets/common.dart';
 import 'widgets/dialogs.dart';
 
 String _messageOf(Object e) =>
-    e is KatibException ? e.messageAr : S.unexpectedError;
+    e is InsatoException ? e.messageAr : S.unexpectedError;
 
 /// Starts a new meeting: shows the consent reminder on first use (the
 /// recording only starts once accepted), starts the session and opens the

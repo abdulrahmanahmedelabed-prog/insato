@@ -103,7 +103,7 @@ class ClaudeConnectionTester {
         );
       }
       return ConnectionTestResult(ok: false, messageAr: e.messageAr);
-    } on KatibException catch (e) {
+    } on InsatoException catch (e) {
       return ConnectionTestResult(ok: false, messageAr: e.messageAr);
     } catch (_) {
       return const ConnectionTestResult(

@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/speech/model_catalog.dart';
-import 'package:katib/speech/sherpa_asr_engine.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/speech/model_catalog.dart';
+import 'package:insato/speech/sherpa_asr_engine.dart';
 
 String clean(String s) => WhisperOutputFilter.clean(s);
 
@@ -17,8 +17,8 @@ void main() {
       expect(clean('Thank you.'), 'Thank you.');
       expect(clean('شكراً لكم جميعاً على الحضور.'),
           'شكراً لكم جميعاً على الحضور.');
-      expect(clean('Visit katib.app (beta) today.'),
-          'Visit katib.app (beta) today.');
+      expect(clean('Visit insato.app (beta) today.'),
+          'Visit insato.app (beta) today.');
       expect(clean('لا لا لا'), 'لا لا لا');
     });
 

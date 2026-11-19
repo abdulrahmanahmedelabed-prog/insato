@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/speech/model_catalog.dart';
+import 'package:insato/speech/model_catalog.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -134,7 +134,7 @@ void main() {
     });
 
     test('listModelFilesSync skips empty and hidden files', () {
-      final tmp = Directory.systemTemp.createTempSync('katib_catalog');
+      final tmp = Directory.systemTemp.createTempSync('insato_catalog');
       addTearDown(() => tmp.deleteSync(recursive: true));
       File(p.join(tmp.path, 'a.onnx')).writeAsBytesSync([1]);
       File(p.join(tmp.path, 'empty.onnx')).writeAsBytesSync([]);

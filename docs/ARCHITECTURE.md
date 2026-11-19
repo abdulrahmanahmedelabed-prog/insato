@@ -1,6 +1,6 @@
-# Katib (كاتب) — Architecture
+# Insato (إنصاتو) — Architecture
 
-Katib turns everything the device microphone hears — in any language — into
+Insato turns everything the device microphone hears — in any language — into
 **Arabic meeting minutes**, identifies speakers by **voice**, labels them
 `متحدث 1`, `متحدث 2`, … and lets the user rename them. A rename is remembered
 through a persistent *voiceprint*, so the same person is recognised by name in
@@ -59,7 +59,7 @@ lib/
   core/
     models.dart                  pure domain models (no Flutter imports)  ← CONTRACT
     interfaces.dart              engine interfaces                         ← CONTRACT
-    errors.dart                  KatibException hierarchy
+    errors.dart                  InsatoException hierarchy
     time_format.dart             mm:ss / hh:mm:ss helpers (Arabic digits optional)
   data/
     database.dart                drift schema + DAO-style methods

@@ -60,7 +60,7 @@ jobs:
           # Monotonic build number (Android versionCode / iOS CFBundleVersion).
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "build_number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "Building Katib ${version} (build ${GITHUB_RUN_NUMBER})"
+          echo "Building Insato ${version} (build ${GITHUB_RUN_NUMBER})"
 
   build-android:
     name: Android (APK + AAB)
@@ -131,9 +131,9 @@ jobs:
           mkdir -p dist
           for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
             abi="$(basename "$apk" | sed -E 's/^app-(.*)-release\.apk$/\1/')"
-            cp "$apk" "dist/katib-${BUILD_NAME}-android-${abi}.apk"
+            cp "$apk" "dist/insato-${BUILD_NAME}-android-${abi}.apk"
           done
-          cp build/app/outputs/bundle/release/app-release.aab "dist/katib-${BUILD_NAME}-android.aab"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/insato-${BUILD_NAME}-android.aab"
           ls -lh dist
 
       - name: Remove signing material
@@ -144,7 +144,7 @@ jobs:
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: katib-android
+          name: insato-android
           path: dist/*
           if-no-files-found: error
 
@@ -178,14 +178,14 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $zip = "dist/katib-$env:BUILD_NAME-windows-x64.zip"
+          $zip = "dist/insato-$env:BUILD_NAME-windows-x64.zip"
           Compress-Archive -Path 'build/windows/x64/runner/Release/*' -DestinationPath $zip -Force
           Get-Item $zip | Format-List Name, Length
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: katib-windows
+          name: insato-windows
           path: dist/*
           if-no-files-found: error
 
@@ -225,13 +225,13 @@ jobs:
           staging="$(mktemp -d)"
           mkdir -p "$staging/Payload" dist
           cp -R "$app" "$staging/Payload/"
-          (cd "$staging" && zip -qry "$GITHUB_WORKSPACE/dist/katib-${BUILD_NAME}-ios-unsigned.ipa" Payload)
+          (cd "$staging" && zip -qry "$GITHUB_WORKSPACE/dist/insato-${BUILD_NAME}-ios-unsigned.ipa" Payload)
           ls -lh dist
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: katib-ios
+          name: insato-ios
           path: dist/*
           if-no-files-found: error
 
@@ -247,7 +247,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: katib-*
+          pattern: insato-*
           path: dist
           merge-multiple: true
 
@@ -262,7 +262,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          name: Katib ${{ needs.version.outputs.version }}
+          name: Insato ${{ needs.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
           # Tags such as v1.2.0-beta.1 are published as pre-releases.
           prerelease: ${{ contains(github.ref_name, '-') }}

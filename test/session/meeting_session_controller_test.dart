@@ -2,14 +2,14 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/session/meeting_session_controller.dart';
-import 'package:katib/session/post_processor.dart';
-import 'package:katib/session/providers.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/session/meeting_session_controller.dart';
+import 'package:insato/session/post_processor.dart';
+import 'package:insato/session/providers.dart';
 
 import 'fakes.dart';
 
@@ -25,7 +25,7 @@ void main() {
 
   setUp(() async {
     db = memoryDb();
-    tmp = await Directory.systemTemp.createTemp('katib_session_');
+    tmp = await Directory.systemTemp.createTemp('insato_session_');
     audio = FakeAudioSource();
     hooks = FakeHooks();
     engines = FakeEnginesFactory();
@@ -247,7 +247,7 @@ void main() {
     await c.resume();
     expect(state().phase, SessionPhase.recording);
     expect(audio.paused, isFalse);
-    await expectLater(c.start(), throwsA(isA<KatibException>()));
+    await expectLater(c.start(), throwsA(isA<InsatoException>()));
     await c.cancel();
   });
 
@@ -294,7 +294,7 @@ void main() {
     expect(s.isProcessingBehind, isTrue);
     final e = s.copyWith(
       phase: SessionPhase.error,
-      error: const KatibException('خطأ'),
+      error: const InsatoException('خطأ'),
       warningAr: 'تحذير',
     );
     expect(e.errorAr, 'خطأ');

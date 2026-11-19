@@ -1,4 +1,4 @@
-// All user-facing UI strings of Katib (كاتب), in Modern Standard Arabic.
+// All user-facing UI strings of Insato (إنصاتو), in Modern Standard Arabic.
 //
 // Strings produced by lower layers (exceptions' `messageAr`, job status
 // lines) are shown as they are; everything the UI itself says lives here so
@@ -11,7 +11,7 @@ abstract final class S {
   // ---------------------------------------------------------------------------
 
   /// App name.
-  static const String appName = 'كاتب';
+  static const String appName = 'إنصاتو';
 
   /// App tagline.
   static const String appTagline = 'محاضر اجتماعات احترافية بالعربية';
@@ -79,7 +79,7 @@ abstract final class S {
 
   /// Empty list body.
   static const String noMeetingsBody =
-      'اضغط «اجتماع جديد» ليبدأ كاتب بالاستماع وتفريغ الكلام وتمييز '
+      'اضغط «اجتماع جديد» ليبدأ إنصاتو بالاستماع وتفريغ الكلام وتمييز '
       'المتحدثين، ثم يكتب لك محضرًا عربيًا احترافيًا.';
 
   /// No search results.
@@ -182,7 +182,7 @@ abstract final class S {
 
   /// Confirm stop body.
   static const String confirmStopBody =
-      'سيتوقف التسجيل، ويُكمل كاتب تفريغ ما تبقّى من الكلام، ثم يحسّن تمييز '
+      'سيتوقف التسجيل، ويُكمل إنصاتو تفريغ ما تبقّى من الكلام، ثم يحسّن تمييز '
       'المتحدثين ويكتب المحضر.';
 
   /// Confirm discard title.
@@ -197,7 +197,7 @@ abstract final class S {
 
   /// Live transcript empty.
   static const String listeningHint =
-      'كاتب يستمع… سيظهر النص هنا بعد أول جملة مكتملة.';
+      'إنصاتو يستمع… سيظهر النص هنا بعد أول جملة مكتملة.';
 
   /// Current speaker label.
   static const String currentSpeaker = 'المتحدث الحالي';
@@ -259,7 +259,7 @@ abstract final class S {
 
   /// Consent body.
   static const String consentBody =
-      'سيسجّل كاتب كل ما يلتقطه الميكروفون، ويفرّغه نصًا، ويميّز المتحدثين '
+      'سيسجّل إنصاتو كل ما يلتقطه الميكروفون، ويفرّغه نصًا، ويميّز المتحدثين '
       'من خلال بصماتهم الصوتية.\n\n'
       'تسجيل الآخرين دون علمهم قد يخالف القانون أو سياسات جهة العمل. يجب '
       'إبلاغ جميع المشاركين بأن الاجتماع يُسجَّل والحصول على موافقتهم قبل '
@@ -437,14 +437,14 @@ abstract final class S {
 
   /// No minutes body.
   static const String noMinutesBody =
-      'يكتب كاتب المحضر بالعربية الفصحى من النص الكامل باستخدام Claude.';
+      'يكتب إنصاتو المحضر بالعربية الفصحى من النص الكامل باستخدام Claude.';
 
   /// API key missing.
   static const String apiKeyMissingTitle = 'مفتاح Claude غير مضبوط';
 
   /// API key missing body.
   static const String apiKeyMissingBody =
-      'أضِف مفتاح Anthropic API من الإعدادات ليكتب كاتب المحضر. يُرسَل نص '
+      'أضِف مفتاح Anthropic API من الإعدادات ليكتب إنصاتو المحضر. يُرسَل نص '
       'الاجتماع فقط، ولا يُرسَل الصوت.';
 
   /// Add key.
@@ -514,7 +514,7 @@ abstract final class S {
 
   /// Rename speaker explanation.
   static const String renameSpeakerBody =
-      'سيتذكّر كاتب هذا الاسم ويتعرّف على صوت هذا الشخص تلقائيًا في '
+      'سيتذكّر إنصاتو هذا الاسم ويتعرّف على صوت هذا الشخص تلقائيًا في '
       'الاجتماعات القادمة. يتغيّر الاسم في جميع الاجتماعات.';
 
   /// Name label.
@@ -555,7 +555,7 @@ abstract final class S {
 
   /// Forget voice body.
   static String forgetVoiceBody(String name) =>
-      'سينسى كاتب البصمة الصوتية لـ«$name» ولن يتعرّف عليه تلقائيًا بعد '
+      'سينسى إنصاتو البصمة الصوتية لـ«$name» ولن يتعرّف عليه تلقائيًا بعد '
       'الآن حتى يتعلّمها من جديد. استخدم ذلك إذا نُسبت إليه أصوات أشخاص '
       'آخرين. تبقى مقاطعه الحالية كما هي.';
 
@@ -581,7 +581,7 @@ abstract final class S {
 
   /// Voice library intro.
   static const String voiceLibraryIntro =
-      'كل متحدث سمعه كاتب له بصمة صوتية. سمِّ المتحدثين ليتعرّف عليهم كاتب '
+      'كل متحدث سمعه إنصاتو له بصمة صوتية. سمِّ المتحدثين ليتعرّف عليهم إنصاتو '
       'بأسمائهم في الاجتماعات القادمة.';
 
   /// Empty library.
@@ -766,11 +766,11 @@ abstract final class S {
       '• أبلغ المشاركين دائمًا بأن الاجتماع يُسجَّل.';
 
   /// Section: about.
-  static const String sectionAbout = 'حول كاتب';
+  static const String sectionAbout = 'حول إنصاتو';
 
   /// About body.
   static const String aboutBody =
-      'كاتب يستمع إلى اجتماعاتك بأي لغة، ويفرّغها، ويميّز المتحدثين بأصواتهم، '
+      'إنصاتو يستمع إلى اجتماعاتك بأي لغة، ويفرّغها، ويميّز المتحدثين بأصواتهم، '
       'ثم يكتب محضرًا عربيًا احترافيًا.';
 
   /// Licenses.
@@ -796,7 +796,7 @@ abstract final class S {
 
   /// Models intro.
   static const String modelsIntro =
-      'يعمل كاتب على جهازك دون إنترنت بعد تنزيل النماذج التالية مرة واحدة. '
+      'يعمل إنصاتو على جهازك دون إنترنت بعد تنزيل النماذج التالية مرة واحدة. '
       'يُنصح بالتنزيل عبر شبكة Wi-Fi.';
 
   /// Required group.

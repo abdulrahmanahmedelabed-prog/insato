@@ -156,7 +156,7 @@ class CloudAsrEngine implements AsrEngine {
             debugDetails: 'HTTP $code: ${_snippet(resp.body)}',
           );
         }
-      } on KatibException {
+      } on InsatoException {
         rethrow;
       } on _UnsupportedLanguage {
         rethrow;

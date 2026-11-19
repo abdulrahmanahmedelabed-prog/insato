@@ -1,12 +1,12 @@
-// App-level smoke tests: the bundled font licences and the Katib app
+// App-level smoke tests: the bundled font licences and the Insato app
 // starting in Arabic, right-to-left, over an in-memory database (no native
 // plugins). Screen behaviour is covered in test/ui/.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/main.dart';
-import 'package:katib/ui/screens/home_shell.dart';
-import 'package:katib/ui/strings_ar.dart';
+import 'package:insato/main.dart';
+import 'package:insato/ui/screens/home_shell.dart';
+import 'package:insato/ui/strings_ar.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'ui/harness.dart';
@@ -26,7 +26,7 @@ void main() {
     },
   );
 
-  testWidgets('KatibApp starts in Arabic with an RTL layout', (t) async {
+  testWidgets('InsatoApp starts in Arabic with an RTL layout', (t) async {
     setScreenSize(t, kPhone);
     final env = UiTestEnv();
     await pumpApp(t, env);

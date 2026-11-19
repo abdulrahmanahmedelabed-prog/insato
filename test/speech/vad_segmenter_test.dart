@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/speech/vad_segmenter.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/speech/vad_segmenter.dart';
 
 Float32List _ramp(int n, [int from = 0]) =>
     Float32List.fromList(List.generate(n, (i) => (from + i).toDouble()));

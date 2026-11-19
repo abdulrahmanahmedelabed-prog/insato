@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/repositories.dart';
-import 'package:katib/diarization/speaker_tracker.dart';
-import 'package:katib/session/meeting_session_controller.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/repositories.dart';
+import 'package:insato/diarization/speaker_tracker.dart';
+import 'package:insato/session/meeting_session_controller.dart';
 
 import 'fakes.dart';
 

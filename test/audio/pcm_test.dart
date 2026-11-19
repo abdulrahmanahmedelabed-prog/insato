@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/audio/pcm.dart';
+import 'package:insato/audio/pcm.dart';
 
 Float32List sine(double freq, int rate, int n, {double amp = 0.5}) {
   final out = Float32List(n);

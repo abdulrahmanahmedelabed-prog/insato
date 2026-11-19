@@ -1,4 +1,4 @@
-// Drift (SQLite) schema for Katib.
+// Drift (SQLite) schema for Insato.
 //
 // The database stores meetings, their transcript segments, the global speaker
 // voiceprints shared across meetings, and a small key/value settings table.
@@ -146,12 +146,12 @@ class Settings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
-/// The Katib SQLite database.
+/// The Insato SQLite database.
 @DriftDatabase(tables: [Speakers, Meetings, Segments, Settings])
 class AppDatabase extends _$AppDatabase {
-  /// Opens the on-device database file `katib.sqlite` in the application
+  /// Opens the on-device database file `insato.sqlite` in the application
   /// documents directory (Android, iOS, Windows) on a background isolate.
-  AppDatabase() : super(driftDatabase(name: 'katib'));
+  AppDatabase() : super(driftDatabase(name: 'insato'));
 
   /// Opens the database on an arbitrary [executor], e.g.
   /// `NativeDatabase.memory()` in tests.

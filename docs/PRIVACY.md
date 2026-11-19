@@ -1,12 +1,12 @@
 <div dir="rtl">
 
-# سياسة الخصوصية — كاتب
+# سياسة الخصوصية — إنصاتو
 
 آخر تحديث: نوفمبر 2026
 
-[English version below ↓](#privacy-policy--katib)
+[English version below ↓](#privacy-policy--insato)
 
-كاتب تطبيق يسجّل الاجتماعات ويفرّغها ويكتب محاضرها. صُمِّم ليُبقي بياناتك على
+إنصاتو تطبيق يسجّل الاجتماعات ويفرّغها ويكتب محاضرها. صُمِّم ليُبقي بياناتك على
 جهازك قدر الإمكان، وليُطلعك بوضوح على كل ما يغادر الجهاز ووجهته.
 
 ## 1. البيانات التي يعالجها التطبيق
@@ -47,7 +47,7 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
 
 ### د) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
-- لا خادم خاص بكاتب: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
+- لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
 
 ## 3. الحماية والاحتفاظ والحذف
@@ -61,14 +61,14 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
 - يمكنك حذف أي اجتماع أو متحدث أو بصمة صوتية في أي وقت من داخل التطبيق.
   حذف التطبيق يحذف كل بياناته من الجهاز.
 - البيانات المرسَلة إلى Anthropic أو Deepgram يحكمها احتفاظ تلك الجهات
-  وفق شروطها؛ لا يملك كاتب نسخة منها.
+  وفق شروطها؛ لا يملك إنصاتو نسخة منها.
 
 ## 4. الموافقة على التسجيل
 
 تسجيل الأشخاص وتحليل أصواتهم قد يتطلب موافقتهم بموجب القانون في بلدك أو
 مكان عملك، والبصمة الصوتية تُعد بيانات حيوية حساسة في كثير من الأنظمة.
 **يجب إبلاغ جميع الحاضرين بأن الاجتماع يُسجَّل ويُفرَّغ ويُحلَّل، والحصول على
-موافقتهم قبل البدء.** يعرض كاتب تذكيراً بذلك قبل أول تسجيل، ويظهر إشعار دائم
+موافقتهم قبل البدء.** يعرض إنصاتو تذكيراً بذلك قبل أول تسجيل، ويظهر إشعار دائم
 أثناء التسجيل على Android. المستخدم هو المسؤول عن الالتزام بالأنظمة المعمول
 بها، وعن حذف بصمة أي شخص يطلب ذلك.
 
@@ -81,7 +81,7 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
 | الإنترنت | تنزيل النماذج، وكتابة المحضر، والتفريغ السحابي الاختياري |
 | منع السكون / الخدمة المقدّمة / الصوت في الخلفية | استمرار التسجيل مع إطفاء الشاشة |
 
-لا يطلب كاتب الوصول إلى جهات الاتصال أو الموقع أو الصور أو الكاميرا.
+لا يطلب إنصاتو الوصول إلى جهات الاتصال أو الموقع أو الصور أو الكاميرا.
 
 ## 6. الأطفال
 
@@ -96,11 +96,11 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
 
 ---
 
-# Privacy policy — Katib
+# Privacy policy — Insato
 
 Last updated: November 2026
 
-Katib records meetings, transcribes them and writes minutes. It is designed
+Insato records meetings, transcribes them and writes minutes. It is designed
 to keep your data on your device wherever possible and to tell you exactly
 what leaves the device and where it goes.
 
@@ -141,7 +141,7 @@ the requesting IP address under its own policy.
 
 ### d) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.
-- No Katib server: the app talks directly to the services above with your keys.
+- No Insato server: the app talks directly to the services above with your keys.
 - No selling or sharing of data with anyone else.
 
 ## 3. Security, retention and deletion
@@ -155,7 +155,7 @@ the requesting IP address under its own policy.
 - Any meeting, speaker or voiceprint can be deleted at any time in the app.
   Uninstalling the app deletes all of its data from the device.
 - Data sent to Anthropic or Deepgram is retained under those providers'
-  terms; Katib keeps no copy of it anywhere else.
+  terms; Insato keeps no copy of it anywhere else.
 
 ## 4. Recording consent
 
@@ -163,7 +163,7 @@ Recording people and analysing their voices may require their consent under
 the law where you live or work, and voiceprints are sensitive biometric data
 in many jurisdictions. **Inform everyone present that the meeting is being
 recorded, transcribed and analysed, and obtain their consent before
-starting.** Katib shows a reminder before the first recording and a
+starting.** Insato shows a reminder before the first recording and a
 persistent notification while recording on Android. The user is responsible
 for complying with applicable law and for deleting anyone's voiceprint on
 request.
@@ -177,7 +177,7 @@ request.
 | Internet | Model downloads, minutes generation, optional cloud transcription |
 | Wake lock / foreground service / background audio | Keep recording with the screen off |
 
-Katib does not request access to contacts, location, photos or the camera.
+Insato does not request access to contacts, location, photos or the camera.
 
 ## 6. Children
 

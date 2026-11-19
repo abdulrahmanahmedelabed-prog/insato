@@ -13,13 +13,13 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
-import 'package:katib/audio/audio_capture_service.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/secure_settings.dart';
-import 'package:katib/session/meeting_session_controller.dart';
+import 'package:insato/audio/audio_capture_service.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/secure_settings.dart';
+import 'package:insato/session/meeting_session_controller.dart';
 
 /// Embedding dimension of the fake voices.
 const int kFakeDim = 64;
@@ -269,7 +269,7 @@ class FakeHooks implements SessionPlatformHooks {
   @override
   Future<void> ensureMicrophonePermission(SessionAudioSource audio) async {
     if (deny) {
-      throw const AudioCaptureException('يحتاج كاتب إلى إذن الميكروفون.');
+      throw const AudioCaptureException('يحتاج إنصاتو إلى إذن الميكروفون.');
     }
   }
 
@@ -285,7 +285,7 @@ class FakeHooks implements SessionPlatformHooks {
 
 /// Engines factory fake building [FakeSegmenter] + [InlineSegmentProcessor].
 class FakeEnginesFactory implements SessionEnginesFactory {
-  KatibException? notReady;
+  InsatoException? notReady;
   FakeSegmenter? lastSegmenter;
   FakeAsr asr = FakeAsr();
   int created = 0;
@@ -366,7 +366,7 @@ class RunSegmenter implements SpeechSegmenter {
 /// Minutes engine fake.
 class FakeMinutesEngine implements MinutesEngine {
   FakeMinutesEngine({this.fail});
-  final KatibException? fail;
+  final InsatoException? fail;
   int calls = 0;
   List<String> lastSpeakerNames = const [];
 

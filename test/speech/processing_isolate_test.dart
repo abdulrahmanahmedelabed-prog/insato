@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/speech/processing_isolate.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/speech/processing_isolate.dart';
 
 class _FakeAsr implements AsrEngine {
   @override
@@ -187,11 +187,11 @@ void main() {
   });
 
   test('error encoding round-trips the exception type', () {
-    for (final e in <KatibException>[
+    for (final e in <InsatoException>[
       const ModelException('m', debugDetails: 'd'),
       const AsrException('a'),
       const MissingApiKeyException('k'),
-      const KatibException('x'),
+      const InsatoException('x'),
     ]) {
       final back = decodeWorkerError(encodeWorkerError(e));
       expect(back.runtimeType, e.runtimeType);

@@ -65,7 +65,7 @@ void main() {
     );
 
     test('uses the Arabic app label and disables backups', () {
-      expect(manifest, contains('android:label="كاتب"'));
+      expect(manifest, contains('android:label="إنصاتو"'));
       expect(manifest, contains('android:allowBackup="false"'));
       expect(
         manifest,
@@ -112,7 +112,7 @@ void main() {
     test('shows the Arabic display name and declares ar/en localizations', () {
       expect(
         _plistValue(plist, 'CFBundleDisplayName'),
-        '<string>كاتب</string>',
+        '<string>إنصاتو</string>',
       );
       final localizations = _plistValue(plist, 'CFBundleLocalizations');
       expect(localizations, contains('<string>ar</string>'));
@@ -147,7 +147,7 @@ void main() {
             RegExp(r'\\u([0-9A-Fa-f]{4})'),
             (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)),
           );
-      expect(decoded, 'كاتب — محاضر الاجتماعات');
+      expect(decoded, 'إنصاتو — محاضر الاجتماعات');
       expect(main, contains('Win32Window::Size size(1280, 800)'));
       // The source must stay ASCII: MSVC builds with /WX and no /utf-8.
       expect(main.codeUnits.every((c) => c < 0x80), isTrue);

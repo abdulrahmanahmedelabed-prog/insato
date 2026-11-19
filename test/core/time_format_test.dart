@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/time_format.dart';
+import 'package:insato/core/time_format.dart';
 
 void main() {
   test('formatDuration', () {

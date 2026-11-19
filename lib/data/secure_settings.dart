@@ -28,10 +28,10 @@ class SecureSettings {
   final FlutterSecureStorage _storage;
 
   /// Secure-storage key of the Anthropic (Claude) API key.
-  static const String anthropicApiKeyKey = 'katib.anthropic_api_key';
+  static const String anthropicApiKeyKey = 'insato.anthropic_api_key';
 
   /// Secure-storage key of the Deepgram API key.
-  static const String deepgramApiKeyKey = 'katib.deepgram_api_key';
+  static const String deepgramApiKeyKey = 'insato.deepgram_api_key';
 
   Future<String?> _read(String key) async {
     try {

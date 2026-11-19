@@ -401,7 +401,7 @@ class ReadableWidth extends StatelessWidget {
   const ReadableWidth({
     super.key,
     required this.child,
-    this.maxWidth = KatibTheme.maxContentWidth,
+    this.maxWidth = InsatoTheme.maxContentWidth,
   });
 
   /// Content.

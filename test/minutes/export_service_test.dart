@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/minutes/export_service.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/minutes/export_service.dart';
 
 import 'fixtures.dart';
 

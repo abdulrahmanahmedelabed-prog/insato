@@ -5,9 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/speech/cloud_asr_engine.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/speech/cloud_asr_engine.dart';
 
 SpeechSegment _seg([int n = 1600]) => SpeechSegment(
     index: 0,

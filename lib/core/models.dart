@@ -1,4 +1,4 @@
-// Pure domain models for Katib. No Flutter imports here so the whole file is
+// Pure domain models for Insato. No Flutter imports here so the whole file is
 // usable from isolates and plain `dart test`.
 //
 // THIS FILE IS A SHARED CONTRACT. Change it only with care: every module

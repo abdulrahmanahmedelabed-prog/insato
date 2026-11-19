@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/diarization/speaker_tracker.dart';
-import 'package:katib/diarization/vector_math.dart';
+import 'package:insato/diarization/speaker_tracker.dart';
+import 'package:insato/diarization/vector_math.dart';
 
 import 'synthetic.dart';
 

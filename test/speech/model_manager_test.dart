@@ -7,10 +7,10 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:katib/core/errors.dart';
-import 'package:katib/core/interfaces.dart';
-import 'package:katib/speech/model_catalog.dart';
-import 'package:katib/speech/model_manager.dart';
+import 'package:insato/core/errors.dart';
+import 'package:insato/core/interfaces.dart';
+import 'package:insato/speech/model_catalog.dart';
+import 'package:insato/speech/model_manager.dart';
 import 'package:path/path.dart' as p;
 
 const _single = ModelSpec(
@@ -97,7 +97,7 @@ MockClient _server(
 
 void main() {
   late Directory tmp;
-  setUp(() => tmp = Directory.systemTemp.createTempSync('katib_models'));
+  setUp(() => tmp = Directory.systemTemp.createTempSync('insato_models'));
   tearDown(() {
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });

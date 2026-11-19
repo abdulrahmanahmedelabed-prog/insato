@@ -1,4 +1,4 @@
-package app.katib.katib
+package app.insato.insato
 
 import io.flutter.embedding.android.FlutterActivity
 

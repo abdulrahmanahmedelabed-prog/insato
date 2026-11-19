@@ -1,8 +1,8 @@
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/secure_settings.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/secure_settings.dart';
 
 void main() {
   group('AppSettingsData', () {

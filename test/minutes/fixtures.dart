@@ -1,6 +1,6 @@
 // Shared domain fixtures for minutes tests.
 
-import 'package:katib/core/models.dart';
+import 'package:insato/core/models.dart';
 
 final DateTime kCreated = DateTime(2026, 11, 19, 10, 30);
 

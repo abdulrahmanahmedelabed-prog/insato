@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/audio/pcm.dart';
-import 'package:katib/audio/wav_writer.dart';
+import 'package:insato/audio/pcm.dart';
+import 'package:insato/audio/wav_writer.dart';
 
 Float32List sine(double freq, int rate, int n, {double amp = 0.5}) {
   final out = Float32List(n);
@@ -20,7 +20,7 @@ void main() {
   late Directory dir;
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('katib_wav_test');
+    dir = await Directory.systemTemp.createTemp('insato_wav_test');
   });
 
   tearDown(() async {

@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:katib/core/models.dart';
-import 'package:katib/data/database.dart';
-import 'package:katib/data/repositories.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/data/database.dart';
+import 'package:insato/data/repositories.dart';
 
 Float32List vec(List<double> v) => Float32List.fromList(v);
 
@@ -208,7 +208,7 @@ void main() {
     });
 
     test('delete cascades to segments and removes audio file', () async {
-      final dir = await Directory.systemTemp.createTemp('katib_test');
+      final dir = await Directory.systemTemp.createTemp('insato_test');
       addTearDown(() => dir.delete(recursive: true));
       final wav = File('${dir.path}/m.wav')..writeAsBytesSync([1, 2, 3]);
 
@@ -229,7 +229,7 @@ void main() {
 
     test('delete tolerates a missing audio file', () async {
       final m = await meetings.create();
-      await meetings.setAudioPath(m.id, '/nonexistent/katib/a.wav');
+      await meetings.setAudioPath(m.id, '/nonexistent/insato/a.wav');
       expect(await meetings.delete(m.id), isTrue);
     });
   });

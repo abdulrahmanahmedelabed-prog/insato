@@ -3,8 +3,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:katib/core/models.dart';
-import 'package:katib/diarization/vector_math.dart';
+import 'package:insato/core/models.dart';
+import 'package:insato/diarization/vector_math.dart';
 
 /// Seeded generator of speaker centres and noisy embeddings.
 class SyntheticVoices {
