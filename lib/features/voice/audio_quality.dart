@@ -526,7 +526,8 @@ class LiveLevelMonitor {
 
 /// Speech spans found by energy alone (no model needed): 50 ms frames at
 /// least [marginDb] above the background (10th percentile of all frames)
-/// and above [floorDbfs], closed after [hangoverMs] of quiet and merged
+/// and above [floorDbfs] — the threshold never exceeds [maxThresholdDbfs] —
+/// closed after [hangoverMs] of quiet and merged
 /// across shorter gaps. Spans shorter than [minSpanMs] are dropped. Used by
 /// the microphone test, which must work before any model is downloaded.
 List<SpeechSpan> energySpeechSpans(
@@ -535,6 +536,7 @@ List<SpeechSpan> energySpeechSpans(
   double floorDbfs = -55,
   int hangoverMs = 300,
   int minSpanMs = 200,
+  double maxThresholdDbfs = -35,
 }) {
   final frameDb = <double>[];
   for (
@@ -551,7 +553,12 @@ List<SpeechSpan> energySpeechSpans(
   }
   if (frameDb.isEmpty) return const [];
   final background = _percentile(frameDb, 0.1);
-  final threshold = math.max(floorDbfs, background + marginDb);
+  // Capped so that a take that is speech almost throughout (no quiet
+  // frames to learn the background from) still yields its speech.
+  final threshold = math.max(
+    floorDbfs,
+    math.min(background + marginDb, maxThresholdDbfs),
+  );
   final hangFrames = math.max(0, hangoverMs ~/ 50);
   final spans = <SpeechSpan>[];
   int? openStart;

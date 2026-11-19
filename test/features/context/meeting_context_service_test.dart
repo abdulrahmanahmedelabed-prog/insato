@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
-import 'package:insato/data/repositories_v11.dart';
 import 'package:insato/data/secure_settings.dart';
 import 'package:insato/features/context/context_logic.dart';
 import 'package:insato/features/context/glossary_logic.dart';

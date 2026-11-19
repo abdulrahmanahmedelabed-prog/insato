@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,10 +76,7 @@ void main() {
 
     setUp(() {
       env = Env();
-      keep = env.container.listen(
-        voiceEnrollmentControllerProvider,
-        (_, _) {},
-      );
+      keep = env.container.listen(voiceEnrollmentControllerProvider, (_, _) {});
     });
     tearDown(() async {
       keep.close();
@@ -89,7 +85,8 @@ void main() {
 
     VoiceEnrollmentController ctrl() =>
         env.container.read(voiceEnrollmentControllerProvider.notifier);
-    EnrollmentState st() => env.container.read(voiceEnrollmentControllerProvider);
+    EnrollmentState st() =>
+        env.container.read(voiceEnrollmentControllerProvider);
 
     test('record → analyse → save a new person', () async {
       await ctrl().start();
@@ -116,23 +113,26 @@ void main() {
       expect(stored.voiceDevice, isNull);
     });
 
-    test('uses the remembered mic and far field, tags the voiceprint', () async {
-      await InputDevicePreferences(
-        settings: AppSettings(env.db),
-        db: env.db,
-      ).remember(usb);
-      await AppSettings(env.db).setFarFieldMode(true);
-      await ctrl().start();
-      final mic = env.mics.recording!;
-      expect(mic.startedWith, usb);
-      expect(env.mics.options.last.autoGainOnAndroid, isTrue);
-      mic.emit(readingTake());
-      await settle();
-      await ctrl().stop();
-      expect(env.analyzerFarField, isTrue);
-      final saved = await ctrl().save(name: 'منى');
-      expect(saved!.voiceDevice, 'usb|Jabra');
-    });
+    test(
+      'uses the remembered mic and far field, tags the voiceprint',
+      () async {
+        await InputDevicePreferences(
+          settings: AppSettings(env.db),
+          db: env.db,
+        ).remember(usb);
+        await AppSettings(env.db).setFarFieldMode(true);
+        await ctrl().start();
+        final mic = env.mics.recording!;
+        expect(mic.startedWith, usb);
+        expect(env.mics.options.last.autoGainOnAndroid, isTrue);
+        mic.emit(readingTake());
+        await settle();
+        await ctrl().stop();
+        expect(env.analyzerFarField, isTrue);
+        final saved = await ctrl().save(name: 'منى');
+        expect(saved!.voiceDevice, 'usb|Jabra');
+      },
+    );
 
     test('auto-stops at the target once enough speech was heard', () async {
       await ctrl().start();
@@ -163,7 +163,10 @@ void main() {
 
     test('similar voiceprint: stop, then add to it (naming it)', () async {
       final repo = SpeakerRepository(env.db);
-      final unnamed = await repo.create(centroid: voiceOf(4), embeddingCount: 5);
+      final unnamed = await repo.create(
+        centroid: voiceOf(4),
+        embeddingCount: 5,
+      );
       await ctrl().start();
       env.mics.recording!.emit(readingTake());
       await settle();
@@ -366,7 +369,9 @@ void main() {
       await InputDevicePreferences(
         settings: AppSettings(env.db),
         db: env.db,
-      ).remember(const InputDevice(id: '99', label: 'Rode', type: InputDeviceType.usb));
+      ).remember(
+        const InputDevice(id: '99', label: 'Rode', type: InputDeviceType.usb),
+      );
       await ctrl().startMonitor();
       expect(env.mics.recording!.startedWith, isNull);
       expect(st().warningAr, VoiceStrings.rememberedMissing('Rode'));

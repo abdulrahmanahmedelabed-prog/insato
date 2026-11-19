@@ -290,13 +290,15 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
         ..add(mic.frames.listen(_onFrames))
         ..add(
           mic.level.listen((l) {
-            if (state.isRecording) _set(state.copyWith(level: l));
+            if (ref.mounted && state.isRecording) {
+              _set(state.copyWith(level: l));
+            }
           }),
         )
         ..add(
-          mic.errors.listen(
-            (e) => _set(state.copyWith(warningAr: e.messageAr)),
-          ),
+          mic.errors.listen((e) {
+            if (ref.mounted) _set(state.copyWith(warningAr: e.messageAr));
+          }),
         );
       await mic.start();
       if (!ref.mounted) return;
@@ -321,14 +323,14 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
   }
 
   void _onFrames(Float32List frame) {
-    if (!state.isRecording || _stopping) return;
+    if (!ref.mounted || !state.isRecording || _stopping) return;
     _chunks.add(frame);
     _samples += frame.length;
     _monitor.add(frame);
   }
 
   void _onTick() {
-    if (!state.isRecording) return;
+    if (!ref.mounted || !state.isRecording) return;
     final elapsed = samplesToMillis(_samples);
     _set(
       state.copyWith(
@@ -358,6 +360,7 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
     }
     await _release();
     final audio = _joined();
+    if (!ref.mounted) return;
     _set(
       state.copyWith(
         phase: EnrollmentPhase.analyzing,

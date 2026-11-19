@@ -220,6 +220,7 @@ class MicTestController extends Notifier<MicTestState> {
     _transition = true;
     try {
       await _close();
+      if (!ref.mounted) return;
       _set(
         state.copyWith(
           phase: state.hasRecording ? MicTestPhase.recorded : MicTestPhase.idle,
@@ -252,6 +253,7 @@ class MicTestController extends Notifier<MicTestState> {
       _fail(VoiceStrings.testFileFailed);
       return;
     }
+    if (!ref.mounted) return;
     _testPath = path;
     _take.clear();
     _takeSamples = 0;
@@ -350,13 +352,21 @@ class MicTestController extends Notifier<MicTestState> {
       mic.selectDevice(resolution.device);
       _subs
         ..add(mic.frames.listen(_onFrames))
-        ..add(mic.level.listen((l) => _set(state.copyWith(level: l))))
         ..add(
-          mic.errors.listen(
-            (e) => _set(state.copyWith(warningAr: e.messageAr)),
-          ),
+          mic.level.listen((l) {
+            if (ref.mounted) _set(state.copyWith(level: l));
+          }),
+        )
+        ..add(
+          mic.errors.listen((e) {
+            if (ref.mounted) _set(state.copyWith(warningAr: e.messageAr));
+          }),
         );
       await mic.start(archivePath: archivePath);
+      if (!ref.mounted) {
+        await _close();
+        return;
+      }
       _set(
         state.copyWith(
           phase: phase,
@@ -383,6 +393,7 @@ class MicTestController extends Notifier<MicTestState> {
   }
 
   void _onFrames(Float32List frame) {
+    if (!ref.mounted) return;
     _monitor.add(frame);
     if (state.phase == MicTestPhase.recordingTest) {
       _take.add(frame);
@@ -391,6 +402,7 @@ class MicTestController extends Notifier<MicTestState> {
   }
 
   void _onTick() {
+    if (!ref.mounted) return;
     final phase = state.phase;
     if (phase != MicTestPhase.monitoring &&
         phase != MicTestPhase.recordingTest) {
@@ -411,6 +423,7 @@ class MicTestController extends Notifier<MicTestState> {
     _transition = true;
     try {
       await _close();
+      if (!ref.mounted) return;
       final audio = Float32List(_takeSamples);
       var at = 0;
       for (final c in _take) {
@@ -425,6 +438,7 @@ class MicTestController extends Notifier<MicTestState> {
       );
       final path = _testPath;
       final exists = path != null && await File(path).exists();
+      if (!ref.mounted) return;
       _set(
         state.copyWith(
           phase: MicTestPhase.recorded,

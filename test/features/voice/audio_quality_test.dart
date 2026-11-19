@@ -173,6 +173,13 @@ void main() {
       expect(spans.single.durationMs, closeTo(1400, 60));
     });
 
+    test('speech almost throughout is still found', () {
+      final audio = join([noise(200), tone(4800)]);
+      final spans = energySpeechSpans(audio);
+      expect(spans, hasLength(1));
+      expect(spans.single.durationMs, closeTo(4800, 60));
+    });
+
     test('empty and too-short audio yield nothing', () {
       expect(energySpeechSpans(Float32List(0)), isEmpty);
       expect(energySpeechSpans(Float32List(100)), isEmpty);

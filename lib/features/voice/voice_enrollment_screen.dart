@@ -85,7 +85,7 @@ class _VoiceEnrollmentScreenState extends ConsumerState<VoiceEnrollmentScreen> {
         ? VoiceStrings.improveTitle(widget.speaker!.name)
         : VoiceStrings.enrollTitle;
     return PopScope(
-      canPop: !state.isRecording && !state.isBusy,
+      canPop: state.phase != EnrollmentPhase.saving,
       child: Scaffold(
         appBar: AppBar(title: Text(title)),
         body: ListView(

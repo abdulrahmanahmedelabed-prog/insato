@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/repositories.dart';
-import 'package:insato/data/repositories_v11.dart';
 import 'package:insato/data/secure_settings.dart';
 import 'package:insato/features/context/context_logic.dart';
 import 'package:insato/features/context/glossary_logic.dart';
@@ -21,10 +20,9 @@ Finder field(String label) => find.widgetWithText(TextField, label);
 
 /// A page with a button that opens the context form and keeps its result.
 class _Opener extends StatefulWidget {
-  const _Opener({required this.mode, this.initial = MeetingSetup.empty});
+  const _Opener({required this.mode});
 
   final MeetingContextMode mode;
-  final MeetingSetup initial;
 
   @override
   State<_Opener> createState() => _OpenerState();
@@ -39,11 +37,7 @@ class _OpenerState extends State<_Opener> {
     body: Center(
       child: FilledButton(
         onPressed: () async {
-          lastResult = await showMeetingContextPage(
-            context,
-            initial: widget.initial,
-            mode: widget.mode,
-          );
+          lastResult = await showMeetingContextPage(context, mode: widget.mode);
           returned = true;
         },
         child: const Text('open'),
@@ -60,7 +54,7 @@ void main() {
 
   group('GlossaryScreen', () {
     testWidgets('add, duplicate check, edit and delete', (t) async {
-      setScreenSize(t, kPhone);
+      setScreenSize(t, const Size(500, 1400));
       final env = UiTestEnv();
       await pumpScreen(t, env, const GlossaryScreen());
       expect(find.text(CS.emptyTitle), findsOneWidget);
@@ -113,7 +107,7 @@ void main() {
     });
 
     testWidgets('search, filters, speaker names, usage and export', (t) async {
-      setScreenSize(t, kPhone);
+      setScreenSize(t, const Size(500, 1400));
       final env = UiTestEnv();
       await env.run(t, () async {
         final g = GlossaryRepository(env.db);
@@ -143,7 +137,7 @@ void main() {
       expect(find.text('Aramco'), findsOneWidget);
       expect(find.text('Gemini'), findsNothing);
 
-      await t.scrollUntilVisible(find.text('سارة'), 200);
+      await t.ensureVisible(find.text('سارة'));
       expect(find.text(CS.speakerNamesHeader), findsOneWidget);
 
       await t.tap(find.byTooltip(CS.glossaryMenu));
@@ -354,7 +348,12 @@ void main() {
     testWidgets('new meeting with context starts the session', (t) async {
       setScreenSize(t, const Size(500, 1400));
       final env = UiTestEnv();
-      await env.run(t, () => AppSettings(env.db).setConsentAcknowledged(true));
+      await env.run(
+        t,
+        () => AppSettings(env.db).save(
+          const AppSettingsData(consentAcknowledged: true, keepAudio: false),
+        ),
+      );
       await pumpScreen(
         t,
         env,
@@ -397,11 +396,11 @@ void main() {
       final container = ProviderScope.containerOf(
         t.element(find.byType(Scaffold).first),
       );
-      await t.runAsync(
-        () =>
-            container.read(meetingSessionControllerProvider.notifier).cancel(),
-      );
-      await settle(t);
+      final cancelled = container
+          .read(meetingSessionControllerProvider.notifier)
+          .cancel();
+      await settle(t, rounds: 10);
+      await cancelled;
       await env.dispose(t);
     });
   });
