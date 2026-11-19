@@ -20,7 +20,8 @@ typedef ApiKeyProvider = FutureOr<String?> Function();
 ///
 /// Uses `model=nova-3` with `language=multi` (multilingual code-switching)
 /// unless a language hint is given. Retries 408/429/5xx and network errors
-/// with exponential backoff (honouring `Retry-After`).
+/// with exponential backoff (honouring `Retry-After`). Every request opts
+/// out of Deepgram's Model Improvement Program (`mip_opt_out=true`).
 class CloudAsrEngine implements AsrEngine {
   /// Creates the engine. [client] is injectable for tests (an internal
   /// client is created and owned otherwise).
@@ -89,6 +90,10 @@ class CloudAsrEngine implements AsrEngine {
       'language': lang ?? 'multi',
       'smart_format': 'true',
       'punctuate': 'true',
+      // Private meeting audio: opt out of Deepgram's Model Improvement
+      // Program so requests are not retained for training. Every request
+      // (retries and the multilingual fallback included) is built here.
+      'mip_opt_out': 'true',
     });
   }
 

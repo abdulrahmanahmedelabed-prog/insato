@@ -152,10 +152,9 @@ Future<WorkerEngines> createSherpaWorkerEngines(
 /// [process] was called; failures complete the returned future with a
 /// [InsatoException].
 class ProcessingIsolate {
-  ProcessingIsolate._(this._isolate, this._port, this._errorPort,
-      this._exitPort, this.config);
+  ProcessingIsolate._(
+      this._port, this._errorPort, this._exitPort, this.config);
 
-  final Isolate _isolate;
   final ReceivePort _port;
   final ReceivePort _errorPort;
   final ReceivePort _exitPort;
@@ -166,6 +165,9 @@ class ProcessingIsolate {
   late final SendPort _toWorker;
   final LinkedHashMap<int, _Pending> _pending = LinkedHashMap();
   final Completer<void> _disposedSignal = Completer<void>();
+  // Completes when the worker isolate has actually terminated.
+  final Completer<void> _exited = Completer<void>();
+  Future<void>? _disposeFuture;
   int _nextId = 0;
   int _dimension = 0;
   bool _closing = false;
@@ -202,18 +204,28 @@ class ProcessingIsolate {
     );
   }
 
+  /// Shutdowns of earlier workers that have not finished yet. A new worker
+  /// waits for them so two copies of the (large) native models are never
+  /// resident at the same time.
+  static final Set<Future<void>> _pendingShutdowns = <Future<void>>{};
+
   /// Like [spawn] with a custom engine [factory] (a top-level function),
   /// e.g. for tests or alternative engines.
+  ///
+  /// Waits for any earlier [ProcessingIsolate] whose [dispose] is still in
+  /// progress, so its native models are freed before new ones are loaded.
   static Future<ProcessingIsolate> spawnWithFactory(
     ProcessingIsolateConfig config,
     WorkerEngineFactory factory,
   ) async {
+    while (_pendingShutdowns.isNotEmpty) {
+      await Future.wait(_pendingShutdowns.toList());
+    }
     final port = ReceivePort('insato-processing');
     final errorPort = ReceivePort();
     final exitPort = ReceivePort();
-    final Isolate isolate;
     try {
-      isolate = await Isolate.spawn<_Bootstrap>(
+      await Isolate.spawn<_Bootstrap>(
         _workerMain,
         _Bootstrap(port.sendPort, config, factory),
         onError: errorPort.sendPort,
@@ -227,7 +239,7 @@ class ProcessingIsolate {
       throw ModelException('تعذّر بدء خيط المعالجة في الخلفية.',
           debugDetails: e.toString(), cause: e);
     }
-    final pi = ProcessingIsolate._(isolate, port, errorPort, exitPort, config);
+    final pi = ProcessingIsolate._(port, errorPort, exitPort, config);
     await pi._start();
     return pi;
   }
@@ -262,11 +274,17 @@ class ProcessingIsolate {
       final details = msg is List ? msg.join('\n') : '$msg';
       final err = AsrException('حدث خطأ غير متوقع في خيط المعالجة.',
           debugDetails: details);
+      // errorsAreFatal (the default): the worker is about to exit. Mark it
+      // dead *before* failing pending work, so callers reacting to these
+      // failures already see [isClosed] and respawn/retry instead of
+      // treating the worker as alive (the exit event arrives later).
+      _dead = true;
       if (!ready.isCompleted) ready.completeError(err);
       _failAll(err);
     });
     _exitPort.listen((_) {
       _dead = true;
+      if (!_exited.isCompleted) _exited.complete();
       const err = AsrException('توقفت عملية المعالجة في الخلفية.');
       if (!ready.isCompleted) ready.completeError(err);
       _failAll(err);
@@ -334,27 +352,37 @@ class ProcessingIsolate {
   ///
   /// With [waitForPending] every queued segment is processed first;
   /// otherwise queued segments fail with [AsrException] and only the
-  /// segment currently being decoded is finished. Falls back to killing the
-  /// isolate after [timeout].
-  Future<void> dispose({
-    bool waitForPending = false,
-    Duration timeout = const Duration(seconds: 60),
-  }) async {
-    if (_closing) return _disposedSignal.future;
+  /// segment currently being decoded is finished.
+  ///
+  /// The worker is never killed: a decode in progress is a single blocking
+  /// FFI call that `Isolate.kill` cannot interrupt anyway, and killing would
+  /// skip freeing the native models (sherpa-onnx has no finalizers), leaking
+  /// them until the app restarts. The returned future completes only after
+  /// the worker has released its models and exited, so a caller can safely
+  /// spawn a new worker afterwards ([spawnWithFactory] also waits for it).
+  Future<void> dispose({bool waitForPending = false}) {
+    final existing = _disposeFuture;
+    if (existing != null) return existing;
     _closing = true;
+    final f = _shutdown(waitForPending);
+    _disposeFuture = f;
+    _pendingShutdowns.add(f);
+    f.whenComplete(() => _pendingShutdowns.remove(f)).ignore();
+    return f;
+  }
+
+  Future<void> _shutdown(bool drain) async {
     if (!_dead) {
-      _toWorker.send({'type': 'dispose', 'drain': waitForPending});
-      final limit = waitForPending ? null : timeout;
-      try {
-        if (limit == null) {
-          await _disposedSignal.future;
-        } else {
-          await _disposedSignal.future.timeout(limit);
-        }
-      } on TimeoutException {
-        _isolate.kill(priority: Isolate.immediate);
-      }
+      _toWorker.send({'type': 'dispose', 'drain': drain});
+      // No timeout: the worker reaches shutdown() as soon as the segment it
+      // is decoding returns. 'disposed' arrives after the native free()s.
+      await Future.any([_disposedSignal.future, _exited.future]);
     }
+    // After 'disposed' the worker closes its last port and terminates
+    // promptly; wait for that so the isolate is really gone. The cap only
+    // guards against a lost exit notification (models are already freed).
+    await _exited.future
+        .timeout(const Duration(seconds: 5), onTimeout: () {});
     _failAll(const AsrException('تم إيقاف المعالجة.'));
     _shutdownPorts();
     if (!_disposedSignal.isCompleted) _disposedSignal.complete();

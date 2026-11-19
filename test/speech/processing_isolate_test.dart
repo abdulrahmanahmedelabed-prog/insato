@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,56 @@ Future<WorkerEngines> fakeFactory(ProcessingIsolateConfig c) async =>
 
 Future<WorkerEngines> failingFactory(ProcessingIsolateConfig c) async =>
     throw const ModelException('النموذج تالف', debugDetails: 'boom');
+
+/// ASR whose decode blocks synchronously (like a sherpa FFI call) and
+/// whose engines record, in the directory passed as `speakerModel`, that
+/// their native resources were released.
+class _SlowAsr implements AsrEngine {
+  _SlowAsr(this.dir);
+  final String dir;
+  @override
+  String get name => 'slow';
+  @override
+  Future<void> initialize() async {}
+  @override
+  Future<AsrResult> transcribe(
+    SpeechSegment segment, {
+    String? languageHint,
+  }) async {
+    final sw = Stopwatch()..start();
+    while (sw.elapsedMilliseconds < 1500) {}
+    return const AsrResult(text: 'slow');
+  }
+
+  @override
+  Future<void> dispose() async => File('$dir/asr_freed').writeAsStringSync('1');
+}
+
+class _RecordingEmbedder extends _FakeEmbedder {
+  _RecordingEmbedder(this.dir);
+  final String dir;
+  @override
+  Future<void> dispose() async =>
+      File('$dir/embedder_freed').writeAsStringSync('1');
+}
+
+Future<WorkerEngines> slowFactory(ProcessingIsolateConfig c) async =>
+    WorkerEngines(
+      asr: _SlowAsr(c.speakerModel),
+      embedder: _RecordingEmbedder(c.speakerModel),
+    );
+
+/// ASR that crashes the worker with an uncaught async error.
+class _CrashingAsr extends _FakeAsr {
+  @override
+  Future<AsrResult> transcribe(SpeechSegment segment, {String? languageHint}) {
+    Timer.run(() => throw StateError('uncaught in worker'));
+    return Completer<AsrResult>().future; // never completes
+  }
+}
+
+Future<WorkerEngines> crashingFactory(ProcessingIsolateConfig c) async =>
+    WorkerEngines(asr: _CrashingAsr(), embedder: _FakeEmbedder());
 
 const _config = ProcessingIsolateConfig(
   whisperEncoder: 'e',
@@ -201,5 +252,86 @@ void main() {
     final other = decodeWorkerError(encodeWorkerError(StateError('x')));
     expect(other, isA<AsrException>());
     expect(other.messageAr, isNotEmpty);
+  });
+
+  group('shutdown', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('insato_pi_'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    ProcessingIsolateConfig cfg() => ProcessingIsolateConfig(
+      whisperEncoder: 'e',
+      whisperDecoder: 'd',
+      whisperTokens: 't',
+      speakerModel: dir.path,
+    );
+
+    bool freed() =>
+        File('${dir.path}/asr_freed').existsSync() &&
+        File('${dir.path}/embedder_freed').existsSync();
+
+    test(
+      'dispose waits for an in-flight decode and frees the engines',
+      () async {
+        final pi = await ProcessingIsolate.spawnWithFactory(cfg(), slowFactory);
+        final inFlight = pi.process(_seg(0, 16000));
+        final queued = pi
+            .process(_seg(1, 16000))
+            .then<Object>((r) => r, onError: (Object e) => e);
+        // Let the worker pick up the first segment.
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await pi.dispose();
+        // Native free() ran: the worker was shut down, not killed.
+        expect(freed(), isTrue);
+        expect((await inFlight).asr.text, 'slow');
+        expect(await queued, isA<AsrException>());
+        expect(pi.isClosed, isTrue);
+      },
+    );
+
+    test('spawn waits for a previous worker to free its models', () async {
+      final first = await ProcessingIsolate.spawnWithFactory(
+        cfg(),
+        slowFactory,
+      );
+      unawaited(first.process(_seg(0, 16000)).then((_) {}, onError: (_) {}));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      // Caller does not await dispose before spawning the next worker.
+      unawaited(first.dispose());
+      final second = await ProcessingIsolate.spawnWithFactory(
+        _config,
+        fakeFactory,
+      );
+      expect(
+        freed(),
+        isTrue,
+        reason: 'old models must be freed before new ones load',
+      );
+      await second.dispose();
+    });
+
+    test('an uncaught worker error marks the isolate closed before failing '
+        'pending segments', () async {
+      final pi = await ProcessingIsolate.spawnWithFactory(
+        _config,
+        crashingFactory,
+      );
+      bool? closedWhenFailed;
+      Object? error;
+      try {
+        await pi.process(_seg(0, 16000));
+      } catch (e) {
+        // Same check IsolateSegmentProcessor uses to decide on a respawn.
+        closedWhenFailed = pi.isClosed;
+        error = e;
+      }
+      expect(error, isA<AsrException>());
+      expect(closedWhenFailed, isTrue);
+      await expectLater(
+        pi.process(_seg(1, 16000)),
+        throwsA(isA<AsrException>()),
+      );
+      await pi.dispose().timeout(const Duration(seconds: 10));
+    });
   });
 }

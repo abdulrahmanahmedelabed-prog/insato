@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -120,6 +121,33 @@ void main() {
         expectedOffset += pc.samples.length;
       }
       expect(expectedOffset, s.length);
+    });
+  });
+
+  group('VadSegmenter.dispose', () {
+    // Regression: `segments` is single-subscription, so awaiting close()
+    // with no listener never completed and engine set-up cleanup hung.
+    test('completes when nobody ever listened to segments', () async {
+      final seg = VadSegmenter(modelPath: 'unused.onnx');
+      await seg.dispose().timeout(const Duration(seconds: 2));
+      // Idempotent.
+      await seg.dispose().timeout(const Duration(seconds: 2));
+    });
+
+    test('delivers done to an active listener', () async {
+      final seg = VadSegmenter(modelPath: 'unused.onnx');
+      final done = Completer<void>();
+      seg.segments.listen((_) {}, onDone: done.complete);
+      await seg.dispose().timeout(const Duration(seconds: 2));
+      await done.future.timeout(const Duration(seconds: 2));
+    });
+
+    test('a late listener still receives done', () async {
+      final seg = VadSegmenter(modelPath: 'unused.onnx');
+      await seg.dispose().timeout(const Duration(seconds: 2));
+      final events =
+          await seg.segments.toList().timeout(const Duration(seconds: 2));
+      expect(events, isEmpty);
     });
   });
 }

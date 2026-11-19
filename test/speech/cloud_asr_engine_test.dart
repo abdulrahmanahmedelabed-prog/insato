@@ -119,6 +119,7 @@ void main() {
         'language': 'multi',
         'smart_format': 'true',
         'punctuate': 'true',
+        'mip_opt_out': 'true',
       });
       expect(seen.headers['Authorization'], 'Token secret');
       expect(seen.headers['Content-Type'], 'audio/wav');
@@ -142,8 +143,10 @@ void main() {
 
     test('falls back to multi when the hinted language is rejected', () async {
       final langs = <String?>[];
+      final optOut = <String?>[];
       final e = _engine(MockClient((req) async {
         langs.add(req.url.queryParameters['language']);
+        optOut.add(req.url.queryParameters['mip_opt_out']);
         if (req.url.queryParameters['language'] == 'xx') {
           return http.Response('{"err_msg":"unsupported"}', 400);
         }
@@ -151,6 +154,8 @@ void main() {
       }));
       final r = await e.transcribe(_seg(), languageHint: 'xx');
       expect(langs, ['xx', 'multi']);
+      // The fallback request must not drop the training opt-out.
+      expect(optOut, ['true', 'true']);
       expect(r.text, 'ok');
     });
 

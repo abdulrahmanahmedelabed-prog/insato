@@ -286,7 +286,15 @@ class VadSegmenter implements SpeechSegmenter {
       // Already released.
     }
     _vad = null;
-    await _out.close();
+    // `_out` is single-subscription: its close() future completes only once
+    // the done event reaches a listener. With nobody listening (e.g. engine
+    // set-up failed before the pipeline subscribed) awaiting it would hang
+    // forever and swallow the original error.
+    if (_out.hasListener && !_out.isPaused) {
+      await _out.close();
+    } else {
+      unawaited(_out.close());
+    }
   }
 }
 

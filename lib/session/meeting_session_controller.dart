@@ -65,6 +65,12 @@ class ConsentRequiredException extends InsatoException {
       );
 }
 
+/// Meeting error shown when a transcript was saved incomplete (the user
+/// skipped the remaining transcription, or re-processing after a live
+/// backlog overflow failed).
+const String kIncompleteTranscriptAr =
+    'لم يكتمل التفريغ؛ أعد المعالجة من التسجيل الصوتي.';
+
 InsatoException _asInsato(Object e, String fallbackAr) {
   if (e is InsatoException) return e;
   return InsatoException(fallbackAr, debugDetails: '$e', cause: e);
@@ -365,6 +371,27 @@ class SessionEngineRequest {
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
 }
 
+/// How long [disposeSegmenterSafely] waits for a segmenter to finish closing.
+const Duration kSegmenterDisposeTimeout = Duration(seconds: 2);
+
+/// Disposes [segmenter] without ever hanging or throwing.
+///
+/// A segmenter's [SpeechSegmenter.segments] is typically a single-subscription
+/// stream: if nobody ever listened to it (engine creation or session start
+/// failed before the session subscribed), closing it never completes. The
+/// native resources are released synchronously before that point, so giving
+/// up on the close after [timeout] loses nothing.
+Future<void> disposeSegmenterSafely(
+  SpeechSegmenter segmenter, {
+  Duration timeout = kSegmenterDisposeTimeout,
+}) async {
+  try {
+    await segmenter.dispose().timeout(timeout, onTimeout: () {});
+  } catch (_) {
+    // Best effort.
+  }
+}
+
 /// Engines of one session (or one re-processing run).
 class SessionEngines {
   /// Bundles a segmenter and a processor. [onDispose] releases anything else
@@ -393,11 +420,7 @@ class SessionEngines {
   Future<void> dispose({bool waitForPending = false}) async {
     if (_disposed) return;
     _disposed = true;
-    try {
-      await segmenter.dispose();
-    } catch (_) {
-      // Best effort.
-    }
+    await disposeSegmenterSafely(segmenter);
     try {
       await processor.dispose(waitForPending: waitForPending);
     } catch (_) {
@@ -543,8 +566,14 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
         description: asrName,
       );
     } catch (e) {
-      await segmenter.dispose();
-      await cloud?.dispose();
+      // Nobody listens to the segmenter yet: never await its close blindly,
+      // and release the cloud engine even if the segmenter misbehaves.
+      await disposeSegmenterSafely(segmenter);
+      try {
+        await cloud?.dispose();
+      } catch (_) {
+        // Best effort.
+      }
       rethrow;
     }
   }
@@ -621,6 +650,7 @@ class SessionPipeline {
   int _pendingAudioMs = 0;
   Future<void> _tail = Future<void>.value();
   bool _aborted = false;
+  final Completer<_Outcome?> _abortSignal = Completer<_Outcome?>();
   Speaker? _current;
   InsatoException? _lastError;
   final Set<String> _created = {};
@@ -664,10 +694,15 @@ class SessionPipeline {
 
   /// Queues [segment]. Processing starts immediately; the result is applied
   /// after every earlier segment's result.
+  ///
+  /// Only the segment's duration is retained here: the samples are owned by
+  /// the processor from now on (the isolate processor copies them right
+  /// away), so a backlog does not keep every segment's audio twice.
   void submit(SpeechSegment segment) {
     if (_aborted) return;
     _submitted++;
-    _pendingAudioMs += segment.durationMs;
+    final durationMs = segment.durationMs;
+    _pendingAudioMs += durationMs;
     final outcome = _processor
         .process(segment)
         .then<_Outcome>(
@@ -675,7 +710,7 @@ class SessionPipeline {
           onError: (Object e) =>
               _Outcome.failed(_asInsato(e, 'تعذّر تفريغ أحد مقاطع الكلام.')),
         );
-    _tail = _tail.then((_) => _apply(segment, outcome));
+    _tail = _tail.then((_) => _apply(durationMs, outcome));
     onChanged?.call();
   }
 
@@ -705,14 +740,25 @@ class SessionPipeline {
     }
   }
 
-  /// Stops applying results: pending segments are discarded (used when the
-  /// user cancels a recording). Already stored rows are not touched.
-  void abort() => _aborted = true;
+  /// Stops applying results: pending segments are discarded without waiting
+  /// for their processing to finish, so [drain] completes promptly (used when
+  /// the user cancels a recording or skips the remaining transcription).
+  /// Already stored rows are not touched.
+  void abort() {
+    if (_aborted) return;
+    _aborted = true;
+    _abortSignal.complete(null);
+  }
 
-  Future<void> _apply(SpeechSegment segment, Future<_Outcome> outcome) async {
-    final o = await outcome;
+  /// True once [abort] was called.
+  bool get isAborted => _aborted;
+
+  Future<void> _apply(int durationMs, Future<_Outcome> outcome) async {
     try {
-      if (_aborted) return;
+      final o = _aborted
+          ? null
+          : await Future.any<_Outcome?>([outcome, _abortSignal.future]);
+      if (o == null || _aborted) return;
       final error = o.error;
       if (error != null) {
         _failed++;
@@ -764,7 +810,7 @@ class SessionPipeline {
       _lastError = _asInsato(e, 'تعذّر حفظ أحد مقاطع النص.');
     } finally {
       _completed++;
-      _pendingAudioMs = math.max(0, _pendingAudioMs - segment.durationMs);
+      _pendingAudioMs = math.max(0, _pendingAudioMs - durationMs);
       _drainProgress?.call(_completed, _submitted);
       _wakeCapacityWaiters();
       onChanged?.call();
@@ -1115,6 +1161,7 @@ class SessionState {
     this.pendingProcessing = 0,
     this.pendingAudioMs = 0,
     this.failedSegments = 0,
+    this.liveTranscriptionPaused = false,
     this.currentSpeakerId,
     this.currentSpeakerLabel,
     this.engineDescription,
@@ -1151,6 +1198,11 @@ class SessionState {
 
   /// Segments that could not be transcribed.
   final int failedSegments;
+
+  /// True while live transcription is suspended because it fell too far
+  /// behind the speech (see [MeetingSessionController.start]); the meeting is
+  /// then transcribed again from the audio archive after stopping.
+  final bool liveTranscriptionPaused;
 
   /// Speaker of the latest segment.
   final String? currentSpeakerId;
@@ -1207,6 +1259,7 @@ class SessionState {
     int? pendingProcessing,
     int? pendingAudioMs,
     int? failedSegments,
+    bool? liveTranscriptionPaused,
     String? currentSpeakerId,
     String? currentSpeakerLabel,
     bool clearCurrentSpeaker = false,
@@ -1231,6 +1284,8 @@ class SessionState {
       pendingProcessing: pendingProcessing ?? this.pendingProcessing,
       pendingAudioMs: pendingAudioMs ?? this.pendingAudioMs,
       failedSegments: failedSegments ?? this.failedSegments,
+      liveTranscriptionPaused:
+          liveTranscriptionPaused ?? this.liveTranscriptionPaused,
       currentSpeakerId: clearCurrentSpeaker
           ? null
           : (currentSpeakerId ?? this.currentSpeakerId),
@@ -1270,6 +1325,7 @@ class _ActiveSession {
     required this.audio,
     required this.hooks,
     required this.archivePath,
+    required this.backlogLimitMs,
   });
 
   final Meeting meeting;
@@ -1286,6 +1342,25 @@ class _ActiveSession {
   StreamSubscription<AudioCaptureState>? statesSub;
   Timer? ticker;
   bool stopping = false;
+
+  /// Live-backlog cap (ms of audio waiting for transcription); 0 = none.
+  final int backlogLimitMs;
+
+  /// Live submission is suspended (backlog over [backlogLimitMs]).
+  bool liveSuspended = false;
+
+  /// Some speech was not transcribed live (backlog overflow): the meeting
+  /// must be re-processed from the archive to be complete.
+  bool overflowed = false;
+
+  /// Speech segments not submitted because of the backlog cap.
+  int droppedSegments = 0;
+
+  /// The pipeline finished draining during stop.
+  bool drained = false;
+
+  /// The user chose to skip the remaining transcription while stopping.
+  bool finishLater = false;
 
   Future<void> cancelAudioListeners() async {
     ticker?.cancel();
@@ -1376,6 +1451,8 @@ class MeetingSessionController extends Notifier<SessionState> {
     final speakers = ref.read(speakerRepositoryProvider);
     final segments = ref.read(segmentRepositoryProvider);
     final paths = ref.read(appPathsProvider);
+    final post = ref.read(postProcessorProvider);
+    final backlogLimitMs = ref.read(liveBacklogLimitMsProvider);
 
     SessionEngines? engines;
     Meeting? meeting;
@@ -1407,8 +1484,11 @@ class MeetingSessionController extends Notifier<SessionState> {
       String? archivePath;
       if (settings.keepAudio) {
         final dir = await paths.recordingsDir();
-        archivePath = p.join(dir, '${meeting.id}.wav');
-        await meetings.setAudioPath(meeting.id, archivePath);
+        final fileName = recordingFileName(meeting.id);
+        archivePath = p.join(dir, fileName);
+        // Only the file name is stored: absolute sandbox paths change on iOS
+        // app updates. Readers resolve it with [AppPaths.resolveRecording].
+        await meetings.setAudioPath(meeting.id, fileName);
       }
 
       final tracker = SpeakerTracker(
@@ -1430,6 +1510,7 @@ class MeetingSessionController extends Notifier<SessionState> {
         audio: audio,
         hooks: hooks,
         archivePath: archivePath,
+        backlogLimitMs: backlogLimitMs,
       );
       _active = s;
       _listen(s);
@@ -1465,10 +1546,12 @@ class MeetingSessionController extends Notifier<SessionState> {
       if (hooksStarted) await _safe(hooks.onRecordingStopped);
       if (meeting != null) {
         await _safe(() => meetings.delete(meeting!.id));
+        await _deleteArchive(session?.archivePath);
         if (session != null) {
-          await _deleteUnusedSpeakers(
-            speakers,
-            session.pipeline.createdSpeakerIds,
+          await _safe(
+            () => post.deleteOrphanSpeakers(
+              session!.pipeline.createdSpeakerIds,
+            ),
           );
         }
       }
@@ -1485,7 +1568,7 @@ class MeetingSessionController extends Notifier<SessionState> {
 
   void _listen(_ActiveSession s) {
     s.segmentsSub = s.engines.segmenter.segments.listen(
-      s.pipeline.submit,
+      (segment) => _onSegment(s, segment),
       onError: (Object e) {
         _set(
           state.copyWith(
@@ -1519,6 +1602,48 @@ class MeetingSessionController extends Notifier<SessionState> {
         unawaited(stop());
       }
     });
+  }
+
+  /// Submits a live segment, unless transcription is too far behind.
+  ///
+  /// Every queued segment holds its audio in memory until it is processed.
+  /// When the queue exceeds [_ActiveSession.backlogLimitMs] of audio (a slow
+  /// model on a slow device over a long meeting), live submission pauses
+  /// until the backlog halves; the speech is still in the WAV archive, and
+  /// the meeting is re-processed from it after stopping. Without an archive
+  /// nothing could recover the speech, so every segment is queued.
+  void _onSegment(_ActiveSession s, SpeechSegment segment) {
+    final limit = s.backlogLimitMs;
+    if (limit > 0 && s.archivePath != null && !s.pipeline.isAborted) {
+      final pending = s.pipeline.pendingAudioMs;
+      if (s.liveSuspended && pending > limit ~/ 2) {
+        s.droppedSegments++;
+        return;
+      }
+      if (s.liveSuspended) {
+        s.liveSuspended = false;
+        if (identical(_active, s)) {
+          _set(state.copyWith(liveTranscriptionPaused: false));
+        }
+      } else if (pending + segment.durationMs > limit) {
+        s.liveSuspended = true;
+        s.overflowed = true;
+        s.droppedSegments++;
+        if (identical(_active, s)) {
+          _set(
+            state.copyWith(
+              liveTranscriptionPaused: true,
+              warningAr:
+                  'تأخّر التفريغ كثيرًا عن الكلام، فأُوقف التفريغ المباشر '
+                  'مؤقتًا لحماية ذاكرة الجهاز. التسجيل مستمر، وسيُعاد تفريغ '
+                  'الاجتماع كاملًا من التسجيل الصوتي بعد الإيقاف.',
+            ),
+          );
+        }
+        return;
+      }
+    }
+    s.pipeline.submit(segment);
   }
 
   void _onTick(_ActiveSession s) {
@@ -1581,10 +1706,14 @@ class MeetingSessionController extends Notifier<SessionState> {
   /// 3. releases the engines, foreground service and wakelock;
   /// 4. stores the duration, sets the status to `processing` and runs speaker
   ///    refinement ([PostProcessor.refine]; a failure there keeps the live
-  ///    labels);
+  ///    labels, and voiceprints are still learned from them);
   /// 5. starts minutes generation in the background
   ///    ([MeetingJobsController.generateMinutes] with `automatic: true`):
-  ///    with no Anthropic key the meeting becomes `ready` with a hint.
+  ///    with no Anthropic key the meeting becomes `ready` with a hint. When
+  ///    live transcription had to pause (backlog cap), the meeting is first
+  ///    re-processed from the audio archive, then the minutes are written.
+  ///
+  /// While step 2 runs, [finishLater] skips the remaining transcription.
   ///
   /// Returns the meeting id (null when no session was running). On failure
   /// the meeting is marked `failed` with an Arabic error; its transcript is
@@ -1621,7 +1750,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       await Future<void>.delayed(Duration.zero);
       await s.cancelAudioListeners();
       s.engines.segmenter.flush();
-      await s.engines.segmenter.dispose();
+      await disposeSegmenterSafely(s.engines.segmenter);
       await s.segmenterDone.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {},
@@ -1635,6 +1764,7 @@ class MeetingSessionController extends Notifier<SessionState> {
       );
       await s.pipeline.drain(
         onProgress: (done, total) {
+          if (s.finishLater) return;
           _set(
             state.copyWith(
               progress: total == 0 ? 1.0 : done / total,
@@ -1645,7 +1775,9 @@ class MeetingSessionController extends Notifier<SessionState> {
           );
         },
       );
-      // Everything is drained; a hung worker is killed after a timeout.
+      s.drained = true;
+      // Everything is drained (or skipped); a hung worker is killed after a
+      // timeout.
       await s.engines.dispose();
       await _safe(s.hooks.onRecordingStopped);
       await s.segmentsSub?.cancel();
@@ -1653,9 +1785,13 @@ class MeetingSessionController extends Notifier<SessionState> {
 
       await meetings.setDuration(id, duration.inMilliseconds);
       final archive = s.archivePath;
-      if (archive != null && !await File(archive).exists()) {
+      final hasArchive = archive != null && await File(archive).exists();
+      if (archive != null && !hasArchive) {
         await meetings.setAudioPath(id, null);
       }
+
+      if (s.finishLater) return await _finishedLater(s, hasArchive: hasArchive);
+
       await meetings.updateStatus(id, MeetingStatus.processing);
 
       _set(
@@ -1672,13 +1808,30 @@ class MeetingSessionController extends Notifier<SessionState> {
       } catch (_) {
         // Refinement is an improvement only; the live labels stay valid.
         warning ??= 'تعذّر تحسين تمييز المتحدثين؛ أُبقيت التسميات الأولية.';
+        try {
+          // F15: every voice heard live must still get its voiceprint.
+          // refine() already tried this; learning is idempotent, so this
+          // only tells whether the voiceprints are safe.
+          await post.learnFromCorrections(id);
+        } catch (_) {
+          warning =
+              'تعذّر تحسين تمييز المتحدثين وحفظ البصمات الصوتية؛ يمكنك '
+              'إعادة تمييز المتحدثين من صفحة الاجتماع.';
+        }
       }
       final failed = s.pipeline.failedCount;
       if (failed > 0) {
         warning =
             'تعذّر تفريغ $failed من مقاطع الكلام'
             '${s.pipeline.lastError == null ? '' : ' (${s.pipeline.lastError!.messageAr})'}'
-            '${archive != null ? '. يمكنك إعادة المعالجة من التسجيل الصوتي.' : '.'}';
+            '${hasArchive ? '. يمكنك إعادة المعالجة من التسجيل الصوتي.' : '.'}';
+      }
+      final completeFromArchive = s.overflowed && hasArchive;
+      if (s.overflowed) {
+        warning = completeFromArchive
+            ? 'تأخّر التفريغ المباشر عن الكلام، لذا يُعاد الآن تفريغ الاجتماع '
+                  'كاملًا من التسجيل الصوتي، ثم يُكتب المحضر.'
+            : 'تأخّر التفريغ المباشر عن الكلام ولم يُفرَّغ جزء من الاجتماع.';
       }
       _active = null;
       _set(
@@ -1688,10 +1841,11 @@ class MeetingSessionController extends Notifier<SessionState> {
           warningAr: warning,
         ),
       );
+      final jobs = ref.read(meetingJobsProvider(id).notifier);
       unawaited(
-        ref
-            .read(meetingJobsProvider(id).notifier)
-            .generateMinutes(automatic: true),
+        completeFromArchive
+            ? _completeFromArchive(jobs, meetings, id)
+            : jobs.generateMinutes(automatic: true),
       );
       return id;
     } catch (e) {
@@ -1718,12 +1872,112 @@ class MeetingSessionController extends Notifier<SessionState> {
     }
   }
 
+  /// End of [_stop] after [finishLater]: the transcript stored so far is
+  /// kept, refinement and automatic minutes are skipped, and the meeting is
+  /// marked so the user re-processes it from the recording.
+  Future<String> _finishedLater(
+    _ActiveSession s, {
+    required bool hasArchive,
+  }) async {
+    final id = s.meeting.id;
+    await ref
+        .read(meetingRepositoryProvider)
+        .setError(
+          id,
+          hasArchive
+              ? kIncompleteTranscriptAr
+              : 'لم يكتمل التفريغ، ولا يوجد تسجيل صوتي لإكماله.',
+        );
+    _active = null;
+    _set(
+      SessionState(
+        phase: SessionPhase.idle,
+        lastMeetingId: id,
+        warningAr: hasArchive
+            ? 'حُفظ الاجتماع دون إكمال التفريغ. أعد المعالجة من التسجيل '
+                  'الصوتي في صفحة الاجتماع لإكماله.'
+            : 'حُفظ الاجتماع دون إكمال التفريغ.',
+      ),
+    );
+    return id;
+  }
+
+  /// Re-transcribes a meeting whose live transcription overflowed, then
+  /// writes its minutes. On failure the meeting keeps its partial transcript
+  /// and says how to complete it.
+  static Future<void> _completeFromArchive(
+    MeetingJobsController jobs,
+    MeetingRepository meetings,
+    String id,
+  ) async {
+    try {
+      if (await jobs.reprocessFromAudio()) {
+        await jobs.generateMinutes(automatic: true);
+        return;
+      }
+    } catch (_) {
+      // Fall through: mark the meeting.
+    }
+    await _safe(() => meetings.setError(id, kIncompleteTranscriptAr));
+  }
+
+  /// True while [stop] is waiting for the remaining transcription and the
+  /// recording is archived, so [finishLater] can skip the wait.
+  bool get canFinishLater {
+    final s = _active;
+    return s != null &&
+        s.stopping &&
+        !s.drained &&
+        !s.finishLater &&
+        s.archivePath != null &&
+        state.phase == SessionPhase.finishing;
+  }
+
+  /// Skips the remaining transcription of a meeting being stopped (see
+  /// [canFinishLater]): queued segments are dropped, the transcript stored
+  /// so far is kept, refinement and automatic minutes are skipped, and the
+  /// meeting is marked "transcription incomplete" so the user can run
+  /// "re-process from audio" later. The pending [stop] completes with the
+  /// meeting id. Returns false when not possible.
+  bool finishLater() {
+    if (!canFinishLater) return false;
+    final s = _active!;
+    s.finishLater = true;
+    s.pipeline.abort();
+    _set(
+      state.copyWith(
+        statusAr: 'جارٍ حفظ الاجتماع دون إكمال التفريغ…',
+        clearProgress: true,
+      ),
+    );
+    return true;
+  }
+
+  /// True when [cancel] would discard the recording: a session runs and no
+  /// stop (by the user or by the platform ending the take) has begun.
+  bool get canDiscard {
+    final s = _active;
+    return s != null && !s.stopping && _stopping == null;
+  }
+
   /// Discards the running recording: capture stops, queued work is dropped,
   /// and the meeting (transcript, audio file) plus the speakers it created
-  /// are deleted.
-  Future<void> cancel() async {
+  /// (unless used elsewhere) are deleted. Returns true when discarded.
+  ///
+  /// Once a stop has begun (e.g. the platform ended the take while a discard
+  /// confirmation was open) the meeting is being saved: nothing is deleted,
+  /// this waits for the save and returns false.
+  Future<bool> cancel() async {
     final s = _active;
-    if (s == null) return;
+    if (s == null) return false;
+    if (s.stopping || _stopping != null) {
+      try {
+        await _stopping;
+      } catch (_) {
+        // _stop reports its own errors through the state.
+      }
+      return false;
+    }
     s.stopping = true;
     _active = null;
     _set(
@@ -1743,11 +1997,14 @@ class MeetingSessionController extends Notifier<SessionState> {
     await s.pipeline.drain();
     await _safe(s.hooks.onRecordingStopped);
     await _safe(() => ref.read(meetingRepositoryProvider).delete(s.meeting.id));
-    await _deleteUnusedSpeakers(
-      ref.read(speakerRepositoryProvider),
-      s.pipeline.createdSpeakerIds,
+    await _deleteArchive(s.archivePath);
+    await _safe(
+      () => ref
+          .read(postProcessorProvider)
+          .deleteOrphanSpeakers(s.pipeline.createdSpeakerIds),
     );
     _set(SessionState(lastMeetingId: state.lastMeetingId));
+    return true;
   }
 
   /// Clears an error or warning shown by the UI.
@@ -1759,18 +2016,13 @@ class MeetingSessionController extends Notifier<SessionState> {
     }
   }
 
-  static Future<void> _deleteUnusedSpeakers(
-    SpeakerRepository speakers,
-    Set<String> ids,
-  ) async {
-    for (final id in ids) {
-      try {
-        final sp = await speakers.get(id);
-        if (sp == null || sp.isNamedByUser) continue;
-        await speakers.delete(id);
-      } catch (_) {
-        // Leftover unnamed speakers are harmless.
-      }
+  static Future<void> _deleteArchive(String? path) async {
+    if (path == null) return;
+    try {
+      final f = File(path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // Best effort.
     }
   }
 
