@@ -104,7 +104,11 @@ class VadSegmenter implements SpeechSegmenter {
   final AudioHistory _history;
   sherpa.VoiceActivityDetector? _vad;
   int _nextIndex;
-  int _fed = 0; // samples fed to the VAD
+  int _fed = 0; // samples fed to the VAD (real + synthetic)
+  int _synthetic = 0; // zero samples injected by flush()
+  // (absolute index where synthetic padding ended, total synthetic so far):
+  // audio after a flush is shifted back by the padding injected before it.
+  final List<(int, int)> _shifts = [];
   int _lastEmittedEnd = 0; // absolute sample index (exclusive)
   bool _disposed = false;
 
@@ -124,7 +128,8 @@ class VadSegmenter implements SpeechSegmenter {
 
   /// Total audio fed so far.
   Duration get processedDuration =>
-      Duration(milliseconds: samplesToMs(_fed + _chunker.pending));
+      Duration(
+          milliseconds: samplesToMs(_fed - _synthetic + _chunker.pending));
 
   @override
   Future<void> initialize() async {
@@ -185,6 +190,7 @@ class VadSegmenter implements SpeechSegmenter {
     if (vad == null || _disposed) return;
     try {
       final remainder = _chunker.takeRemainder();
+      final realEnd = _fed + remainder.length;
       if (remainder.isNotEmpty) {
         final padded = Float32List(config.windowSize)..setAll(0, remainder);
         _feed(vad, padded);
@@ -201,6 +207,8 @@ class VadSegmenter implements SpeechSegmenter {
       }
       vad.flush();
       _drain(vad);
+      _synthetic += _fed - realEnd;
+      _shifts.add((_fed, _synthetic));
     } catch (e) {
       _emitError(e);
     }
@@ -242,10 +250,21 @@ class VadSegmenter implements SpeechSegmenter {
       if (_out.isClosed) return;
       _out.add(SpeechSegment(
         index: _nextIndex++,
-        startMs: startOffsetMs + samplesToMs(audioStart + piece.offset),
+        startMs: startOffsetMs +
+            samplesToMs(_toRealIndex(audioStart + piece.offset)),
         samples: piece.samples,
       ));
     }
+  }
+
+  /// Maps an absolute VAD sample index to real recording time by removing
+  /// the silence injected by earlier [flush] calls.
+  int _toRealIndex(int index) {
+    var shift = 0;
+    for (final (boundary, total) in _shifts) {
+      if (index >= boundary) shift = total;
+    }
+    return math.max(0, index - shift);
   }
 
   void _emitError(Object e) {
