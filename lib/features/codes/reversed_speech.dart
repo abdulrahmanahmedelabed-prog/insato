@@ -114,7 +114,11 @@ Future<List<Float32List>> _streamClips(
     pos = chunkEnd;
     if (pos >= lastEnd) break;
   }
-  return [for (final b in builders) Float32List.view(b.takeBytes().buffer)];
+  return [
+    for (final b in builders)
+      if (b.takeBytes() case final bytes)
+        Float32List.view(bytes.buffer, bytes.offsetInBytes, bytes.length ~/ 4),
+  ];
 }
 
 // ---------------------------------------------------------------------------
