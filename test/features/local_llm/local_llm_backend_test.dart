@@ -383,6 +383,8 @@ void main() {
       );
       expect(out.text, _minutes);
       _expectWithinContext(gen, budget);
+      // The beginning of the notes is kept, not just a part header.
+      expect(gen.requests.last.user, contains('[point] نص طويل نص طويل'));
     });
 
     test('unreadable notes of a part are replaced by a marker', () async {

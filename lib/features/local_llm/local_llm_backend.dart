@@ -329,10 +329,10 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     }
     if (notesTokens > notesBudget) {
       final keep = (notesBudget * cpt * 0.9).floor();
-      final groups = groupNoteLines(notesText, maxChars: keep);
-      var kept = groups.isEmpty ? '' : groups.first;
-      // A single note line longer than the budget forms its own group.
-      //X
+      // Keep the first notes that fit, cut at a line end when one is near.
+      var kept = notesText.substring(0, math.min(keep, notesText.length));
+      final nl = kept.lastIndexOf('\n');
+      if (nl > keep ~/ 2) kept = kept.substring(0, nl);
       notesText = kept;
       notesTokens = await gen.countTokens(notesText);
     }
