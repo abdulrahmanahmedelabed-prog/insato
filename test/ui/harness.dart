@@ -211,6 +211,9 @@ Future<void> settle(WidgetTester t, {int rounds = 6}) async {
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
     await t.pump(const Duration(milliseconds: 16));
   }
+  // Let route / dialog transitions finish.
+  await t.pump(const Duration(milliseconds: 400));
+  await t.pump(const Duration(milliseconds: 16));
 }
 
 /// A finished meeting with minutes, two speakers (one named) and a

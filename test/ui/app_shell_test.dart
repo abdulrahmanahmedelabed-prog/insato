@@ -114,16 +114,17 @@ void main() {
     expect(s.consentAcknowledged, isTrue);
     expect(env.audio.started, isTrue);
     final container = ProviderScope.containerOf(
-      t.element(find.byType(HomeShell)),
+      t.element(find.byType(HomeShell, skipOffstage: false)),
     );
     expect(
       container.read(meetingSessionControllerProvider).phase,
       SessionPhase.recording,
     );
-    await t.runAsync(
-      () => container.read(meetingSessionControllerProvider.notifier).cancel(),
-    );
-    await settle(t);
+    final cancelled = container
+        .read(meetingSessionControllerProvider.notifier)
+        .cancel();
+    await settle(t, rounds: 10);
+    await cancelled;
     await env.dispose(t);
   });
 
