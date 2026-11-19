@@ -301,7 +301,7 @@ void main() {
       expect(localizations, contains('<string>en</string>'));
     });
 
-    test('targets iOS 15.0 or later in every build configuration', () {
+    test('targets iOS 16.4 or later (llamadart floor) in every build configuration', () {
       final pbxproj = _read('ios/Runner.xcodeproj/project.pbxproj');
       final targets = RegExp(r'IPHONEOS_DEPLOYMENT_TARGET = ([\d.]+);')
           .allMatches(pbxproj)
@@ -309,7 +309,7 @@ void main() {
           .toList();
       expect(targets, isNotEmpty);
       for (final target in targets) {
-        expect(target, greaterThanOrEqualTo(15.0));
+        expect(target, greaterThanOrEqualTo(16.4));
       }
     });
   });

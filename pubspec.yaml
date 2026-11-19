@@ -57,6 +57,9 @@ dependencies:
   crypto: ^3.0.8
   flutter_localizations:
     sdk: flutter
+  audioplayers: ^6.8.1
+  llamadart: ^0.20.1
+  llamadart_llama_cpp_flutter: ^0.20.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +73,16 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.3
   build_runner: ^2.17.1
+
+# llamadart (F14 on-device minutes): bundle only the llama.cpp / GGUF runtime
+# (no LiteRT-LM, which also cannot build for the iOS x86_64 simulator). On
+# iOS the llamadart_llama_cpp_flutter companion links the XCFramework through
+# SwiftPM (with its Apple privacy manifest). After changing these keys run
+# `flutter clean` once.
+hooks:
+  user_defines:
+    llamadart:
+      llamadart_native_runtimes: [llama_cpp]
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
