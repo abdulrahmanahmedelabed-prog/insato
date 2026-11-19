@@ -1304,3 +1304,32 @@ class MinutesCodes {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Minutes engine inputs (F2, F9)
+// ---------------------------------------------------------------------------
+
+/// Extra, per-request inputs of a minutes engine beyond the meeting (whose
+/// `Meeting.context` carries agenda / attendees / notes), its transcript and
+/// the speakers (whose `Speaker.profileEnabled` selects F16 notes).
+class MinutesInputs {
+  /// Creates inputs.
+  const MinutesInputs({
+    this.glossary = const [],
+    this.openTasks = const [],
+    this.taskSourceTitles = const {},
+  });
+
+  /// No extra inputs (v1 behaviour).
+  static const MinutesInputs none = MinutesInputs();
+
+  /// Canonical spellings: global terms plus this meeting's terms (F2/F3).
+  final List<GlossaryTerm> glossary;
+
+  /// Open tasks from earlier meetings (F9); the engine may report progress
+  /// on them in `Minutes.taskUpdates` (by [TrackedTask.id]).
+  final List<TrackedTask> openTasks;
+
+  /// Titles of the meetings the [openTasks] came from (meeting id → title).
+  final Map<String, String> taskSourceTitles;
+}
