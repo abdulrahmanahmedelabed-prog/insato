@@ -1,0 +1,557 @@
+<title>Katib</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Katib turns meetings in any language into formal Arabic minutes, recognizes people by voice, and can run on-device. An honest comparison with the world's leading meeting-notes tools.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Reem+Kufi:wght@500;600;700&display=swap">
+<style>
+/* Layout: an "official register" — ruled ledger lines, a brass seal accent, and an ink-teal voice. Long single column, wide comparison ledger. */
+:root{
+  --paper:#EEF2EF; --surface:#FBFCFA; --sunk:#E3E9E5;
+  --ink:#10201D; --ink-2:#3A4B47; --muted:#5F6F6A; --line:#CCD6D1; --rule:#DAE2DE;
+  --teal:#0D5B53; --teal-soft:#D3E8E3; --brass:#8A5A0B; --brass-soft:#F1E3C6;
+  --yes:#1D7350; --partial:#9A6410; --no:#A63D2B; --unknown:#6B7773; --planned:#4652C9;
+  --yes-bg:#DCEFE5; --partial-bg:#F5E7CB; --no-bg:#F5DDD7; --unknown-bg:#E4E9E7; --planned-bg:#E2E4F8;
+  --s1:#0D5B53; --s2:#8A5A0B; --s3:#4652C9;
+  --shadow:0 1px 0 rgba(16,32,29,.04),0 12px 32px -18px rgba(16,32,29,.25);
+  --f-display:"Bricolage Grotesque","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-ar-display:"Reem Kufi","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --f-ar-body:"IBM Plex Sans Arabic","IBM Plex Sans",system-ui,"Segoe UI",sans-serif;
+  --maxw:1180px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0C1412; --surface:#121D1A; --sunk:#0F1916;
+  --ink:#E6EEEA; --ink-2:#B9C7C2; --muted:#8B9B96; --line:#26352F; --rule:#1D2A26;
+  --teal:#62C3B2; --teal-soft:#16302B; --brass:#E2AA4E; --brass-soft:#2E2414;
+  --yes:#56C892; --partial:#E5AE52; --no:#EE8169; --unknown:#97A39F; --planned:#9AA2FA;
+  --yes-bg:#14301F; --partial-bg:#33270F; --no-bg:#3A1C16; --unknown-bg:#1E2925; --planned-bg:#1F2245;
+  --s1:#62C3B2; --s2:#E2AA4E; --s3:#9AA2FA;
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -20px rgba(0,0,0,.7);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0C1412; --surface:#121D1A; --sunk:#0F1916;
+  --ink:#E6EEEA; --ink-2:#B9C7C2; --muted:#8B9B96; --line:#26352F; --rule:#1D2A26;
+  --teal:#62C3B2; --teal-soft:#16302B; --brass:#E2AA4E; --brass-soft:#2E2414;
+  --yes:#56C892; --partial:#E5AE52; --no:#EE8169; --unknown:#97A39F; --planned:#9AA2FA;
+  --yes-bg:#14301F; --partial-bg:#33270F; --no-bg:#3A1C16; --unknown-bg:#1E2925; --planned-bg:#1F2245;
+  --s1:#62C3B2; --s2:#E2AA4E; --s3:#9AA2FA;
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 16px 40px -20px rgba(0,0,0,.7);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+:root[lang="ar"] body{font-family:var(--f-ar-body);font-size:16.5px;line-height:1.85}
+a{color:var(--teal);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:6px}
+.wrap{max-width:var(--maxw);margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;letter-spacing:-.02em;margin:0}
+:root[lang="ar"] h1,:root[lang="ar"] h2,:root[lang="ar"] h3{font-family:var(--f-ar-display);letter-spacing:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin:0 0 14px;display:flex;align-items:center;gap:10px}
+:root[lang="ar"] .eyebrow{font-family:var(--f-ar-body);letter-spacing:0;font-size:14px;font-weight:600}
+.eyebrow::before{content:"";width:22px;height:2px;background:currentColor;border-radius:2px}
+.lede{color:var(--ink-2);font-size:clamp(17px,1.6vw,19px);max-width:62ch;margin:0}
+section{padding-block:clamp(56px,8vw,104px)}
+.sec-head{display:grid;gap:14px;margin-bottom:clamp(28px,4vw,44px)}
+.sec-head h2{font-size:clamp(30px,4.2vw,48px);line-height:1.08}
+:root[lang="ar"] .sec-head h2{line-height:1.35}
+
+/* top bar */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:color-mix(in srgb,var(--paper) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
+.bar .wrap{display:flex;align-items:center;gap:18px;min-height:62px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.02em}
+.brand .ar{font-family:var(--f-ar-display);font-weight:700;font-size:21px;color:var(--teal)}
+.seal{width:30px;height:30px;flex:none}
+.nav{display:flex;gap:4px;margin-inline-start:auto;align-items:center}
+.nav a{color:var(--ink-2);text-decoration:none;font-size:14px;padding:8px 10px;border-radius:8px}
+.nav a:hover{background:var(--sunk);color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;padding:9px 14px;border-radius:999px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.primary:hover{background:var(--teal);border-color:var(--teal)}
+.lang-btn{font-family:var(--f-ar-body)}
+:root[lang="ar"] .lang-btn{font-family:var(--f-body)}
+.icon-btn{width:38px;height:38px;padding:0;justify-content:center}
+@media (max-width:860px){.nav a{display:none}}
+
+/* hero */
+.hero{padding-block:clamp(40px,7vw,92px) clamp(48px,7vw,88px);position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,transparent 0 35px,var(--rule) 35px 36px);mask-image:linear-gradient(to bottom,transparent,#000 30%,#000 70%,transparent);-webkit-mask-image:linear-gradient(to bottom,transparent,#000 30%,#000 70%,transparent);opacity:.55;pointer-events:none;z-index:0}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:center}
+@media (max-width:980px){.hero .wrap{grid-template-columns:minmax(0,1fr)}}
+.status{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--brass);background:var(--brass-soft);border-radius:999px;padding:6px 12px;margin-bottom:22px}
+:root[lang="ar"] .status{font-family:var(--f-ar-body);letter-spacing:0;font-size:13px}
+.status i{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 0 currentColor;animation:pulse 2.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--brass) 55%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.hero h1{font-size:clamp(40px,6.4vw,82px);line-height:.98;font-weight:800}
+:root[lang="ar"] .hero h1{font-size:clamp(38px,5.6vw,72px);line-height:1.25;font-weight:700}
+.hero h1 .out{color:var(--teal);display:block}
+.hero .lede{margin-top:22px}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.cta .btn{padding:12px 18px;font-size:15px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:30px;font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+:root[lang="ar"] .facts{font-family:var(--f-ar-body);font-size:13.5px}
+.facts span{display:inline-flex;align-items:center;gap:7px}
+.facts span::before{content:"";width:5px;height:5px;background:var(--teal);transform:rotate(45deg)}
+
+/* hero demo */
+.demo{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.demo-top{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+:root[lang="ar"] .demo-top{font-family:var(--f-ar-body)}
+.rec{width:9px;height:9px;border-radius:50%;background:var(--no);animation:pulse-r 1.6s infinite}
+@keyframes pulse-r{50%{opacity:.35}}
+.demo-top .t{margin-inline-start:auto;font-variant-numeric:tabular-nums;direction:ltr}
+#wave{display:block;width:100%;height:64px;border-bottom:1px solid var(--rule)}
+.utt{display:grid;gap:10px;padding:16px}
+.u{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:8px 10px;border-radius:12px;transition:background .4s}
+.u.on{background:var(--sunk)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 4px;border-radius:999px;background:var(--sunk);white-space:nowrap;font-family:var(--f-ar-body)}
+.chip b{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--surface);font-size:10px;font-family:var(--f-mono)}
+.chip .renamed{color:var(--muted);font-weight:500}
+.u p{margin:0;font-size:14.5px;line-height:1.55;color:var(--ink)}
+.u .lng{font-family:var(--f-mono);font-size:10.5px;color:var(--muted);letter-spacing:.06em;display:block;margin-top:2px}
+.sheet{margin:0 16px 16px;border:1px solid var(--line);border-radius:14px;background:repeating-linear-gradient(to bottom,var(--surface) 0 29px,var(--rule) 29px 30px);padding:14px 16px 10px;direction:rtl;font-family:var(--f-ar-body);text-align:right}
+.sheet h4{margin:0 0 4px;font-family:var(--f-ar-display);font-size:16px;color:var(--teal);font-weight:700}
+.sheet .meta{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:30px}
+.sheet ol{margin:0;padding:0 18px 0 0;font-size:14px;line-height:30px}
+.sheet li{transition:color .4s,background .4s;border-radius:6px;padding-inline:4px}
+.sheet li.on{background:var(--brass-soft)}
+.sheet .who{color:var(--brass);font-weight:600}
+
+/* pipeline */
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+@media (max-width:900px){.flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.flow{grid-template-columns:minmax(0,1fr)}}
+.step{padding:26px 22px 28px;border-inline-end:1px solid var(--line);display:grid;gap:10px;align-content:start;min-width:0}
+.step:last-child{border-inline-end:0}
+@media (max-width:900px){.step:nth-child(2n){border-inline-end:0}.step:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+@media (max-width:520px){.step{border-inline-end:0;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:0}}
+.step .n{font-family:var(--f-mono);font-size:12px;color:var(--brass)}
+.step h3{font-size:21px}
+.step p{margin:0;color:var(--ink-2);font-size:15px}
+.step .tech{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);direction:ltr;text-align:start}
+
+/* matrix */
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:16px;font-size:13px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap;font-family:var(--f-mono);letter-spacing:.02em}
+:root[lang="ar"] .pill{font-family:var(--f-ar-body);letter-spacing:0;font-size:12px}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.r-yes{color:var(--yes);background:var(--yes-bg)}
+.r-partial{color:var(--partial);background:var(--partial-bg)}
+.r-partial::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%);border:1.5px solid currentColor;width:8px;height:8px}
+:root[dir="rtl"] .r-partial::before{background:linear-gradient(270deg,currentColor 50%,transparent 50%)}
+.r-no{color:var(--no);background:var(--no-bg)}
+.r-no::before{background:transparent;border:1.5px solid currentColor;width:8px;height:8px}
+.r-unknown{color:var(--unknown);background:var(--unknown-bg)}
+.r-unknown::before{background:transparent;border:1.5px dashed currentColor;width:8px;height:8px}
+.r-planned{color:var(--planned);background:var(--planned-bg)}
+.r-planned::before{border-radius:2px;transform:rotate(45deg);width:6px;height:6px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{border:0;background:transparent;font:inherit;font-size:13px;color:var(--ink-2);padding:6px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.ledger{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--shadow);-webkit-overflow-scrolling:touch}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:1180px;font-size:13px}
+.mx th,.mx td{padding:12px 12px;vertical-align:top;border-bottom:1px solid var(--rule);text-align:start}
+.mx thead th{position:sticky;top:0;background:var(--surface);z-index:2;font-weight:600;font-size:13px;border-bottom:1px solid var(--line)}
+.mx thead th button{all:unset;cursor:pointer;display:grid;gap:3px}
+.mx thead th button:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:4px}
+.mx thead th .nm{font-family:var(--f-display);font-size:14.5px;font-weight:700;line-height:1.2;color:var(--ink)}
+:root[lang="ar"] .mx thead th .nm{font-family:var(--f-ar-body)}
+.mx thead th .cat{font-size:11px;font-weight:400;color:var(--muted);line-height:1.3}
+.mx th.dim{position:sticky;inset-inline-start:0;background:var(--surface);z-index:1;min-width:190px;max-width:220px;font-weight:600;color:var(--ink)}
+.mx thead th.dim{z-index:3}
+.mx th.dim small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;line-height:1.4;margin-top:4px}
+.mx td{min-width:118px;color:var(--ink-2);line-height:1.4}
+.mx td .note{display:block;margin-top:6px;font-size:12px}
+.mx .katib{background:color-mix(in srgb,var(--teal) 7%,var(--surface))}
+.mx thead th.katib{background:color-mix(in srgb,var(--teal) 12%,var(--surface));box-shadow:inset 0 3px 0 var(--teal)}
+.mx tr:last-child th,.mx tr:last-child td{border-bottom:0}
+.mx.compact .note{display:none}
+.detail{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:20px 22px;display:grid;gap:10px}
+.detail h3{font-size:20px}
+.detail p{margin:0;color:var(--ink-2)}
+.detail ul{margin:0;padding-inline-start:18px;font-size:13px;word-break:break-word}
+.hint{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* weaknesses */
+.weak-sum{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px}
+.tally{display:flex;align-items:baseline;gap:8px;padding:10px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.tally b{font-family:var(--f-display);font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.tally span{font-size:13px;color:var(--ink-2)}
+.weak{display:grid;gap:0;border-top:2px solid var(--ink)}
+.w{display:grid;grid-template-columns:120px minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);gap:22px;padding:22px 0;border-bottom:1px solid var(--line)}
+@media (max-width:980px){.w{grid-template-columns:minmax(0,1fr);gap:10px}}
+.sev{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px;font-weight:600;align-self:start}
+:root[lang="ar"] .sev{font-family:var(--f-ar-body);letter-spacing:0;font-size:13px}
+.sev i{display:inline-flex;gap:2px}
+.sev i::before,.sev i::after,.sev i b{content:"";width:6px;height:14px;border-radius:2px;background:currentColor;display:block}
+.sev.high{color:var(--no)}
+.sev.medium{color:var(--partial)}.sev.medium i::after{opacity:.25}
+.sev.low{color:var(--unknown)}.sev.low i b,.sev.low i::after{opacity:.25}
+.w h3{font-size:18px;line-height:1.3;margin-bottom:6px}
+:root[lang="ar"] .w h3{line-height:1.6}
+.w p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.w .lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:block}
+:root[lang="ar"] .w .lbl{font-family:var(--f-ar-body);letter-spacing:0;font-size:12.5px;font-weight:600}
+.w .fix p{color:var(--ink)}
+
+/* strengths */
+.str{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:980px){.str{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.str{grid-template-columns:minmax(0,1fr)}}
+.s{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:grid;gap:10px;align-content:start}
+.s h3{font-size:19px;line-height:1.25}
+:root[lang="ar"] .s h3{line-height:1.6}
+.s p{margin:0;font-size:14.5px;color:var(--ink-2)}
+.s .ev{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+.s .ev b{color:var(--brass);font-weight:600}
+
+/* accuracy */
+.acc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:clamp(24px,4vw,48px);align-items:start}
+@media (max-width:980px){.acc{grid-template-columns:minmax(0,1fr)}}
+.acc .copy p{color:var(--ink-2);margin:0 0 14px}
+.warnbox{border:1px solid var(--line);border-inline-start:3px solid var(--brass);background:var(--surface);border-radius:12px;padding:14px 16px;font-size:14px;color:var(--ink-2)}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 20px 12px;min-width:0}
+.chart h3{font-size:16px;margin-bottom:4px}
+.chart .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+.grp{margin-bottom:16px}
+.grp .gt{font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.row{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:10px;align-items:center;min-height:26px;position:relative}
+@media (max-width:480px){.row{grid-template-columns:104px minmax(0,1fr) 48px}}
+.row .lb{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .track{height:16px;position:relative;border-inline-start:1px solid var(--line)}
+.row .barm{position:absolute;inset-block:2px;inset-inline-start:0;border-start-end-radius:4px;border-end-end-radius:4px;background:var(--unknown)}
+.row.k .barm{background:var(--brass)}
+.row .v{font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink);text-align:end}
+.row:hover .barm{filter:brightness(1.12)}
+.row:hover .lb{color:var(--ink)}
+.axis{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:10px;font-family:var(--f-mono);font-size:10.5px;color:var(--muted);margin-top:4px}
+@media (max-width:480px){.axis{grid-template-columns:104px minmax(0,1fr) 48px}}
+.axis .ticks{display:flex;justify-content:space-between;direction:ltr}
+:root[dir="rtl"] .axis .ticks{flex-direction:row-reverse}
+.ckey{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:10px}
+.ckey span{display:inline-flex;align-items:center;gap:6px}
+.ckey i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:var(--paper);font-size:12px;padding:8px 10px;border-radius:8px;max-width:260px;line-height:1.4;box-shadow:var(--shadow)}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
+@media (max-width:900px){.road{grid-template-columns:minmax(0,1fr)}}
+.ph{padding:24px;border-inline-end:1px solid var(--line);display:grid;gap:12px;align-content:start}
+.ph:last-child{border-inline-end:0}
+@media (max-width:900px){.ph{border-inline-end:0;border-bottom:1px solid var(--line)}.ph:last-child{border-bottom:0}}
+.ph .v{font-family:var(--f-mono);font-size:12px;color:var(--brass)}
+.ph h3{font-size:20px}
+.ph ul{margin:0;padding-inline-start:18px;display:grid;gap:6px;font-size:14px;color:var(--ink-2)}
+
+/* method + sources */
+.meth{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,48px)}
+@media (max-width:900px){.meth{grid-template-columns:minmax(0,1fr)}}
+.meth p{color:var(--ink-2);margin:0 0 12px;white-space:pre-line}
+details.src{border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+details.src summary{cursor:pointer;padding:14px 18px;font-weight:600}
+details.src ol{margin:0;padding:0 18px 16px;padding-inline-start:38px;font-size:13px;display:grid;gap:6px;word-break:break-word}
+details.src li span{color:var(--muted)}
+
+footer{border-top:1px solid var(--line);padding-block:28px 40px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}
+.ltr{direction:ltr;unicode-bidi:isolate}
+</style>
+
+<div class="bar"><div class="wrap">
+  <a class="brand" href="#top" aria-label="Katib">
+    <svg class="seal" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="var(--brass)" stroke-width="1.5"/><circle cx="16" cy="16" r="11" fill="var(--teal)"/><path d="M9 18.5c2-3.5 4-3.5 5.5 0s3.5 3.5 5.5 0 2.5-3 3.5-1" fill="none" stroke="var(--paper)" stroke-width="1.8" stroke-linecap="round"/><path d="M10 12.5h12" stroke="var(--paper)" stroke-width="1.6" stroke-linecap="round" opacity=".7"/></svg>
+    <span>Katib</span><span class="ar">كاتب</span>
+  </a>
+  <nav class="nav" aria-label="Sections">
+    <a href="#how" data-i18n="nav_how">How it works</a>
+    <a href="#compare" data-i18n="nav_compare">Comparison</a>
+    <a href="#weak" data-i18n="nav_weak">Weaknesses</a>
+    <a href="#accuracy" data-i18n="nav_acc">Accuracy</a>
+    <a href="#roadmap" data-i18n="nav_road">Roadmap</a>
+  </nav>
+  <button class="btn icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg></button>
+  <button class="btn lang-btn" id="langBtn" type="button">العربية</button>
+</div></div>
+
+<main id="top">
+<section class="hero"><div class="wrap">
+  <div>
+    <div class="status"><i></i><span data-i18n="status">Pre-release · built, not yet field-tested</span></div>
+    <h1><span data-i18n="h1a">Any language in.</span><span class="out" data-i18n="h1b">Arabic minutes out.</span></h1>
+    <p class="lede" data-i18n="lede">Katib listens through your phone or PC microphone, transcribes every language it hears, recognizes each person by voice, and writes formal Arabic meeting minutes with decisions and action items. Transcription and voice recognition can run entirely on your device.</p>
+    <div class="cta">
+      <a class="btn primary" href="#compare" data-i18n="cta1">See the honest comparison</a>
+      <a class="btn" href="#weak" data-i18n="cta2">Where we're weaker</a>
+    </div>
+    <div class="facts"><span data-i18n="f1">Android · iOS · Windows</span><span data-i18n="f2">No meeting bot</span><span data-i18n="f3">Voiceprints stay on device</span><span data-i18n="f4">Claude writes the minutes</span></div>
+  </div>
+  <div class="demo" aria-label="Example: a multilingual meeting turned into Arabic minutes">
+    <div class="demo-top"><span class="rec"></span><span data-i18n="demo_live">Recording · 3 voices · 3 languages</span><span class="t" id="clock">00:41:07</span></div>
+    <canvas id="wave" aria-hidden="true"></canvas>
+    <div class="utt" id="utt"></div>
+    <div class="sheet" id="sheet">
+      <h4>محضر اجتماع لجنة الإطلاق — رقم ١٢</h4>
+      <div class="meta">الأربعاء ٩ جمادى الآخرة ١٤٤٨هـ الموافق ١٩ نوفمبر ٢٠٢٦م · اكتمل النصاب (٣ من ٣)</div>
+      <ol>
+        <li data-k="0">قرار رقم ١: تأجيل الإطلاق إلى ١٤ ديسمبر لحين جاهزية المورّد. <span class="who">(سارة)</span></li>
+        <li data-k="1">مهمة: إبلاغ العميل بالموعد الجديد قبل الخميس. <span class="who">المسؤول: متحدث ٢</span></li>
+        <li data-k="2">مهمة: متابعة عقد المورّد وتوقيعه. <span class="who">المسؤولة: ليا</span></li>
+      </ol>
+    </div>
+  </div>
+</div></section>
+
+<section id="how" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="how_eye">How it works</p><h2 data-i18n="how_h">Four stages, from the room to a signed-off record</h2></div>
+  <div class="flow">
+    <div class="step"><span class="n">01</span><h3 data-i18n="s1h">Listen</h3><p data-i18n="s1p">Records the device microphone at 16 kHz, in the room or beside your call. Keeps a local audio archive if you choose.</p><span class="tech">record · WAV · silero VAD</span></div>
+    <div class="step"><span class="n">02</span><h3 data-i18n="s2h">Transcribe</h3><p data-i18n="s2p">Speech in any language is transcribed on-device with Whisper, or with Deepgram Nova-3 in the cloud when you allow it.</p><span class="tech">sherpa-onnx Whisper turbo · Nova-3</span></div>
+    <div class="step"><span class="n">03</span><h3 data-i18n="s3h">Recognize voices</h3><p data-i18n="s3p">Every new voice gets a temporary name such as "Speaker 4" and a voiceprint. Rename once and every past and future meeting updates.</p><span class="tech">speaker embeddings · on-device clustering</span></div>
+    <div class="step"><span class="n">04</span><h3 data-i18n="s4h">Write minutes</h3><p data-i18n="s4p">Claude turns the multilingual transcript into formal Arabic minutes: summary, topics, decisions, owners and deadlines. Export as PDF or Markdown.</p><span class="tech">Claude Opus · JSON schema · PDF</span></div>
+  </div>
+</div></section>
+
+<section id="compare" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="cmp_eye">Comparison</p><h2 data-i18n="cmp_h">Katib against the strongest tools in the world</h2><p class="lede" data-i18n="cmp_p">Nine leading products across global notetakers, platform-native AI, hardware recorders, on-device apps and Arabic specialists, researched and fact-checked on 19 November 2026. Katib's column is graded strictly: anything not built yet is marked planned, and nothing is marked proven.</p></div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Detail"><button type="button" id="vNotes" aria-pressed="true" data-i18n="v_notes">With notes</button><button type="button" id="vCompact" aria-pressed="false" data-i18n="v_compact">Ratings only</button></div>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div class="ledger"><table class="mx" id="mx"></table></div>
+  <p class="hint" data-i18n="cmp_hint">Select a product name to see what it does best and the sources behind its column. Scroll the table sideways on small screens.</p>
+  <div class="detail" id="detail" hidden></div>
+</div></section>
+
+<section id="weak" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="weak_eye">Weaknesses</p><h2 data-i18n="weak_h">Where Katib is weaker today, and who does it better</h2><p class="lede" data-i18n="weak_p">We list these first because they are the reasons you might not choose Katib yet. Each one names the competitors that are ahead and what we are doing about it.</p></div>
+  <div class="weak-sum" id="weakSum"></div>
+  <div class="weak" id="weakList"></div>
+</div></section>
+
+<section id="strengths" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="str_eye">Differentiators</p><h2 data-i18n="str_h">What Katib does that the leaders don't, with the caveats</h2></div>
+  <div class="str" id="strList"></div>
+</div></section>
+
+<section id="accuracy" style="padding-top:0"><div class="wrap acc">
+  <div class="copy">
+    <div class="sec-head" style="margin-bottom:20px"><p class="eyebrow" data-i18n="acc_eye">Accuracy reality check</p><h2 data-i18n="acc_h">Arabic speech recognition is still hard, including for us</h2></div>
+    <p data-i18n="acc_p1">No meeting notetaker we reviewed publishes an Arabic word error rate, and Katib does not have one yet either. The figures here are what engine vendors and papers report. They come from different test sets and scoring methods, so read each group on its own.</p>
+    <p data-i18n="acc_p2">The engine Katib runs on-device, Whisper large-v3, sits behind Arabic-specialist models on the public leaderboard and degrades sharply on dialects. That is our biggest technical risk, and the reason a published benchmark is our first launch requirement.</p>
+    <div class="warnbox" data-i18n="acc_warn">All numbers below are reported, not independently verified. Lower is better. Diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.</div>
+  </div>
+  <div class="chart" id="chart" role="figure" aria-labelledby="chartTitle">
+    <h3 id="chartTitle" data-i18n="ch_t">Reported Arabic word error rate (%)</h3>
+    <p class="sub" data-i18n="ch_s">Grouped by test set. Engines Katib uses are highlighted.</p>
+    <div id="bars"></div>
+    <div class="ckey"><span><i style="background:var(--brass)"></i><span data-i18n="ck1">Used by Katib</span></span><span><i style="background:var(--unknown)"></i><span data-i18n="ck2">Other engines</span></span></div>
+  </div>
+</div></section>
+
+<section id="roadmap" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><p class="eyebrow" data-i18n="road_eye">Roadmap</p><h2 data-i18n="road_h">What is built, what comes next</h2></div>
+  <div class="road" id="road"></div>
+</div></section>
+
+<section id="method" style="padding-top:0"><div class="wrap meth">
+  <div>
+    <div class="sec-head" style="margin-bottom:20px"><p class="eyebrow" data-i18n="m_eye">Methodology</p><h2 data-i18n="m_h">How we compared</h2></div>
+    <p id="methText"></p>
+    <p id="nameText" style="font-size:14px"></p>
+  </div>
+  <div>
+    <details class="src" open><summary><span data-i18n="src_t">Sources</span> (<span id="srcN"></span>)</summary><ol id="srcList"></ol></details>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap"><span data-i18n="foot1">Katib (كاتب) · pre-release · research date 19 November 2026</span><span data-i18n="foot2">Product names belong to their owners. Ratings reflect public information and may change.</span></div></footer>
+<div class="tip" id="tip" hidden></div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function(){
+const D=JSON.parse(document.getElementById('data').textContent);
+const T={
+en:{nav_how:"How it works",nav_compare:"Comparison",nav_weak:"Weaknesses",nav_acc:"Accuracy",nav_road:"Roadmap",
+status:"Pre-release · built, not yet field-tested",h1a:"Any language in.",h1b:"Arabic minutes out.",
+lede:"Katib listens through your phone or PC microphone, transcribes every language it hears, recognizes each person by voice, and writes formal Arabic meeting minutes with decisions and action items. Transcription and voice recognition can run entirely on your device.",
+cta1:"See the honest comparison",cta2:"Where we're weaker",f1:"Android · iOS · Windows",f2:"No meeting bot",f3:"Voiceprints stay on device",f4:"Claude writes the minutes",
+demo_live:"Recording · 3 voices · 3 languages",how_eye:"How it works",how_h:"Four stages, from the room to a signed-off record",
+s1h:"Listen",s1p:"Records the device microphone at 16 kHz, in the room or beside your call. Keeps a local audio archive if you choose.",
+s2h:"Transcribe",s2p:"Speech in any language is transcribed on-device with Whisper, or with Deepgram Nova-3 in the cloud when you allow it.",
+s3h:"Recognize voices",s3p:"Every new voice gets a temporary name such as \"Speaker 4\" and a voiceprint. Rename once and every past and future meeting updates.",
+s4h:"Write minutes",s4p:"Claude turns the multilingual transcript into formal Arabic minutes: summary, topics, decisions, owners and deadlines. Export as PDF or Markdown.",
+cmp_eye:"Comparison",cmp_h:"Katib against the strongest tools in the world",cmp_p:"Nine leading products across global notetakers, platform-native AI, hardware recorders, on-device apps and Arabic specialists, researched and fact-checked on 19 November 2026. Katib's column is graded strictly: anything not built yet is marked planned, and nothing is marked proven.",
+v_notes:"With notes",v_compact:"Ratings only",cmp_hint:"Select a product name to see what it does best and the sources behind its column. Scroll the table sideways on small screens.",
+weak_eye:"Weaknesses",weak_h:"Where Katib is weaker today, and who does it better",weak_p:"We list these first because they are the reasons you might not choose Katib yet. Each one names the competitors that are ahead and what we are doing about it.",
+str_eye:"Differentiators",str_h:"What Katib does that the leaders don't, with the caveats",
+acc_eye:"Accuracy reality check",acc_h:"Arabic speech recognition is still hard, including for us",
+acc_p1:"No meeting notetaker we reviewed publishes an Arabic word error rate, and Katib does not have one yet either. The figures here are what engine vendors and papers report. They come from different test sets and scoring methods, so read each group on its own.",
+acc_p2:"The engine Katib runs on-device, Whisper large-v3, sits behind Arabic-specialist models on the public leaderboard and degrades sharply on dialects. That is our biggest technical risk, and the reason a published benchmark is our first launch requirement.",
+acc_warn:"All numbers below are reported, not independently verified. Lower is better. Diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.",
+ch_t:"Reported Arabic word error rate (%)",ch_s:"Grouped by test set. Engines Katib uses are highlighted.",ck1:"Used by Katib",ck2:"Other engines",
+road_eye:"Roadmap",road_h:"What is built, what comes next",m_eye:"Methodology",m_h:"How we compared",src_t:"Sources",
+foot1:"Katib (كاتب) · pre-release · research date 19 November 2026",foot2:"Product names belong to their owners. Ratings reflect public information and may change.",
+dim:"Criterion",r_yes:"Yes",r_partial:"Partial",r_no:"No",r_unknown:"Unknown",r_planned:"Planned",
+sev_high:"High",sev_medium:"Medium",sev_low:"Low",w_what:"The gap",w_who:"Who does it better",w_fix:"What we're doing",
+best:"Best at",sources:"Sources",close:"Close",ev:"Evidence",sev_count:"severity",katib_cat:"This product, pre-release",lang_btn:"العربية",
+g1:"Open Universal Arabic ASR Leaderboard (average)",g2:"120-hour Arabic test set (research paper)",g3:"Saudi audio (reported by competitor Munsit)",g4:"Whisper by dialect (vendor table)",
+road:[{v:"v1 · built",h:"Core app",items:["Mic recording on Android, iOS and Windows","On-device Whisper or Deepgram Nova-3","Voiceprints with rename-anywhere","Arabic minutes via Claude, PDF and Markdown export","Field testing and a public benchmark come next"]},
+{v:"v1.1 · next",h:"Depth and control",items:["Voice enrollment and custom vocabulary","Agenda context and evidence links to audio","Ask your meetings, action-item tracking","Word export, Windows system-audio capture","Local or cloud minutes engine, external mics","Opt-in speaker profiles, code and jargon detection"]},
+{v:"v1.2 · then",h:"Official Arabic minutes",items:["Board, committee and government templates","Quorum, Hijri and Gregorian dates, signatures","Vote detection per resolution","Several phones as one microphone array","Contradiction checker across past resolutions"]}]},
+ar:{nav_how:"آلية العمل",nav_compare:"المقارنة",nav_weak:"نقاط الضعف",nav_acc:"الدقة",nav_road:"خارطة الطريق",
+status:"قبل الإطلاق · مبني ولم يُجرَّب ميدانيًا بعد",h1a:"أي لغة تدخل.",h1b:"ومحضر عربي يخرج.",
+lede:"يستمع كاتب عبر مايك جوالك أو حاسوبك، ويفرّغ كل لغة يسمعها، ويتعرّف على كل شخص من صوته، ثم يكتب محضرًا عربيًا رسميًا بالقرارات والمهام. ويمكن أن يجري التفريغ والتعرّف على الأصوات بالكامل على جهازك.",
+cta1:"اطّلع على المقارنة الصريحة",cta2:"أين نحن أضعف",f1:"أندرويد · iOS · ويندوز",f2:"دون روبوت اجتماعات",f3:"البصمات الصوتية تبقى على الجهاز",f4:"Claude يكتب المحضر",
+demo_live:"تسجيل · ٣ أصوات · ٣ لغات",how_eye:"آلية العمل",how_h:"أربع مراحل، من القاعة إلى محضر معتمد",
+s1h:"الاستماع",s1p:"يسجّل مايك الجهاز بتردد 16 كيلوهرتز، داخل القاعة أو بجوار مكالمتك، ويحتفظ بأرشيف صوتي محلي إن أردت.",
+s2h:"التفريغ",s2p:"يُفرَّغ الكلام بأي لغة على الجهاز بنموذج Whisper، أو سحابيًا عبر Deepgram Nova-3 إن سمحت بذلك.",
+s3h:"التعرّف على الأصوات",s3p:"كل صوت جديد يأخذ اسمًا مؤقتًا مثل «متحدث 4» وبصمة صوتية. غيّر الاسم مرة واحدة فيتحدّث في كل الاجتماعات السابقة واللاحقة.",
+s4h:"كتابة المحضر",s4p:"يحوّل Claude النص متعدد اللغات إلى محضر عربي رسمي: الملخص والمحاور والقرارات والمسؤولون والمواعيد. ويُصدَّر بصيغة PDF أو Markdown.",
+cmp_eye:"المقارنة",cmp_h:"كاتب أمام أقوى الأدوات في العالم",cmp_p:"تسعة منتجات رائدة تشمل مساعدي الاجتماعات العالميين والذكاء الاصطناعي المدمج في المنصات وأجهزة التسجيل وتطبيقات المعالجة على الجهاز والمتخصصين بالعربية، بُحثت ودُقّقت في 19 نوفمبر 2026. قُيّم عمود كاتب بصرامة: كل ما لم يُبنَ بعد موسوم «مخطط»، ولا شيء موسوم «مُثبت».",
+v_notes:"مع الملاحظات",v_compact:"التقييم فقط",cmp_hint:"اختر اسم منتج لترى أبرز ما يتقنه والمصادر التي بُني عليها عموده. على الشاشات الصغيرة مرّر الجدول أفقيًا.",
+weak_eye:"نقاط الضعف",weak_h:"أين كاتب أضعف اليوم، ومن يتفوق عليه",weak_p:"نبدأ بها لأنها الأسباب التي قد تجعلك لا تختار كاتب بعد. كل نقطة تذكر المنافسين المتقدمين علينا وما نفعله لمعالجتها.",
+str_eye:"ما يميزنا",str_h:"ما يقدمه كاتب ولا يقدمه الرواد، مع التحفظات",
+acc_eye:"مراجعة واقعية للدقة",acc_h:"التعرّف على الكلام العربي ما زال صعبًا، علينا أيضًا",
+acc_p1:"لم ينشر أي مساعد اجتماعات راجعناه معدل خطأ الكلمات للعربية، وكاتب أيضًا لم ينشره بعد. الأرقام هنا مما ينشره مطورو المحركات والأوراق البحثية، وهي من مجموعات اختبار وطرق احتساب مختلفة، فاقرأ كل مجموعة على حدة.",
+acc_p2:"المحرك الذي يشغّله كاتب على الجهاز، Whisper large-v3، يأتي خلف النماذج المتخصصة بالعربية في لوحة الصدارة العامة، وتتراجع دقته كثيرًا مع اللهجات. هذا أكبر خطر تقني لدينا، ولهذا فإن نشر قياس معلن هو أول شروط الإطلاق.",
+acc_warn:"كل الأرقام أدناه منقولة ولم تُتحقق بشكل مستقل. الأقل أفضل. للمقارنة في تمييز المتحدثين: يسجّل pyannote 3.1 المفتوح معدل خطأ 22.7% على اجتماعات AMI البعيدة عن المايك.",
+ch_t:"معدل خطأ الكلمات العربية المُعلن (%)",ch_s:"مجمّعة حسب مجموعة الاختبار، والمحركات التي يستخدمها كاتب مميّزة.",ck1:"يستخدمه كاتب",ck2:"محركات أخرى",
+road_eye:"خارطة الطريق",road_h:"ما بُني، وما يأتي بعده",m_eye:"المنهجية",m_h:"كيف قارنّا",src_t:"المصادر",
+foot1:"كاتب (Katib) · قبل الإطلاق · تاريخ البحث 19 نوفمبر 2026",foot2:"أسماء المنتجات ملك لأصحابها. التقييمات مبنية على معلومات منشورة وقد تتغير.",
+dim:"المعيار",r_yes:"نعم",r_partial:"جزئي",r_no:"لا",r_unknown:"غير معروف",r_planned:"مخطط",
+sev_high:"عالية",sev_medium:"متوسطة",sev_low:"منخفضة",w_what:"الفجوة",w_who:"من يتفوق علينا",w_fix:"ما نفعله",
+best:"أبرز ما يتقنه",sources:"المصادر",close:"إغلاق",ev:"الدليل",sev_count:"خطورة",katib_cat:"هذا المنتج، قبل الإطلاق",lang_btn:"English",
+g1:"لوحة صدارة التعرّف على الكلام العربي المفتوحة (المتوسط)",g2:"مجموعة اختبار عربية 120 ساعة (ورقة بحثية)",g3:"صوت سعودي (حسب المنافس Munsit)",g4:"Whisper حسب اللهجة (جدول أحد المورّدين)",
+road:[{v:"v1 · مبني",h:"التطبيق الأساسي",items:["تسجيل المايك على أندرويد وiOS وويندوز","Whisper على الجهاز أو Deepgram Nova-3","بصمات صوتية وتعديل الاسم من أي مكان","محضر عربي عبر Claude وتصدير PDF وMarkdown","التالي: التجربة الميدانية ونشر قياس الدقة"]},
+{v:"v1.1 · التالي",h:"العمق والتحكم",items:["تسجيل البصمة مسبقًا وقاموس المصطلحات","سياق جدول الأعمال وربط البنود بلحظتها الصوتية","اسأل اجتماعاتك وتتبّع المهام","تصدير Word والتقاط صوت النظام في ويندوز","محرك محضر محلي أو سحابي، ومايكات خارجية","ملف المتحدث الاختياري، ورصد الرموز والمصطلحات"]},
+{v:"v1.2 · بعده",h:"المحضر العربي الرسمي",items:["قوالب مجالس الإدارة واللجان والجهات الحكومية","النصاب والتاريخ الهجري والميلادي والتوقيعات","رصد التصويت على كل قرار","عدة جوالات تعمل كمايك واحد","كاشف التناقضات مع القرارات السابقة"]}]}
+};
+const ACC=[
+ {g:'g1',rows:[["Jais-ASR",22.85,0],["Cohere Transcribe Arabic",25.87,0],["Munsit",26.68,0],["Whisper large-v3",36.86,1]]},
+ {g:'g2',rows:[["MAI-Transcribe-2",13.51,0],["ElevenLabs Scribe",16.12,0],["Gemini",16.13,0]]},
+ {g:'g3',rows:[["Deepgram Nova-3",35.87,1]]},
+ {g:'g4',rows:[["Whisper · Gulf",46,1],["Whisper · Levantine",59,1],["Whisper · North African",72,1]]}
+];
+const UTT=[
+ {c:'var(--s1)',n:'1',name:'Speaker 1',renamed:'سارة',lang:'EN',dir:'ltr',t:"Let's move the launch to the 14th. The vendor needs one more week."},
+ {c:'var(--s2)',n:'2',name:'متحدث 2',renamed:'',lang:'AR · Gulf',dir:'rtl',t:"طيب، بس لازم نبلّغ العميل قبل الخميس."},
+ {c:'var(--s3)',n:'3',name:'Speaker 3',renamed:'ليا',lang:'FR',dir:'ltr',t:"Je m'occupe du contrat avec le fournisseur."}
+];
+let lang='en';
+try{const s=localStorage.getItem('katib-lang');if(s==='ar'||s==='en')lang=s}catch(e){}
+if(location.hash==='#ar')lang='ar';
+const $=id=>document.getElementById(id);
+const L=(o,k)=>o[k+'_'+lang]??o[k+'_en']??'';
+const esc=s=>String(s??'').replace(/&amp;/g,'&').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill=r=>`<span class="pill r-${r}">${T[lang]['r_'+r]||r}</span>`;
+
+function renderUtt(){
+  $('utt').innerHTML=UTT.map((u,i)=>`<div class="u" data-k="${i}"><span class="chip"><b style="background:${u.c}">${u.n}</b>${u.renamed?`<span>${esc(u.renamed)}</span><span class="renamed">· ${esc(u.name)}</span>`:`<span>${esc(u.name)}</span>`}</span><div><p dir="${u.dir}" style="text-align:${u.dir==='rtl'?'right':'left'}">${esc(u.t)}</p><span class="lng">${u.lang}</span></div></div>`).join('');
+}
+function renderLegend(){
+  $('legend').innerHTML=['yes','partial','no','unknown','planned'].map(r=>`<span>${pill(r)}</span>`).join('');
+}
+let compact=false;
+function renderMatrix(){
+  const dims=D.dimensions, comps=D.competitors;
+  const kc=Object.fromEntries(D.katib_cells.map(c=>[c.dimension_id,c]));
+  let h=`<thead><tr><th class="dim" scope="col">${T[lang].dim}</th><th class="katib" scope="col"><button type="button" data-p="-1"><span class="nm">Katib · كاتب</span><span class="cat">${T[lang].katib_cat}</span></button></th>`;
+  comps.forEach((c,i)=>{h+=`<th scope="col"><button type="button" data-p="${i}"><span class="nm">${esc(c.name)}</span><span class="cat">${esc(L(c,'category'))}</span></button></th>`});
+  h+='</tr></thead><tbody>';
+  dims.forEach(d=>{
+    h+=`<tr><th class="dim" scope="row">${esc(d[lang])}<small>${esc(lang==='ar'?d.why_ar:d.why_en)}</small></th>`;
+    const k=kc[d.id];
+    h+=`<td class="katib">${k?pill(k.rating)+`<span class="note">${esc(k[lang])}</span>`:''}</td>`;
+    comps.forEach(c=>{const cell=c.cells.find(x=>x.dimension_id===d.id);h+=`<td>${cell?pill(cell.rating)+`<span class="note">${esc(cell[lang])}</span>`:pill('unknown')}</td>`});
+    h+='</tr>';
+  });
+  $('mx').innerHTML=h+'</tbody>';
+  $('mx').classList.toggle('compact',compact);
+  $('mx').querySelectorAll('thead button').forEach(b=>b.addEventListener('click',()=>showDetail(+b.dataset.p)));
+}
+function showDetail(i){
+  const box=$('detail');
+  if(i<0){box.innerHTML=`<h3>Katib · كاتب</h3><p>${esc(lang==='ar'?D.accuracy_note_ar.split('\n')[0]:D.accuracy_note_en.split('\n')[0])}</p><p><a href="#weak">${T[lang].nav_weak}</a></p><div><button class="btn" type="button" id="dClose">${T[lang].close}</button></div>`;}
+  else{const c=D.competitors[i];
+  box.innerHTML=`<h3>${esc(c.name)}</h3><p><b>${T[lang].best}:</b> ${esc(L(c,'best_at'))}</p><div><b>${T[lang].sources}</b><ul>${c.sources.map(u=>`<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a></li>`).join('')}</ul></div><div><button class="btn" type="button" id="dClose">${T[lang].close}</button></div>`;}
+  box.hidden=false;$('dClose').onclick=()=>{box.hidden=true};box.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'});
+}
+function renderWeak(){
+  const order={high:0,medium:1,low:2};
+  const W=[...D.katib_weaknesses].sort((a,b)=>order[a.severity]-order[b.severity]);
+  const cnt={high:0,medium:0,low:0};W.forEach(w=>cnt[w.severity]++);
+  $('weakSum').innerHTML=['high','medium','low'].map(s=>`<div class="tally"><b style="color:var(--${s==='high'?'no':s==='medium'?'partial':'unknown'})">${cnt[s]}</b><span>${T[lang]['sev_'+s]} · ${T[lang].sev_count}</span></div>`).join('');
+  $('weakList').innerHTML=W.map(w=>`<article class="w"><div class="sev ${w.severity}"><i><b></b></i>${T[lang]['sev_'+w.severity]}</div><div><h3>${esc(L(w,'title'))}</h3><p>${esc(L(w,'detail'))}</p></div><div><span class="lbl">${T[lang].w_who}</span><p>${esc(w.who_does_better)}</p></div><div class="fix"><span class="lbl">${T[lang].w_fix}</span><p>${esc(L(w,'mitigation'))}</p></div></article>`).join('');
+}
+function renderStr(){
+  $('strList').innerHTML=D.katib_strengths.map(s=>`<article class="s"><h3>${esc(L(s,'title'))}</h3><p>${esc(L(s,'detail'))}</p><p class="ev"><b>${T[lang].ev}:</b> ${esc(L(s,'evidence'))}</p></article>`).join('');
+}
+function renderBars(){
+  const max=80;
+  $('bars').innerHTML=ACC.map(g=>`<div class="grp"><div class="gt">${T[lang][g.g]}</div>${g.rows.map(r=>`<div class="row${r[2]?' k':''}" data-tip="${esc(r[0])}: ${r[1]}% WER · ${esc(T[lang][g.g])}"><span class="lb ltr" title="${esc(r[0])}">${esc(r[0])}</span><span class="track"><span class="barm" style="width:${(r[1]/max*100).toFixed(2)}%"></span></span><span class="v">${r[1]}%</span></div>`).join('')}</div>`).join('')+`<div class="axis"><span></span><span class="ticks"><span>0</span><span>20</span><span>40</span><span>60</span><span>80%</span></span><span></span></div>`;
+  const tip=$('tip');
+  $('bars').querySelectorAll('.row').forEach(r=>{
+    r.addEventListener('mousemove',e=>{tip.textContent=r.dataset.tip;tip.hidden=false;tip.style.left=Math.min(e.clientX+14,innerWidth-270)+'px';tip.style.top=(e.clientY+14)+'px'});
+    r.addEventListener('mouseleave',()=>{tip.hidden=true});
+  });
+}
+function renderRoad(){
+  $('road').innerHTML=T[lang].road.map(p=>`<div class="ph"><span class="v">${esc(p.v)}</span><h3>${esc(p.h)}</h3><ul>${p.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`).join('');
+}
+function renderMeth(){
+  $('methText').textContent=(lang==='ar'?D.methodology_ar:D.methodology_en).replace(/&amp;/g,'&');
+  $('nameText').textContent=lang==='ar'?'ملاحظة على الاسم: يوجد تطبيق إملاء صوتي على iPhone باسم «Kateb» من شركة RDI المصرية، وكلمة «كاتب» شائعة؛ لذا نوصي ببحث عن العلامة التجارية في السعودية والإمارات ومصر قبل الإطلاق.':D.name_collision_note.split('\n').slice(0,2).join(' ');
+  $('srcN').textContent=D.all_sources.length;
+  $('srcList').innerHTML=D.all_sources.map(s=>`<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a> <span>· ${esc(s.date)}</span></li>`).join('');
+}
+function applyLang(){
+  const root=document.documentElement;root.lang=lang;root.dir=lang==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const v=T[lang][el.dataset.i18n];if(typeof v==='string')el.textContent=v});
+  $('langBtn').textContent=T[lang].lang_btn;$('langBtn').lang=lang==='ar'?'en':'ar';
+  renderUtt();renderLegend();renderMatrix();renderWeak();renderStr();renderBars();renderRoad();renderMeth();$('detail').hidden=true;
+}
+$('langBtn').addEventListener('click',()=>{lang=lang==='en'?'ar':'en';try{localStorage.setItem('katib-lang',lang)}catch(e){}applyLang()});
+$('vNotes').addEventListener('click',()=>{compact=false;$('vNotes').setAttribute('aria-pressed','true');$('vCompact').setAttribute('aria-pressed','false');$('mx').classList.remove('compact')});
+$('vCompact').addEventListener('click',()=>{compact=true;$('vCompact').setAttribute('aria-pressed','true');$('vNotes').setAttribute('aria-pressed','false');$('mx').classList.add('compact')});
+$('themeBtn').addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';drawWave(0)});
+applyLang();
+
+/* waveform + cycling highlight */
+const cv=$('wave'),ctx=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let active=0;
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawWave(t){
+  const w=cv.clientWidth,h=cv.clientHeight,dpr=Math.min(devicePixelRatio||1,2);
+  if(cv.width!==w*dpr){cv.width=w*dpr;cv.height=h*dpr}
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const cols=[css('--s1'),css('--s2'),css('--s3')],n=Math.floor(w/5);
+  for(let i=0;i<n;i++){
+    const seg=Math.floor(i/n*6)%3;
+    const a=Math.abs(Math.sin(i*.37+t*.002)*Math.sin(i*.11+t*.0013))*.9+.08;
+    const amp=a*(seg===active?1:.55)*(h*.42);
+    ctx.fillStyle=cols[seg];ctx.globalAlpha=seg===active?.95:.4;
+    const x=i*5+1;ctx.beginPath();ctx.roundRect?ctx.roundRect(x,h/2-amp,3,amp*2,1.5):ctx.rect(x,h/2-amp,3,amp*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function mark(){document.querySelectorAll('#utt .u,#sheet li').forEach(e=>e.classList.toggle('on',+e.dataset.k===active))}
+mark();drawWave(0);
+let secs=41*60+7;
+if(!reduce){
+  let last=0;
+  (function loop(t){drawWave(t);if(t-last>2600){last=t;active=(active+1)%3;mark()}requestAnimationFrame(loop)})(0);
+  setInterval(()=>{secs++;const p=n=>String(n).padStart(2,'0');$('clock').textContent=`${p(Math.floor(secs/3600))}:${p(Math.floor(secs/60)%60)}:${p(secs%60)}`},1000);
+}
+addEventListener('resize',()=>drawWave(0));
+})();
+</script>
