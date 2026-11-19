@@ -190,3 +190,17 @@ width** so it uses a large Windows window well.
   both, F13), because phones cannot capture other apps' audio. Keyboard
   shortcuts are invisible conveniences.
 * Golden tests render key screens at phone and desktop widths.
+
+## F18 — External microphones (المايكات الخارجية)
+* Input-device selector on all platforms (Settings + recording screen), using
+  `record`'s `listInputDevices`; remembers the last device; falls back to the
+  default device if it disappears mid-meeting (without stopping recording).
+* “اختبار المايك” screen: live level, clipping/too-quiet warnings, a 5 s test
+  recording with playback, and a distance tip.
+* Far-field profile toggle (“اجتماع في قاعة”): enables automatic gain and
+  noise suppression where the platform supports them; VAD threshold tuned for
+  quieter distant speech.
+* Bluetooth headsets are flagged as lower quality (narrow-band call profile).
+* Voiceprints remember the device they were learned on; when a meeting uses a
+  different mic, matching thresholds are relaxed slightly and voiceprints are
+  updated from confirmed segments so they adapt to the new mic.
