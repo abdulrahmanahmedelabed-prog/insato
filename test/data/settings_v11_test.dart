@@ -14,7 +14,7 @@ void main() {
       const d = AppSettingsData.defaults;
       expect(d.minutesEngine, 'gemini');
       expect(d.minutesEngineIsCloud, isTrue);
-      expect(d.geminiModel, 'gemini-flash-latest');
+      expect(d.geminiModel, 'gemini-flash-lite-latest');
       expect(d.geminiPrivacyAcknowledged, isFalse);
       expect(d.localLlmModelId, isNull);
       expect(d.serverUrl, 'http://127.0.0.1:11434');

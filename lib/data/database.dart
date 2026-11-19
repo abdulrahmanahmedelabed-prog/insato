@@ -166,6 +166,10 @@ class Segments extends Table {
   /// v2: recogniser confidence 0..1 when reported.
   RealColumn get asrConfidence => real().nullable()();
 
+  /// Confidence (0..1) of the automatic speaker assignment; null when
+  /// unknown (rows from schema 1 and 2).
+  RealColumn get speakerConfidence => real().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -391,8 +395,8 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()` in tests.
   AppDatabase.forExecutor(super.executor);
 
-  /// Current schema version (v1.1 = 2).
-  static const int currentSchemaVersion = 2;
+  /// Current schema version (v1.1 = 2, speaker confidence = 3).
+  static const int currentSchemaVersion = 3;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -402,6 +406,9 @@ class AppDatabase extends _$AppDatabase {
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) await _migrateV1ToV2(m);
+          if (from < 3 && to >= 3) {
+            await m.addColumn(segments, segments.speakerConfidence);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

@@ -77,7 +77,7 @@ Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
 ## F14 — Minutes engine: local or cloud (محرك المحضر: محلي أو سحابي)
 Settings → “محرك كتابة المحضر” with these choices (all are a `MinutesBackend`
 behind the one `StructuredMinutesEngine`, see docs/V11-CONTRACTS.md):
-0. **Cloud — Google Gemini** (DEFAULT, owner decision: free tier, key from
+0. **Cloud — Google Gemini** (DEFAULT, owner decision: free tier, model `gemini-flash-lite-latest`, key from
    Google AI Studio). Settings shows honestly that on the free tier Google may
    use prompts/responses to improve its products and human reviewers may read
    them (a billed Cloud project is treated as paid); the user accepts this

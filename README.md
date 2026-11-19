@@ -129,7 +129,7 @@ flutter test
 
 Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` (SQLite) للتخزين ·‏
 `sherpa_onnx` ‏(Silero VAD وWhisper ونماذج البصمة الصوتية، على الجهاز) ·‏ `record`
-لالتقاط الصوت ·‏ Gemini API ‏(`gemini-flash-latest`، افتراضي) أو Claude API ‏(`claude-opus-5-5`) لكتابة المحضر ·‏ Deepgram
+لالتقاط الصوت ·‏ Gemini API ‏(`gemini-flash-lite-latest`، افتراضي) أو Claude API ‏(`claude-opus-5-5`) لكتابة المحضر ·‏ Deepgram
 (اختياري) ·‏ `pdf` و`printing` و`share_plus` للتصدير ·‏
 `flutter_secure_storage` للمفاتيح ·‏ `flutter_foreground_task` و`wakelock_plus`
 للتسجيل الطويل ·‏ خطوط Noto Naskh Arabic وNoto Sans (رخصة SIL OFL 1.1، انظر
@@ -276,7 +276,7 @@ recording. You are responsible for complying with applicable law.
 
 Flutter / Dart · `flutter_riverpod` (state) · `drift` (SQLite) ·
 `sherpa_onnx` (Silero VAD, Whisper, speaker-embedding models, on device) ·
-`record` (audio capture) · Gemini API (`gemini-flash-latest`, default) or Claude API (`claude-opus-5-5`) for minutes ·
+`record` (audio capture) · Gemini API (`gemini-flash-lite-latest`, default) or Claude API (`claude-opus-5-5`) for minutes ·
 Deepgram (optional) · `pdf`, `printing`, `share_plus` (export) ·
 `flutter_secure_storage` (API keys) · `flutter_foreground_task`,
 `wakelock_plus` (long recordings) · Noto Naskh Arabic and Noto Sans fonts

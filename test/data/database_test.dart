@@ -104,9 +104,9 @@ void main() {
       );
     });
 
-    test('schema version is 2 (Insato v1.1)', () {
-      expect(db.schemaVersion, 2);
-      expect(AppDatabase.currentSchemaVersion, 2);
+    test('schema version is 3 (Insato v1.1 + speaker confidence)', () {
+      expect(db.schemaVersion, 3);
+      expect(AppDatabase.currentSchemaVersion, 3);
     });
 
     test('blob columns store raw bytes', () async {

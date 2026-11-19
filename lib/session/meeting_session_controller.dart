@@ -813,6 +813,7 @@ class SessionPipeline {
         embedding: r.embedding,
         kind: kind,
         asrConfidence: asrOutcome.confidence,
+        speakerConfidence: speaker == null ? null : assignment.confidence,
       );
       TranscriptSegment stored;
       try {
