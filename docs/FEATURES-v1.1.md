@@ -73,3 +73,36 @@ Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
   both (default both on Windows).
 * Handles device changes (default endpoint switch) and silence (loopback
   delivers no packets when nothing plays — fill with zeros by wall clock).
+
+## F14 — Minutes engine: local or cloud (محرك المحضر: محلي أو سحابي)
+Settings → “محرك كتابة المحضر” with three choices (all implement `MinutesEngine`):
+1. **Cloud — Claude** (default, highest quality): `claude-opus-5-5` as in v1.
+2. **On-device** (fully offline, private): GGUF model run in-process via
+   `llamadart` (llama.cpp; Android / iOS / Windows). Model catalog entries
+   with sizes and RAM requirements, downloaded through `ModelManager`, e.g.
+   a ~4B instruct model with strong Arabic (Q4_K_M) as the recommended
+   default for phones and a ~8–14B model for Windows PCs with ≥ 16 GB RAM.
+   JSON output constrained by grammar/JSON-schema when the runtime supports
+   it, otherwise strict prompt + tolerant parser + one repair pass.
+   Long transcripts are processed map-reduce (chunk summaries → final
+   minutes) to fit the local context window.
+3. **Local server** (Windows/LAN power users): Ollama (`/api/chat` with
+   `format` = JSON schema) or any LM Studio endpoint, configurable URL + model.
+* The UI states the quality/speed trade-off honestly; the chosen engine and
+  model are recorded on each minutes (`Minutes.model`).
+* “Ask your meetings” (F8) uses the same engine choice.
+
+## F15 — Unknown speakers always get a voiceprint (المتحدث غير المعروف)
+Recognition is never a precondition:
+* Any voice that does not match a known voiceprint immediately gets a
+  temporary label (`متحدث N`, N unique across the voice library) and a Speaker
+  record **with its voiceprint saved** at the end of the meeting — named or
+  not — so the same voice is recognised as the same `متحدث N` next time.
+* Renaming at any time (during or after the meeting, from transcript, speaker
+  tab or voice library) updates every past meeting and future recognition.
+* Voices heard only briefly (< 3 s total speech) are kept as speakers but are
+  flagged “low confidence”; their voiceprint is not used for matching until
+  more speech accumulates, to avoid false matches.
+* Library hygiene: “merge duplicates” suggestions when two unnamed voiceprints
+  are very similar; unnamed speakers unseen for N months can be cleaned up
+  (manual action only).
