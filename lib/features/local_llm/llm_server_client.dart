@@ -69,6 +69,14 @@ String serverUrlForFlavor(String url, LlmServerFlavor flavor) {
   return t.substring(0, t.length - 3);
 }
 
+/// [url] without a trailing `/v1` (the server root, same host and port).
+String serverRootUrl(String url) {
+  final t = _trimSlashes(url);
+  return serverFlavorOfUrl(t) == LlmServerFlavor.openAi
+      ? t.substring(0, t.length - 3)
+      : t;
+}
+
 /// True when [url] points at this device (loopback), so nothing leaves it.
 bool isLoopbackServerUrl(String url) {
   final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
@@ -310,7 +318,11 @@ class LlmServerClient {
   /// reachable or (Ollama) the model does not exist.
   Future<int?> contextLength(String model) async {
     if (flavor == LlmServerFlavor.ollama) {
-      final r = await _postJson(_uri(baseUrl, '/api/show'), {'model': model});
+      // `name` for Ollama versions older than the `model` field.
+      final r = await _postJson(_uri(baseUrl, '/api/show'), {
+        'model': model,
+        'name': model,
+      });
       if (r.statusCode != 200) {
         throw _httpError(r.statusCode, r.body, model: model);
       }
@@ -326,7 +338,9 @@ class LlmServerClient {
     }
     // LM Studio's REST API reports the loaded context; other servers do not
     // have it (404) — the default is assumed then.
-    final root = serverUrlForFlavor(baseUrl, LlmServerFlavor.ollama);
+    // The same host and port without `/v1` (not [serverUrlForFlavor], which
+    // swaps the default LM Studio URL for the Ollama one).
+    final root = serverRootUrl(baseUrl);
     final http.Response r;
     try {
       r = await _get(

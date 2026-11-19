@@ -198,6 +198,9 @@ void main() {
         'يستحق الترقية: ترقيته مستحقة',
         'Seems anxious and nervous',
         'تقييم الأداء: 7/10',
+        'يستحق الترقية',
+        'نبرة صوته حادة',
+        'يبدو من صوته أنه متعب',
       ]) {
         expect(violatesProfileGuardrails(bad), isTrue, reason: bad);
       }

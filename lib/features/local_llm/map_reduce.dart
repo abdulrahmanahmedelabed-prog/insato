@@ -10,6 +10,8 @@
 //
 // Everything here is pure (no I/O) and unit-tested.
 
+import 'dart:convert';
+
 import '../../core/models.dart';
 import '../../core/time_format.dart';
 import '../../minutes/json_repair.dart';
@@ -165,6 +167,7 @@ String fitTranscriptChunk(
 }) {
   final text = renderEvidenceTranscript(chunk, speakersById);
   if (text.length <= maxChars) return text;
+  if (maxChars <= 1) return '…';
   return '${text.substring(0, maxChars - 1)}…';
 }
 
@@ -245,9 +248,8 @@ String buildChunkUserMessage({
 /// Parses the notes JSON of a map / condense step tolerantly. Returns null
 /// when the text holds no `notes` array.
 List<ChunkNote>? parseChunkNotes(String text) {
-  final json = decodeJsonObjectTolerant(text);
-  final raw = json?['notes'];
-  if (raw is! List) return null;
+  final raw = _notesList(text);
+  if (raw == null) return null;
   final out = <ChunkNote>[];
   for (final item in raw) {
     if (item is! Map) continue;
@@ -279,6 +281,29 @@ List<ChunkNote>? parseChunkNotes(String text) {
     );
   }
   return out;
+}
+
+/// The `notes` array of [text]. A truncated answer (token limit) decodes
+/// tolerantly by cutting at its last `}`, which drops the final, cut note;
+/// closing the whole text instead keeps it, so the longer list wins.
+List<dynamic>? _notesList(String text) {
+  List<dynamic>? notesOf(Map<String, dynamic>? json) =>
+      json?['notes'] is List ? json!['notes'] as List : null;
+  final tolerant = notesOf(decodeJsonObjectTolerant(text));
+  final start = text.indexOf('{');
+  if (start < 0) return tolerant;
+  final repaired = repairJson(text.substring(start));
+  if (repaired == null) return tolerant;
+  List<dynamic>? closed;
+  try {
+    final j = jsonDecode(repaired);
+    if (j is Map<String, dynamic>) closed = notesOf(j);
+  } on FormatException {
+    // Not repairable as a whole (e.g. trailing prose).
+  }
+  if (closed == null) return tolerant;
+  if (tolerant == null) return closed;
+  return closed.length > tolerant.length ? closed : tolerant;
 }
 
 /// Renders one note as a line: `- [decision] text (speakers: a، b) [#12 #14]`.

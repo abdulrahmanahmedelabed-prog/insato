@@ -178,6 +178,13 @@ class LocalModelCard extends ConsumerWidget {
     );
     if (!ok || !context.mounted) return;
     try {
+      // Release the loaded model first (its file is memory-mapped).
+      if (!await ref.read(localLlmPoolProvider).evict(model.id)) {
+        if (context.mounted) {
+          showSnack(context, LS.modelInUse, error: true);
+        }
+        return;
+      }
       final manager = await ref.read(localLlmModelManagerProvider.future);
       await manager.delete(model.id);
     } catch (e) {

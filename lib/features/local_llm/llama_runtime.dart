@@ -24,18 +24,36 @@ class LlamadartTextGenerator implements LlmTextGenerator {
 
   /// Loads [model] from [path] with its context size. Throws
   /// [ModelException] with an Arabic message when it cannot be loaded (most
-  /// often: not enough memory).
+  /// often: not enough memory). [backend] replaces the native llama.cpp
+  /// backend (tests); the engine owns and disposes it.
   static Future<LlamadartTextGenerator> load(
     LocalLlmModel model,
-    String path,
-  ) async {
+    String path, {
+    LlamaBackend? backend,
+  }) async {
     final LlamaEngine engine;
     try {
       engine = await LlamaEngine.load(
         LlamaModel(ModelSource.path(path)),
         params: ModelParams(contextSize: model.contextTokens),
+        backend: backend,
+      );
+    } on LlamaUnsupportedException catch (e) {
+      // This platform / build has no runtime for GGUF models.
+      throw ModelException(
+        LS.localRuntimeUnavailable,
+        debugDetails: 'llamadart load ${model.id}: $e',
+        cause: e,
+      );
+    } on LlamaBackendInitializationException catch (e) {
+      throw ModelException(
+        LS.localRuntimeUnavailable,
+        debugDetails: 'llamadart load ${model.id}: $e',
+        cause: e,
       );
     } on LlamaException catch (e) {
+      // Out of memory, corrupt file, … (llamadart wraps backend failures in
+      // LlamaModelException).
       throw ModelException(
         LS.localLoadFailed(model.minRamGb),
         debugDetails: 'llamadart load ${model.id}: $e',

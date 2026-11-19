@@ -53,7 +53,8 @@ final localLlmModelStatesProvider = StreamProvider<Map<String, ModelState>>((
 
 /// Loads a GGUF model into the native runtime (tests override it).
 final localLlmLoaderProvider = Provider<LocalLlmLoader>(
-  (ref) => LlamadartTextGenerator.load,
+  (ref) =>
+      (model, path) => LlamadartTextGenerator.load(model, path),
 );
 
 /// The shared on-device runtime (keeps the model loaded between requests).

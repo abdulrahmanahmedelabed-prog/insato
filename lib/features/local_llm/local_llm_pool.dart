@@ -87,6 +87,21 @@ class LocalLlmPool {
     });
   }
 
+  /// Unloads [modelId] now when it is loaded and no lease uses it (e.g.
+  /// before its file is deleted: Windows cannot delete a mapped file).
+  /// Returns false when a lease still uses it (nothing is unloaded); true
+  /// otherwise.
+  Future<bool> evict(String modelId) async {
+    final slot = _slot;
+    if (slot == null || slot.modelId != modelId) return true;
+    if (slot.leases > 0) return false;
+    _idleTimer?.cancel();
+    _idleTimer = null;
+    _slot = null;
+    await slot.dispose();
+    return true;
+  }
+
   /// Unloads everything.
   Future<void> dispose() async {
     _disposed = true;

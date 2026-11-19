@@ -101,11 +101,17 @@ jobs:
       - name: Configure release signing (optional)
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          HAS_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+          HAS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS != '' }}
+          HAS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "${ANDROID_KEYSTORE_BASE64}" ]]; then
-            echo "::warning::No signing secrets configured; release artifacts will be signed with the debug key."
+          # Release signing needs all four secrets. With any one missing, fall
+          # back to the debug key instead of failing the build.
+          if [[ -z "${ANDROID_KEYSTORE_BASE64}" || "${HAS_STORE_PASSWORD}" != "true" \
+                || "${HAS_KEY_ALIAS}" != "true" || "${HAS_KEY_PASSWORD}" != "true" ]]; then
+            echo "::warning::Android signing secrets are incomplete (need ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD); release artifacts are signed with the debug key."
             exit 0
           fi
           keystore="${RUNNER_TEMP}/upload-keystore.jks"

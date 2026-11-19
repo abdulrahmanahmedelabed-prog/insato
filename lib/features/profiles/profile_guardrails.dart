@@ -41,6 +41,8 @@ const List<String> kSensitiveAttributeStems = [
   'غاضب', 'غضب', 'متوتر', 'توتر', 'قلق', 'حزين', 'حزن', 'منزعج', 'انزعاج',
   'بعصبيه', 'متعصب', 'انفعال', 'مزاج', 'مكتئب', 'اكتئاب', 'محبط', 'احباط',
   'خائف', 'خوف', 'مشاعر', 'عاطف', 'مستاء', 'مرتبك', 'ارتباك', 'خجول',
+  // Inferences from the voice itself (tone, pitch), not from what was said.
+  'نبره', 'من صوته', 'من صوتها', 'صوته يدل', 'صوتها يدل',
   // Psychology / diagnosis / personality labels.
   'نفسيه', ' نفسي ', 'اضطراب', 'تشخيص', 'شخصيته', 'شخصيتها', 'نرجس',
   'انطوائي', 'عدواني', ' غبي', 'كسول', 'متعجرف', 'مغرور', 'ثقته بنفسه',
@@ -64,6 +66,7 @@ const List<String> kSensitiveAttributeStems = [
 /// Stems of hiring / firing / performance judgements and scores.
 const List<String> kScoringStems = [
   'توظيف', 'تعيينه', 'تعيينها', ' فصله', ' فصلها', 'ترقيته', 'ترقيتها',
+  'ترقيه', 'يستحق الترقي', 'تستحق الترقي',
   'تقييم اداء', 'تقييم الاداء', 'درجه من', '/10', 'من عشره', 'لا يصلح',
   'لا تصلح', ' يصلح ل', ' تصلح ل', 'غير كفء', 'كفاءته', 'كفاءتها',
   ' hire', 'hiring', ' fire ', ' score', ' rating', 'performance review',

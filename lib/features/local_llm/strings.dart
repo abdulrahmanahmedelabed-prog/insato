@@ -244,6 +244,11 @@ abstract final class LS {
       'سيُحذف «$name» ($sizeGb غ.ب) من الجهاز، ويلزم تنزيله من جديد لاستعمال '
       'المحرك المحلي.';
 
+  /// Delete refused: the model is generating right now.
+  static const String modelInUse =
+      'النموذج قيد الاستعمال الآن في كتابة محضر أو إجابة سؤال. أعد المحاولة '
+      'بعد انتهائه.';
+
   /// Selected model is not downloaded.
   static const String selectedNotDownloaded =
       'النموذج المختار غير مُنزَّل بعد: نزّله لتفعيل كتابة المحضر على الجهاز.';
