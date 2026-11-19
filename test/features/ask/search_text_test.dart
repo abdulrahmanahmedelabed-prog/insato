@@ -16,7 +16,7 @@ void main() {
     test('removes diacritics, tatweel and invisible marks', () {
       expect(normalizeSearchText('مُحَمَّدٌ'), 'محمد');
       expect(normalizeSearchText('اجتمـــاع'), 'اجتماع');
-      expect(normalizeSearchText('قرا‏ر⁧ات⁩'), 'قرارات');
+      expect(normalizeSearchText('قرا\u200Fر\u2067ات\u2069'), 'قرارات');
     });
 
     test('converts digits and lower-cases Latin', () {
