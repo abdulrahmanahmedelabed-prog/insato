@@ -218,7 +218,11 @@ Future<void> renameMeetingFlow(
   );
   if (title == null || title == meeting.title) return;
   try {
-    await ref.read(meetingRepositoryProvider).updateTitle(meeting.id, title);
+    // Through the session controller, so a meeting being recorded also
+    // updates the live session title and the recording notification.
+    await ref
+        .read(meetingSessionControllerProvider.notifier)
+        .renameMeeting(meeting.id, title);
   } catch (e) {
     if (context.mounted) showSnack(context, _messageOf(e), error: true);
   }

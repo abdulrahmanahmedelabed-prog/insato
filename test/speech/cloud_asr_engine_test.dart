@@ -173,6 +173,47 @@ void main() {
       expect(calls, 0);
     });
 
+    test('an unreadable key store is transient, not a missing key',
+        () async {
+      var calls = 0;
+      final keys = <String>[];
+      var fail = false;
+      final e = CloudAsrEngine(
+        apiKeyProvider: () {
+          if (fail) throw const InsatoException('المخزن الآمن مقفل');
+          return 'secret';
+        },
+        client: MockClient((req) async {
+          calls++;
+          keys.add(req.headers['Authorization']!);
+          return http.Response(_dg('مرحبا'), 200,
+              headers: {'content-type': 'application/json'});
+        }),
+        sleep: (_) async {},
+      );
+      await e.initialize();
+      // The keystore locks mid-session: the key read earlier is reused.
+      fail = true;
+      expect((await e.transcribe(_seg())).text, 'مرحبا');
+      expect(keys, ['Token secret']);
+
+      // Without an earlier key it is a transient AsrException.
+      final fresh = CloudAsrEngine(
+        apiKeyProvider: () => throw const InsatoException('مقفل'),
+        client: MockClient((req) async {
+          calls++;
+          return http.Response('', 200);
+        }),
+        sleep: (_) async {},
+      );
+      final err = await fresh
+          .transcribe(_seg())
+          .then<Object?>((_) => null, onError: (Object e) => e);
+      expect(err, isA<AsrException>());
+      expect(err, isNot(isA<MissingApiKeyException>()));
+      expect(calls, 1);
+    });
+
     test('401 maps to MissingApiKeyException', () async {
       final e = _engine(MockClient((req) async => http.Response('no', 401)));
       await expectLater(

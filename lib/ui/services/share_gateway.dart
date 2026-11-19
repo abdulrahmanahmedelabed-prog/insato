@@ -226,7 +226,10 @@ class DefaultShareGateway implements ShareGateway {
 /// The share gateway (overridden in widget tests).
 final shareGatewayProvider = Provider<ShareGateway>((ref) {
   final paths = ref.watch(appPathsProvider);
-  final gateway = DefaultShareGateway(exportsDir: paths.exportsDir);
+  final gateway = DefaultShareGateway(
+    exportsDir: paths.exportsDir,
+    shareTempDir: paths.shareTempDir,
+  );
   // Clear share files an earlier run left behind.
   unawaited(gateway.purgeStale());
   return gateway;

@@ -963,6 +963,11 @@ abstract class SessionPlatformHooks {
 
   /// Called after capture stopped (or the session was cancelled).
   Future<void> onRecordingStopped();
+
+  /// Called when the meeting being recorded is renamed, so platform UI that
+  /// shows the title (the Android foreground notification) follows it.
+  /// Must not throw.
+  Future<void> onTitleChanged(String title);
 }
 
 /// Entry point of the Android foreground-service task. It does no work: the
@@ -1106,6 +1111,19 @@ class DefaultSessionPlatformHooks implements SessionPlatformHooks {
         }
         return 'تعذّر تشغيل التسجيل في الخلفية؛ أبقِ التطبيق مفتوحًا أثناء '
             'الاجتماع.';
+    }
+  }
+
+  @override
+  Future<void> onTitleChanged(String title) async {
+    if (platform != CapturePlatform.android || !_serviceStarted) return;
+    try {
+      await fft.FlutterForegroundTask.updateService(
+        notificationTitle: 'إنصاتو يسجّل الاجتماع',
+        notificationText: title,
+      );
+    } catch (_) {
+      // Cosmetic only: the recording continues with the old text.
     }
   }
 
@@ -1539,10 +1557,11 @@ class MeetingSessionController extends Notifier<SessionState> {
       final error = _asInsato(e, 'تعذّر بدء التسجيل.');
       _active = null;
       if (session != null) {
-        session.pipeline.abort();
-        await session.cancelAll();
+        final active = session;
+        active.pipeline.abort();
+        await _safe(active.cancelAll);
       }
-      await engines?.dispose();
+      if (engines != null) await _safe(engines.dispose);
       if (hooksStarted) await _safe(hooks.onRecordingStopped);
       if (meeting != null) {
         await _safe(() => meetings.delete(meeting!.id));
@@ -2004,6 +2023,24 @@ class MeetingSessionController extends Notifier<SessionState> {
           .deleteOrphanSpeakers(s.pipeline.createdSpeakerIds),
     );
     _set(SessionState(lastMeetingId: state.lastMeetingId));
+    return true;
+  }
+
+  /// Renames meeting [meetingId] (blank titles are ignored). When it is the
+  /// meeting being recorded, the session title and the platform UI (the
+  /// Android recording notification) follow. Returns true when renamed.
+  Future<bool> renameMeeting(String meetingId, String title) async {
+    final t = title.trim();
+    if (t.isEmpty) return false;
+    final ok = await ref
+        .read(meetingRepositoryProvider)
+        .updateTitle(meetingId, t);
+    if (!ok) return false;
+    final s = _active;
+    if (s != null && s.meeting.id == meetingId) {
+      if (state.meetingId == meetingId) _set(state.copyWith(title: t));
+      await _safe(() => s.hooks.onTitleChanged(t));
+    }
     return true;
   }
 

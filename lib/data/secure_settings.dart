@@ -1,8 +1,9 @@
 // Settings storage.
 //
-// * [SecureSettings]: API keys, kept only in the platform keystore/keychain
-//   (Android Keystore, iOS Keychain, Windows Credential Manager via
-//   flutter_secure_storage). Never written to the SQLite database.
+// * [SecureSettings]: API keys, kept only in platform secure storage via
+//   flutter_secure_storage (Android Keystore-backed encryption, iOS
+//   Keychain, a DPAPI-encrypted file in %APPDATA%\Insato\Insato on
+//   Windows). Never written to the SQLite database.
 // * [AppSettings]: non-secret preferences in the `settings` table, exposed as
 //   an immutable [AppSettingsData] snapshot and a change stream.
 
@@ -40,10 +41,10 @@ class SecureSettings {
   /// On iOS the keychain items use `kSecAttrAccessibleAfterFirstUnlock-
   /// ThisDeviceOnly`: they stay readable while the phone is locked (a
   /// recording continues in the background with the screen off, and cloud
-  /// ASR / minutes need the keys then), and they are never included in
-  /// backups nor migrated to another device. The plugin default
-  /// (`WhenUnlocked`) fails every read while the device is locked and lets the
-  /// keys travel in encrypted backups. Not synchronizable (iCloud Keychain).
+  /// ASR / minutes need the keys then), and they never migrate to another
+  /// device (a backup restores them only onto the same device). The plugin
+  /// default (`WhenUnlocked`) fails every read while the device is locked and
+  /// lets the keys travel to a new device in encrypted backups. Not synchronizable (iCloud Keychain).
   static const FlutterSecureStorage defaultStorage = FlutterSecureStorage(
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,

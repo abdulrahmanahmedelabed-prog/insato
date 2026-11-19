@@ -113,7 +113,23 @@ parsing) are covered by unit tests in `test/`.
 * Voiceprint update: `centroid = normalize((c·n + Σe) / (n + k))`, capped `n`
   at 200 so voices can drift slowly.
 * User actions: rename (updates global speaker → all meetings), merge two
-  speakers, reassign a single segment, “not a voiceprint” (forget voice).
+  speakers, reassign a single segment, “not a voiceprint” (forget voice),
+  delete a speaker.
+* Learning from corrections is idempotent through a per-meeting ledger
+  (`segment id → speaker id` in the `settings` table, prefix
+  `voiceprint_ledger:`). Forgetting a voice, or a merge that drops one side's
+  centroid, turns entries into tombstones (`!<speaker id>`): such a segment
+  is never learned again while it stays with that speaker, and moving it away
+  unlearns nothing. `SpeakerRepository.merge`, `forgetVoice` and `delete`
+  rewrite the ledgers of all meetings in their own transaction, so merges
+  must go through `PostProcessor.mergeSpeakers` / the repository, never raw
+  SQL.
+* Live session: renaming the meeting being recorded goes through
+  `MeetingSessionController.renameMeeting`, which also updates the session
+  title and the Android recording notification
+  (`SessionPlatformHooks.onTitleChanged`). While stopping, the user can
+  choose “finish later” (`finishLater()`): the remaining queue is dropped and
+  the meeting is marked for re-processing from the archived audio.
 
 ## Minutes generation
 
@@ -131,8 +147,28 @@ parsing) are covered by unit tests in `test/`.
 
 ## Privacy
 
-* Audio, transcripts and voiceprints stay on device (SQLite + app documents).
+* Recordings, transcripts and voiceprints are stored only on device (cloud
+  ASR sends audio segments to Deepgram, see below). Data root
+  (`AppPaths`): the app documents directory on Android/iOS (excluded from
+  backups); `%LOCALAPPDATA%\Insato\Insato` on Windows (never Documents, which
+  is shared and often OneDrive-synced; v1 data is migrated from there at
+  start-up, before the database opens). `Meeting.audioPath` stores only the
+  file name; readers resolve it with `AppPaths.resolveRecording`, and
+  `MeetingRepository.delete` removes the file from the current recordings
+  directory (`recordingsDirProvider`) as well as a legacy absolute path.
 * With on-device ASR only the *text transcript* is sent to Claude to write the
-  minutes. With cloud ASR, audio segments go to the ASR provider. Both are
-  explained in Settings.
+  minutes. With cloud ASR, audio segments go to Deepgram; every request sets
+  `mip_opt_out=true` (no use for model training), but retention is governed
+  by Deepgram's data policy. Both are explained in Settings and in the
+  consent reminder.
+* API keys live only in flutter_secure_storage. On iOS the keychain items
+  use `AfterFirstUnlockThisDeviceOnly` (readable while locked during a
+  background recording; never migrated to another device); `main()` calls
+  `SecureSettings.migrateAccessibility()` once in the foreground to rewrite
+  keys stored with the old class. A keystore read failure raises
+  `SecureStorageUnavailableException`, which is never treated as "no key":
+  cloud ASR keeps the key read earlier in the session (or fails the segment
+  as transient), automatic minutes are postponed
+  (`MinutesOutcome.postponedKeyUnavailable`), and Settings shows the key
+  state as unknown.
 * A recording-consent reminder is shown before the first recording.

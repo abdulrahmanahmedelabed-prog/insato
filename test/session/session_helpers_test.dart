@@ -483,6 +483,18 @@ void main() {
         expect(await pp.databaseDir(), docs.path);
       });
 
+      test('share files go to <temporary>/share', () async {
+        final temp = await Directory('${root.path}/Temp').create();
+        final pp = AppPaths(
+          documentsDir: () async => docs,
+          temporaryDir: () async => temp,
+          isWindows: false,
+        );
+        final dir = await pp.shareTempDir();
+        expect(dir, '${temp.path}/share');
+        expect(Directory(dir).existsSync(), isTrue);
+      });
+
       test('Windows keeps data out of Documents', () async {
         final pp = paths(windows: true);
         expect(await pp.recordingsDir(), '${local.path}/recordings');

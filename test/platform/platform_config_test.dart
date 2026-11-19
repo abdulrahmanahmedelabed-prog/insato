@@ -334,6 +334,17 @@ void main() {
       // The source must stay ASCII: MSVC builds with /WX and no /utf-8.
       expect(main.codeUnits.every((c) => c < 0x80), isTrue);
     });
+
+    test('version resource names the private data folders Insato\\Insato', () {
+      // path_provider_windows builds %LOCALAPPDATA%\<CompanyName>\
+      // <ProductName> (meetings, database) and the %APPDATA% equivalent
+      // from these values; an empty or changed name would move the data.
+      final rc = _read('windows/runner/Runner.rc');
+      String? value(String key) =>
+          RegExp('VALUE "$key", "([^"]*)"').firstMatch(rc)?.group(1);
+      expect(value('CompanyName'), 'Insato');
+      expect(value('ProductName'), 'Insato');
+    });
   });
 
   group('Bundled font licence', () {

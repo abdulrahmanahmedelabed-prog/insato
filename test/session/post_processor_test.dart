@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -637,6 +638,102 @@ void main() {
       },
     );
 
+    group('ledger tombstones (data-diarization-2)', () {
+      Future<Map<String, dynamic>> ledgerOf(String meetingId) async {
+        final row =
+            await (db.select(db.settings)
+                  ..where((r) => r.key.equals('voiceprint_ledger:$meetingId')))
+                .getSingleOrNull();
+        return row == null
+            ? const {}
+            : (jsonDecode(row.value) as Map).cast<String, dynamic>();
+      }
+
+      test(
+        'a forgotten voice is not learned again from its segments',
+        () async {
+          final a = await speakers.create(name: 'علي');
+          await addSeg(0, 0, a.id);
+          await addSeg(1, 0, a.id);
+          await post.learnFromCorrections(meeting.id);
+          expect((await speakers.get(a.id))!.embeddingCount, 2);
+          await speakers.forgetVoice(a.id);
+
+          final r = await post.learnFromCorrections(meeting.id);
+          expect(r.learnedSegments, 0);
+          final sa = (await speakers.get(a.id))!;
+          expect(sa.centroid, isNull);
+          expect(sa.embeddingCount, 0);
+          expect((await ledgerOf(meeting.id)).values.toSet(), {'!${a.id}'});
+        },
+      );
+
+      test(
+        'a tombstoned segment moved away is learned, nothing unlearned',
+        () async {
+          final a = await speakers.create(name: 'علي');
+          final b = await speakers.create(name: 'منى');
+          final s0 = await addSeg(0, 0, a.id);
+          await addSeg(1, 1, b.id);
+          await post.learnFromCorrections(meeting.id);
+          await speakers.forgetVoice(a.id);
+          // Re-enrol a voice for A elsewhere: it must not lose anything when
+          // the tombstoned segment moves.
+          await speakers.updateVoiceprint(a.id, voiceOf(3), 5);
+
+          await post.reassignSegment(s0.id, b.id);
+          expect((await speakers.get(a.id))!.embeddingCount, 5);
+          expect((await speakers.get(b.id))!.embeddingCount, 2);
+          expect((await ledgerOf(meeting.id))[s0.id], b.id);
+        },
+      );
+
+      test(
+        'forgetting during learning keeps this meeting\'s tombstones',
+        () async {
+          final a = await speakers.create(
+            name: 'علي',
+            centroid: voiceOf(0),
+            embeddingCount: 1,
+          );
+          final s0 = await addSeg(0, 0, a.id);
+          final s1 = await addSeg(1, 0, a.id);
+          await db
+              .into(db.settings)
+              .insert(
+                SettingsCompanion.insert(
+                  key: 'voiceprint_ledger:${meeting.id}',
+                  value: jsonEncode({s0.id: a.id, s1.id: a.id}),
+                ),
+              );
+          // Removing the only counted contribution empties the voiceprint.
+          await post.reassignSegment(s0.id, null);
+          expect((await speakers.get(a.id))!.centroid, isNull);
+          expect(await ledgerOf(meeting.id), {s1.id: '!${a.id}'});
+          // And the tombstoned segment is not learned back.
+          await post.learnFromCorrections(meeting.id);
+          expect((await speakers.get(a.id))!.embeddingCount, 0);
+        },
+      );
+
+      test('deleting a speaker drops its ledger entries', () async {
+        final a = await speakers.create(name: 'علي');
+        final b = await speakers.create(name: 'منى');
+        await addSeg(0, 0, a.id);
+        final kept = await addSeg(1, 1, b.id);
+        await post.learnFromCorrections(meeting.id);
+        expect(await speakers.delete(a.id), isTrue);
+        expect(await ledgerOf(meeting.id), {kept.id: b.id});
+        expect(await speakers.delete(b.id), isTrue);
+        expect(
+          await (db.select(db.settings)
+                ..where((r) => r.key.equals('voiceprint_ledger:${meeting.id}')))
+              .getSingleOrNull(),
+          isNull,
+        );
+      });
+    });
+
     test('merging rewrites ledgers: no double count, later corrections '
         'learned (session-7)', () async {
       final a = await speakers.create(name: 'علي');
@@ -714,6 +811,26 @@ void main() {
         );
         final r = await withPaths.reprocessFromAudio(meeting.id);
         expect(r.segments, 1);
+      });
+
+      test('MeetingRepository.delete finds the recording by name', () async {
+        final repo = MeetingRepository(db, recordingsDir: () async => recDir);
+        final file = '$recDir/${meeting.id}.wav';
+        await writeWav([(0, 1000)], path: file);
+        // A stale absolute path (older iOS container) and a legacy copy.
+        final legacy = '${tmp.path}/legacy/${meeting.id}.wav';
+        await writeWav([(0, 1000)], path: legacy);
+        await meetings.setAudioPath(meeting.id, legacy);
+        expect(await repo.delete(meeting.id), isTrue);
+        expect(File(file).existsSync(), isFalse);
+        expect(File(legacy).existsSync(), isFalse);
+
+        final m2 = await meetings.create();
+        final f2 = '$recDir/${m2.id}.wav';
+        await writeWav([(0, 1000)], path: f2);
+        await meetings.setAudioPath(m2.id, recordingFileName(m2.id));
+        expect(await repo.delete(m2.id), isTrue);
+        expect(File(f2).existsSync(), isFalse);
       });
 
       test('deleteMeeting deletes the recording', () async {

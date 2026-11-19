@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
@@ -6,6 +7,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/data/database.dart';
 
 void main() {
+  test('inDirectory opens insato.sqlite in the given directory', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final dir = await Directory.systemTemp.createTemp('insato_db_');
+    addTearDown(() => dir.delete(recursive: true));
+    final db = AppDatabase.inDirectory(
+      () async => dir.path,
+      tempDirectory: () async => dir.path,
+    );
+    await db.into(db.settings).insert(
+          SettingsCompanion.insert(key: 'k', value: 'v'),
+        );
+    expect((await db.select(db.settings).getSingle()).value, 'v');
+    await db.close();
+    expect(File('${dir.path}/insato.sqlite').existsSync(), isTrue);
+  });
+
   group('float32 blob codec', () {
     test('round-trips values exactly, little-endian', () {
       final v = Float32List.fromList([1.0, -0.5, 0.25, 3.4e38, -1e-7, 0]);

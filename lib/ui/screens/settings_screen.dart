@@ -324,6 +324,10 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
   final TextEditingController _c = TextEditingController();
   bool _obscure = true;
   bool _configured = false;
+
+  /// The stored key could not be read (e.g. a locked device): its state is
+  /// unknown, so neither "configured" nor "not configured" is shown.
+  bool _unreadable = false;
   bool _busy = false;
   ConnectionTestResult? _result;
 
@@ -335,13 +339,19 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
 
   Future<void> _refresh() async {
     String? k;
+    var unreadable = false;
     try {
       k = await widget.load();
     } catch (_) {
-      k = null;
+      // SecureStorageUnavailableException (or another keystore failure):
+      // the key may exist, so do not report it as missing.
+      unreadable = true;
     }
     if (!mounted) return;
-    setState(() => _configured = k != null && k.isNotEmpty);
+    setState(() {
+      _unreadable = unreadable;
+      if (!unreadable) _configured = k != null && k.isNotEmpty;
+    });
   }
 
   @override
@@ -406,8 +416,14 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
         _c.clear();
         await _refresh();
       }
-    } catch (_) {
-      if (mounted) showSnack(context, S.unexpectedError, error: true);
+    } catch (e) {
+      if (mounted) {
+        showSnack(
+          context,
+          e is InsatoException ? e.messageAr : S.unexpectedError,
+          error: true,
+        );
+      }
     } finally {
       // Always re-enable the card; the test result stays visible even when
       // saving the key afterwards failed.
@@ -434,18 +450,28 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
             Row(
               children: [
                 Icon(
-                  _configured ? Icons.verified_rounded : Icons.key_off_rounded,
-                  color: _configured ? scheme.primary : scheme.onSurfaceVariant,
+                  _unreadable
+                      ? Icons.lock_clock_rounded
+                      : _configured
+                      ? Icons.verified_rounded
+                      : Icons.key_off_rounded,
+                  color: _configured && !_unreadable
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _configured ? S.keyConfigured : S.keyNotConfigured,
+                    _unreadable
+                        ? S.keyUnreadable
+                        : _configured
+                        ? S.keyConfigured
+                        : S.keyNotConfigured,
                     style: theme.textTheme.labelLarge,
                   ),
                 ),
-                if (_configured)
+                if (_configured && !_unreadable)
                   TextButton(
                     onPressed: _busy ? null : _clear,
                     child: const Text(S.clearKey),

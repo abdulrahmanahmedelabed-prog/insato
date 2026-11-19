@@ -86,9 +86,44 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       icon: Icons.delete_forever_rounded,
     );
     if (!ok || !mounted) return;
+    if (!_controller.canDiscard) {
+      // The take ended on its own while the dialog was open: the meeting is
+      // being saved, and the session listener opens it when done.
+      showSnack(context, S.discardTooLate);
+      return;
+    }
     setState(() => _cancelling = true);
-    await _controller.cancel();
-    if (mounted) Navigator.of(context).maybePop();
+    final discarded = await _controller.cancel();
+    if (!mounted) return;
+    if (discarded) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    // A stop began meanwhile and the meeting was saved; the listener ignored
+    // the finish while _cancelling was set, so open the meeting here.
+    setState(() => _cancelling = false);
+    showSnack(context, S.discardTooLate);
+    final s = ref.read(meetingSessionControllerProvider);
+    if (!_navigated &&
+        s.phase == SessionPhase.idle &&
+        s.lastMeetingId != null) {
+      _navigated = true;
+      unawaited(
+        openMeeting(
+          context,
+          ref,
+          s.lastMeetingId!,
+          replace: true,
+          replaceRoute: ModalRoute.of(context),
+        ),
+      );
+    }
+  }
+
+  void _finishLater() {
+    if (!_controller.finishLater() && mounted) {
+      showSnack(context, S.finishLaterUnavailable);
+    }
   }
 
   Future<void> _editTitle(String meetingId, String current) async {
@@ -103,10 +138,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     }
     try {
       // The recording bar and this app bar follow the meeting row, so they
-      // show the new title at once.
-      await ref
-          .read(meetingRepositoryProvider)
-          .updateTitle(meetingId, title.trim());
+      // show the new title at once; the controller also updates the session
+      // title and the Android recording notification.
+      await _controller.renameMeeting(meetingId, title.trim());
     } catch (e) {
       if (mounted) {
         showSnack(
@@ -317,7 +351,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         Positioned.fill(child: content),
         if (s.phase == SessionPhase.preparing ||
             s.phase == SessionPhase.finishing)
-          Positioned.fill(child: _BusyOverlay(state: s)),
+          Positioned.fill(
+            child: _BusyOverlay(
+              state: s,
+              onFinishLater:
+                  s.phase == SessionPhase.finishing &&
+                      _controller.canFinishLater
+                  ? _finishLater
+                  : null,
+            ),
+          ),
       ],
     );
   }
@@ -435,6 +478,19 @@ class _ControlPanel extends StatelessWidget {
                 ),
             ],
           ),
+          if (s.liveTranscriptionPaused) ...[
+            const SizedBox(height: 10),
+            Center(
+              child: Chip(
+                avatar: Icon(
+                  Icons.pause_circle_outline_rounded,
+                  size: 18,
+                  color: scheme.tertiary,
+                ),
+                label: const Text(S.liveTranscriptionPaused),
+              ),
+            ),
+          ],
           if (s.pendingProcessing > 0 || s.failedSegments > 0) ...[
             const SizedBox(height: 10),
             _Backlog(state: s),
@@ -672,9 +728,12 @@ class _Backlog extends StatelessWidget {
 }
 
 class _BusyOverlay extends StatelessWidget {
-  const _BusyOverlay({required this.state});
+  const _BusyOverlay({required this.state, this.onFinishLater});
 
   final SessionState state;
+
+  /// Skips the remaining transcription; null hides the action.
+  final VoidCallback? onFinishLater;
 
   @override
   Widget build(BuildContext context) {
@@ -709,6 +768,22 @@ class _BusyOverlay extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleMedium,
                   ),
+                  if (onFinishLater != null) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      S.finishLaterHint,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: onFinishLater,
+                      icon: const Icon(Icons.schedule_rounded),
+                      label: const Text(S.finishLater),
+                    ),
+                  ],
                 ],
               ),
             ),

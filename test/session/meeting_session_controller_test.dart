@@ -558,7 +558,93 @@ void main() {
     });
   });
 
+  group('renameMeeting (ui-live-title-edit)', () {
+    test(
+      'renames the live meeting, its session title and notification',
+      () async {
+        await consent();
+        final c = controller();
+        final id = await c.start(title: 'قديم');
+        expect(await c.renameMeeting(id, '  جديد  '), isTrue);
+        expect((await MeetingRepository(db).get(id))!.title, 'جديد');
+        expect(state().title, 'جديد');
+        expect(hooks.titles, ['جديد']);
+        expect(await c.renameMeeting(id, '   '), isFalse);
+        expect(hooks.titles, ['جديد']);
+        await c.cancel();
+      },
+    );
+
+    test('renaming another meeting leaves the session untouched', () async {
+      final other = await MeetingRepository(db)
+          .create(title: 'سابق', status: MeetingStatus.ready);
+      await consent();
+      final c = controller();
+      await c.start(title: 'حالي');
+      expect(await c.renameMeeting(other.id, 'مُعدَّل'), isTrue);
+      expect((await MeetingRepository(db).get(other.id))!.title, 'مُعدَّل');
+      expect(state().title, 'حالي');
+      expect(hooks.titles, isEmpty);
+      expect(await c.renameMeeting('missing', 'x'), isFalse);
+      await c.cancel();
+    });
+  });
+
+  test(
+    'cancel after the take ended saves the meeting and returns false',
+    () async {
+      await consent();
+      final c = controller();
+      final id = await c.start();
+      await speak([0]);
+      final stopping = c.stop();
+      expect(c.canDiscard, isFalse);
+      expect(await c.cancel(), isFalse);
+      expect(await stopping, id);
+      expect(await MeetingRepository(db).get(id), isNotNull);
+    },
+  );
+
   group('MeetingJobsController', () {
+    test(
+      'automatic minutes are postponed when the key store is locked',
+      () async {
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            appPathsProvider.overrideWithValue(
+              AppPaths(
+                documentsDir: () async => tmp,
+                supportDir: () async => tmp,
+              ),
+            ),
+            minutesEngineFactoryProvider.overrideWithValue(
+              () async => throw const SecureStorageUnavailableException('مقفل'),
+            ),
+          ],
+        );
+        final meetings = MeetingRepository(db);
+        final m = await meetings.create(status: MeetingStatus.processing);
+        await SegmentRepository(db).insert(
+          TranscriptSegment(
+            id: 's1',
+            meetingId: m.id,
+            index: 0,
+            startMs: 0,
+            endMs: 2000,
+            text: 'مرحبًا',
+          ),
+        );
+        final jobs = container.read(meetingJobsProvider(m.id).notifier);
+        expect(await jobs.generateMinutes(automatic: true), isTrue);
+        final job = container.read(meetingJobsProvider(m.id));
+        expect(job.needsApiKey, isFalse);
+        expect(job.noticeAr, contains('مقفل'));
+        expect((await meetings.get(m.id))!.status, MeetingStatus.ready);
+      },
+    );
+
     test('manual minutes without a key fail with needsApiKey', () async {
       final meetings = MeetingRepository(db);
       final m = await meetings.create(status: MeetingStatus.ready);

@@ -301,6 +301,12 @@ class FakeHooks implements SessionPlatformHooks {
 
   @override
   Future<void> onRecordingStopped() async => stopped++;
+
+  /// Titles passed to [onTitleChanged], in order.
+  final List<String> titles = [];
+
+  @override
+  Future<void> onTitleChanged(String title) async => titles.add(title);
 }
 
 /// Engines factory fake building [FakeSegmenter] + [InlineSegmentProcessor].

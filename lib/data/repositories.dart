@@ -12,6 +12,7 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../core/models.dart';
@@ -217,10 +218,14 @@ String defaultMeetingTitle(DateTime t) =>
 
 /// CRUD for [Meeting]s. Deleting a meeting cascades to its segments.
 class MeetingRepository {
-  /// Creates a repository over [db].
-  MeetingRepository(this._db);
+  /// Creates a repository over [db]. [recordingsDir] returns the directory
+  /// archived recordings live in now (`AppPaths.recordingsDir`); [delete]
+  /// uses it to find the file of a stored bare file name. Without it only an
+  /// absolute stored path can be deleted.
+  MeetingRepository(this._db, {this._recordingsDir});
 
   final AppDatabase _db;
+  final Future<String> Function()? _recordingsDir;
 
   /// Converts a row to a domain [Meeting]. Corrupt minutes JSON is treated as
   /// absent minutes rather than failing the whole list.
@@ -377,6 +382,10 @@ class MeetingRepository {
   /// Deletes the meeting, its segments (cascade) and its archived audio file
   /// if present. Returns true if a meeting row was deleted.
   ///
+  /// `audioPath` is a bare file name (`<id>.wav`) for new rows and possibly a
+  /// stale absolute path for older ones (the iOS container moves on updates,
+  /// Windows data moved out of Documents). Both the stored absolute path and
+  /// the file of that name in the current recordings directory are deleted.
   /// A failure to delete the audio file does not undo the database deletion.
   Future<bool> delete(String id) async {
     final row = await (_db.select(_db.meetings)
@@ -385,17 +394,34 @@ class MeetingRepository {
     if (row == null) return false;
     final n =
         await (_db.delete(_db.meetings)..where((m) => m.id.equals(id))).go();
-    final path = row.audioPath;
-    if (path != null && path.isNotEmpty) {
-      try {
-        final f = File(path);
-        if (await f.exists()) await f.delete();
-      } on FileSystemException {
-        // The row is gone; an orphaned file is harmless and the OS may clean
-        // it later. Never fail the user's delete because of it.
+    final stored = row.audioPath;
+    if (stored != null && stored.isNotEmpty) {
+      for (final path in await _audioCandidates(stored)) {
+        try {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        } on FileSystemException {
+          // The row is gone; the file would stay behind in the app's private
+          // recordings folder, which the OS does not clean. Never fail the
+          // user's delete because of it.
+        }
       }
     }
     return n > 0;
+  }
+
+  Future<Set<String>> _audioCandidates(String stored) async {
+    final out = <String>{};
+    if (p.isAbsolute(stored)) out.add(stored);
+    final dirOf = _recordingsDir;
+    if (dirOf != null) {
+      try {
+        out.add(p.join(await dirOf(), p.basename(stored)));
+      } catch (_) {
+        // Directory unavailable: only the stored path can be tried.
+      }
+    }
+    return out;
   }
 }
 
@@ -737,10 +763,12 @@ class SpeakerRepository {
         return n > 0;
       });
 
-  /// Rewrites every voiceprint ledger value `v` to `remap[v]` (when present).
-  /// Only changed rows are written.
-  Future<void> _rewriteLedgers(Map<String, String> remap) async {
-    if (remap.isEmpty) return;
+  /// Rewrites every voiceprint ledger value `v` to `remap[v]` (when present)
+  /// and removes the entries whose value is in [drop]. Only changed rows are
+  /// written; a ledger left empty is deleted.
+  Future<void> _rewriteLedgers(Map<String, String> remap,
+      {Set<String> drop = const {}}) async {
+    if (remap.isEmpty && drop.isEmpty) return;
     final rows = await (_db.select(_db.settings)
           ..where((s) => s.key.like('$kVoiceprintLedgerKeyPrefix%')))
         .get();
@@ -750,6 +778,11 @@ class SpeakerRepository {
       final ledger = _decodeLedger(row.value);
       var changed = false;
       for (final e in ledger.entries.toList()) {
+        if (drop.contains(e.value)) {
+          ledger.remove(e.key);
+          changed = true;
+          continue;
+        }
         final to = remap[e.value];
         if (to != null && to != e.value) {
           ledger[e.key] = to;
@@ -757,8 +790,13 @@ class SpeakerRepository {
         }
       }
       if (!changed) continue;
-      await (_db.update(_db.settings)..where((s) => s.key.equals(row.key)))
-          .write(SettingsCompanion(value: Value(jsonEncode(ledger))));
+      if (ledger.isEmpty) {
+        await (_db.delete(_db.settings)..where((s) => s.key.equals(row.key)))
+            .go();
+      } else {
+        await (_db.update(_db.settings)..where((s) => s.key.equals(row.key)))
+            .write(SettingsCompanion(value: Value(jsonEncode(ledger))));
+      }
     }
   }
 
@@ -831,11 +869,18 @@ class SpeakerRepository {
 
   /// Deletes the speaker. Its segments become unassigned (FK `SET NULL`).
   /// Returns true if it existed.
-  Future<bool> delete(String id) async {
-    final n =
-        await (_db.delete(_db.speakers)..where((s) => s.id.equals(id))).go();
-    return n > 0;
-  }
+  ///
+  /// In the same transaction, the voiceprint-ledger entries of the speaker
+  /// (live or tombstone, all meetings) are removed: its voiceprint is gone,
+  /// so there is nothing left to unlearn from those segments.
+  Future<bool> delete(String id) => _db.transaction(() async {
+        final n = await (_db.delete(_db.speakers)
+              ..where((s) => s.id.equals(id)))
+            .go();
+        await _rewriteLedgers(const {},
+            drop: {id, voiceprintLedgerTombstone(id)});
+        return n > 0;
+      });
 
   Selectable<Speaker> _forMeeting(String meetingId) => _db.customSelect(
         'SELECT sp.*, MIN(sg.idx) AS first_idx FROM speakers sp '
@@ -877,9 +922,16 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
+/// Directory of archived recordings (`AppPaths.recordingsDir`), used by
+/// [MeetingRepository.delete] to find the file of a stored file name.
+/// Overridden at app start (see `main.dart`); null in plain tests.
+final recordingsDirProvider =
+    Provider<Future<String> Function()?>((ref) => null);
+
 /// [MeetingRepository] over [databaseProvider].
 final meetingRepositoryProvider = Provider<MeetingRepository>(
-    (ref) => MeetingRepository(ref.watch(databaseProvider)));
+    (ref) => MeetingRepository(ref.watch(databaseProvider),
+        recordingsDir: ref.watch(recordingsDirProvider)));
 
 /// [SegmentRepository] over [databaseProvider].
 final segmentRepositoryProvider = Provider<SegmentRepository>(

@@ -92,9 +92,19 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
   keyPassword=…
   ```
 
-  (A relative `storeFile` is resolved against `android/app/`.) Without this
-  file, release builds are signed with the **debug key** so they still build
-  and install for testing — such builds cannot be uploaded to Google Play.
+  (A relative `storeFile` is resolved against `android/app/`.) The file uses
+  Java properties syntax, so a backslash in a value (e.g. a Windows path)
+  must be written as `\\` (`C:\\keys\\upload.jks`), or use forward slashes;
+  it is read as UTF-8.
+
+  Release builds can also take the signing values from the environment
+  variables `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. A non-empty variable
+  overrides the matching `key.properties` entry, and its value is used
+  verbatim (no properties escaping). With neither the file nor
+  `ANDROID_KEYSTORE_PATH`, release builds are signed with the **debug key**
+  so they still build and install for testing — such builds cannot be
+  uploaded to Google Play.
   Create an upload key with:
 
   ```bash
@@ -161,7 +171,20 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
   characters (e.g. an Arabic Windows user name).
 - Microphone access requires *Settings → Privacy & security → Microphone →
   Let desktop apps access your microphone* to be **on**; otherwise capture
-  yields silence or fails.
+  yields silence (the `record` plugin always reports the permission as
+  granted on Windows, so the capture service's silence watchdog warns the
+  user instead).
+- Data locations come from `CompanyName` / `ProductName` (both `Insato`) in
+  `windows/runner/Runner.rc`, so never rename them:
+  - `%LOCALAPPDATA%\Insato\Insato\` — `data\insato.sqlite`, `recordings\`,
+    `exports\` (private, not roamed, not in Documents/OneDrive);
+  - `%APPDATA%\Insato\Insato\` — `models\` and the DPAPI-encrypted
+    `flutter_secure_storage.dat` holding the API keys.
+
+  On first launch, `AppPaths.migrateLegacyWindowsData` moves what v1 kept in
+  Documents (`insato.sqlite*`, `recordings\<uuid>.wav`) to the local folder.
+  Files in `Documents\exports` are not migrated or deleted (the name is
+  generic and may belong to other apps); new exports go to LocalAppData.
 - The release output is the whole folder `build\windows\x64\runner\Release\`
   (exe + DLLs + `data\`); distribute it as one unit.
 
@@ -219,7 +242,11 @@ Steps:
    | `ANDROID_KEY_PASSWORD` | key password |
 
    Without them, Android artifacts are debug-signed (fine for side-loading
-   tests, rejected by Google Play).
+   tests, rejected by Google Play). The workflow decodes the keystore into
+   the runner's temporary directory and passes the path, passwords and alias
+   to Gradle as the environment variables described in 4.1; it no longer
+   writes them to `key.properties`, and it deletes the keystore at the end of
+   the job.
 4. The iOS IPA is unsigned: re-sign it (e.g. with your distribution
    certificate and provisioning profile via Xcode/fastlane) before installing
    or uploading to TestFlight. `ITSAppUsesNonExemptEncryption` is `false`

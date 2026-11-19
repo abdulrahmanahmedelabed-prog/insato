@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -16,6 +15,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/time_format.dart';
 import 'data/database.dart';
+import 'data/repositories.dart';
 import 'session/providers.dart';
 
 Future<void> main() async {
@@ -35,8 +35,13 @@ Future<void> main() async {
     overrides: [
       databaseProvider.overrideWithValue(db),
       appPathsProvider.overrideWithValue(paths),
+      recordingsDirProvider.overrideWithValue(paths.recordingsDir),
     ],
   );
+  // In the foreground (device unlocked): rewrites API keys stored with the
+  // old iOS keychain accessibility once. Never throws; a marker makes it a
+  // no-op afterwards. Awaited so no key read races the rewrite.
+  await container.read(secureSettingsProvider).migrateAccessibility();
   unawaited(recoverInterruptedMeetings(container));
 
   runApp(
@@ -73,12 +78,7 @@ Future<AppDatabase> openAppDatabase(AppPaths paths) async {
   } catch (e, st) {
     debugPrint('Insato: database migration failed: $e\n$st');
   }
-  return AppDatabase.forExecutor(
-    driftDatabase(
-      name: AppPaths.databaseName,
-      native: DriftNativeOptions(databaseDirectory: () async => dir),
-    ),
-  );
+  return AppDatabase.inDirectory(() async => dir);
 }
 
 /// Finalises meetings left `recording` / `processing` by a crash or a killed

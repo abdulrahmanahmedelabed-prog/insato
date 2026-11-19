@@ -67,22 +67,26 @@ final RegExp _meetingWavName = RegExp(
 ///   application cache directory) — never the user's Documents folder,
 ///   which is shared with other apps and commonly synced to OneDrive.
 class AppPaths {
-  /// Creates the paths. [documentsDir], [supportDir] and [localDataDir]
-  /// default to path_provider's application documents / support / cache
-  /// directories; [isWindows] defaults to the current platform.
+  /// Creates the paths. [documentsDir], [supportDir], [localDataDir] and
+  /// [temporaryDir] default to path_provider's application documents /
+  /// support / cache / temporary directories; [isWindows] defaults to the
+  /// current platform.
   AppPaths({
     Future<Directory> Function()? documentsDir,
     Future<Directory> Function()? supportDir,
     Future<Directory> Function()? localDataDir,
+    Future<Directory> Function()? temporaryDir,
     bool? isWindows,
   }) : _documents = documentsDir ?? getApplicationDocumentsDirectory,
        _support = supportDir ?? getApplicationSupportDirectory,
        _localData = localDataDir ?? getApplicationCacheDirectory,
+       _temporary = temporaryDir ?? getTemporaryDirectory,
        _isWindows = isWindows ?? Platform.isWindows;
 
   final Future<Directory> Function() _documents;
   final Future<Directory> Function() _support;
   final Future<Directory> Function() _localData;
+  final Future<Directory> Function() _temporary;
   final bool _isWindows;
 
   /// File name of the SQLite database (see `driftDatabase(name: 'insato')`).
@@ -108,6 +112,11 @@ class AppPaths {
   /// `<data root>/exports` (created on demand): files for sharing.
   Future<String> exportsDir() async =>
       _ensure(p.join(await _dataRoot(), 'exports'));
+
+  /// `<temporary>/share` (created on demand): short-lived files handed to
+  /// the share sheet on Android / iOS (see `DefaultShareGateway`).
+  Future<String> shareTempDir() async =>
+      _ensure(p.join((await _temporary()).path, 'share'));
 
   /// Directory of `insato.sqlite`: the app documents directory on Android
   /// and iOS (unchanged since v1), `<data root>\data` on Windows.
@@ -237,6 +246,10 @@ final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
 /// Creates a Claude minutes engine from the stored API key and the user's
 /// model / detail settings; yields null when no key is configured.
+///
+/// Throws [SecureStorageUnavailableException] when the keystore cannot be
+/// read right now (the key may exist): callers postpone the run instead of
+/// reporting a missing key (see [PostProcessor.generateMinutesIfPossible]).
 final minutesEngineFactoryProvider = Provider<MinutesEngineFactory>((ref) {
   final secure = ref.watch(secureSettingsProvider);
   final settings = ref.watch(appSettingsProvider);

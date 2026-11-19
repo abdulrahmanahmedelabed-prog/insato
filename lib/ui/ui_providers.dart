@@ -34,17 +34,27 @@ final missingModelsProvider = Provider<List<String>?>((ref) {
   return missingModelIds(settings, states);
 });
 
-/// Whether an Anthropic API key is stored. Invalidate after changing it.
-final anthropicKeyConfiguredProvider = FutureProvider<bool>((ref) async {
-  final key = await ref.watch(secureSettingsProvider).getAnthropicApiKey();
-  return key != null && key.isNotEmpty;
-});
+/// Whether an Anthropic API key is stored; null when the keystore cannot be
+/// read right now (e.g. a locked iOS device), so the UI does not claim the
+/// key is missing. Invalidate after changing it.
+final anthropicKeyConfiguredProvider = FutureProvider<bool?>(
+  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getAnthropicApiKey),
+);
 
-/// Whether a Deepgram API key is stored. Invalidate after changing it.
-final deepgramKeyConfiguredProvider = FutureProvider<bool>((ref) async {
-  final key = await ref.watch(secureSettingsProvider).getDeepgramApiKey();
-  return key != null && key.isNotEmpty;
-});
+/// Whether a Deepgram API key is stored; null when unknown (see
+/// [anthropicKeyConfiguredProvider]). Invalidate after changing it.
+final deepgramKeyConfiguredProvider = FutureProvider<bool?>(
+  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getDeepgramApiKey),
+);
+
+Future<bool?> _keyConfigured(Future<String?> Function() read) async {
+  try {
+    final key = await read();
+    return key != null && key.isNotEmpty;
+  } on SecureStorageUnavailableException {
+    return null;
+  }
+}
 
 /// Current settings snapshot, falling back to the defaults while loading.
 final settingsSnapshotProvider = Provider<AppSettingsData>(

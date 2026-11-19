@@ -54,8 +54,9 @@ const int kMinNewSpeakerVoiceprintMs = 3000;
 /// user locked the segment).
 const int kMinLearnSegmentMs = 1000;
 
-/// Settings-table key prefix of the per-meeting voiceprint ledger.
-const String kVoiceprintLedgerPrefix = 'voiceprint_ledger:';
+/// Settings-table key prefix of the per-meeting voiceprint ledger (the
+/// repository's [kVoiceprintLedgerKeyPrefix]; one source for both).
+const String kVoiceprintLedgerPrefix = kVoiceprintLedgerKeyPrefix;
 
 /// Failed speech segments [PostProcessor.reprocessFromAudio] tolerates out
 /// of [attempted] non-silent segments before it refuses to replace the
@@ -103,6 +104,11 @@ enum MinutesOutcome {
 
   /// The meeting has no transcript: the meeting is `ready` without minutes.
   skippedEmpty,
+
+  /// The stored Anthropic key could not be read right now (the keystore is
+  /// locked, e.g. iOS before the first unlock): the meeting is `ready`
+  /// without minutes and the user can generate them later.
+  postponedKeyUnavailable,
 }
 
 // ===========================================================================
@@ -699,12 +705,21 @@ class PostProcessor {
         if (e == null || !isUsableEmbedding(e)) continue;
         final prev = ledger[s.id];
         final cur = s.speakerId;
-        if (prev == cur) continue;
-        if (prev != null) {
-          // A merge rewrites the ledger ([mergeSpeakers]), so a previous
-          // speaker that no longer exists was deleted: its voiceprint is
-          // gone, there is nothing to unlearn, and the segment is learned
-          // into its current speaker like any new segment.
+        final tomb = prev == null
+            ? null
+            : voiceprintLedgerTombstoneSpeaker(prev);
+        if (tomb != null) {
+          // The segment belongs to `tomb` without contributing to any
+          // voiceprint (forgotten, or dropped by a merge): while it stays
+          // there it is never learned again, and moving it away has nothing
+          // to unlearn.
+          if (tomb == cur) continue;
+          ledger.remove(s.id);
+        } else if (prev != null) {
+          if (prev == cur) continue;
+          // Merges rewrite the ledgers (SpeakerRepository.merge), so a
+          // previous speaker that no longer exists was deleted: its
+          // voiceprint is gone and there is nothing to unlearn.
           if (speakers.containsKey(prev)) (removes[prev] ??= []).add(e);
           ledger.remove(s.id);
         }
@@ -736,6 +751,13 @@ class PostProcessor {
           );
           await _speakers.updateVoiceprint(id, c, n);
         } else if (centroid == null) {
+          // forgetVoice turns this speaker's entries in every stored ledger
+          // into tombstones; do the same in the in-memory ledger, or saving
+          // it below would overwrite them for this meeting.
+          final tombstone = voiceprintLedgerTombstone(id);
+          for (final k in ledger.keys.toList()) {
+            if (ledger[k] == id) ledger[k] = tombstone;
+          }
           await _speakers.forgetVoice(id);
         } else {
           await _speakers.updateVoiceprint(id, centroid, count);
@@ -816,35 +838,14 @@ class PostProcessor {
   Future<Speaker> mergeSpeakers(String fromId, String intoId) async {
     try {
       return await _db.transaction(() async {
-        final merged = await _speakers.merge(fromId, intoId);
-        if (fromId != intoId) await _renameInLedgers(fromId, intoId);
-        return merged;
+        // SpeakerRepository.merge rewrites the ledgers in its transaction.
+        return await _speakers.merge(fromId, intoId);
       });
     } on StateError catch (e) {
       throw InsatoException(
         'أحد المتحدثَين غير موجود.',
         debugDetails: e.message,
         cause: e,
-      );
-    }
-  }
-
-  Future<void> _renameInLedgers(String fromId, String intoId) async {
-    final rows = await _db.select(_db.settings).get();
-    for (final row in rows) {
-      if (!row.key.startsWith(kVoiceprintLedgerPrefix)) continue;
-      final ledger = decodeVoiceprintLedger(row.value);
-      var changed = false;
-      for (final e in ledger.entries.toList()) {
-        if (e.value == fromId) {
-          ledger[e.key] = intoId;
-          changed = true;
-        }
-      }
-      if (!changed) continue;
-      await _saveLedger(
-        row.key.substring(kVoiceprintLedgerPrefix.length),
-        ledger,
       );
     }
   }
@@ -876,8 +877,9 @@ class PostProcessor {
         : await _resolveAudio(stored);
     final deleted = await _meetings.delete(meetingId);
     await _saveLedger(meetingId, const {});
-    // The repository deletes the file at the stored path only; with a stored
-    // file name (or a stale absolute path) the recording is elsewhere.
+    // The repository also deletes the recording when it was given the
+    // recordings directory (see recordingsDirProvider); resolving it here
+    // keeps the delete complete with [AppPaths] alone (e.g. in tests).
     if (deleted && audio != null) {
       try {
         final f = File(audio);
@@ -937,7 +939,14 @@ class PostProcessor {
       await _markReadyIfProcessing(meetingId);
       return MinutesOutcome.skippedEmpty;
     }
-    final handle = await _minutesFactory?.call();
+    final MinutesEngineHandle? handle;
+    try {
+      handle = await _minutesFactory?.call();
+    } on SecureStorageUnavailableException {
+      // The key may well exist: postpone instead of reporting "no key".
+      await _markReadyIfProcessing(meetingId);
+      return MinutesOutcome.postponedKeyUnavailable;
+    }
     if (handle == null) {
       await _markReadyIfProcessing(meetingId);
       return MinutesOutcome.skippedNoApiKey;
@@ -1527,6 +1536,14 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           noticeAr: 'لم يُلتقط أي كلام في هذا الاجتماع، لذا لم يُنشأ محضر.',
+        ),
+        MinutesOutcome.postponedKeyUnavailable => const MeetingJobState(
+          kind: MeetingJobKind.minutes,
+          phase: MeetingJobPhase.succeeded,
+          progress: 1,
+          noticeAr:
+              'تعذّرت قراءة مفتاح Claude المحفوظ الآن لأن الجهاز مقفل، فأُجّل '
+              'المحضر. افتح قفل الجهاز ثم اضغط «إنشاء المحضر».',
         ),
       };
     });

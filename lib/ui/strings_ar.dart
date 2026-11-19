@@ -195,6 +195,27 @@ abstract final class S {
   /// Discard button.
   static const String discard = 'تجاهل وحذف';
 
+  /// The take ended on its own before the discard was confirmed.
+  static const String discardTooLate =
+      'انتهى التسجيل قبل تأكيد التجاهل، فحُفظ الاجتماع. يمكنك حذفه من قائمة '
+      'الاجتماعات إن شئت.';
+
+  /// Finish-later action on the finishing overlay.
+  static const String finishLater = 'إنهاء لاحقًا';
+
+  /// Explanation shown above [finishLater].
+  static const String finishLaterHint =
+      'يمكنك حفظ الاجتماع الآن دون انتظار اكتمال التفريغ، ثم إعادة معالجته '
+      'من التسجيل الصوتي لاحقًا.';
+
+  /// Finish later is no longer possible.
+  static const String finishLaterUnavailable =
+      'لم يعد ذلك ممكنًا؛ أوشك التفريغ على الاكتمال.';
+
+  /// Live transcription suspended because it fell too far behind.
+  static const String liveTranscriptionPaused =
+      'التفريغ المباشر متوقف مؤقتًا، والتسجيل مستمر';
+
   /// Live transcript empty.
   static const String listeningHint =
       'إنصاتو يستمع… سيظهر النص هنا بعد أول جملة مكتملة.';
@@ -264,9 +285,11 @@ abstract final class S {
       'تسجيل الآخرين دون علمهم قد يخالف القانون أو سياسات جهة العمل. يجب '
       'إبلاغ جميع المشاركين بأن الاجتماع يُسجَّل والحصول على موافقتهم قبل '
       'البدء.\n\n'
-      'يبقى الصوت والنص والبصمات الصوتية على جهازك. يُرسَل نص الاجتماع فقط '
-      'إلى خدمة Claude لكتابة المحضر، ويُرسَل الصوت إلى Deepgram فقط إذا '
-      'اخترت التفريغ السحابي.';
+      'تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك. يُرسَل نص الاجتماع '
+      'فقط '
+      'إلى خدمة Claude لكتابة المحضر. وإذا اخترت التفريغ السحابي تُرسَل مقاطع '
+      'الصوت إلى Deepgram لمعالجتها؛ يطلب إنصاتو من Deepgram عدم استخدامها '
+      'في تدريب نماذجها، لكن مدة احتفاظها بها تخضع لسياسة بياناتها.';
 
   /// Consent checkbox.
   static const String consentCheckbox =
@@ -643,6 +666,10 @@ abstract final class S {
   /// Key configured.
   static const String keyConfigured = 'المفتاح مضبوط';
 
+  /// The stored key cannot be read right now (locked keystore).
+  static const String keyUnreadable =
+      'تتعذّر قراءة المفتاح المحفوظ الآن؛ افتح قفل الجهاز ثم عُد إلى هذه الصفحة.';
+
   /// Key not configured.
   static const String keyNotConfigured = 'لم يُضبط مفتاح بعد';
 
@@ -698,7 +725,9 @@ abstract final class S {
   /// ASR explanation cloud.
   static const String asrCloudHelper =
       'دقة أعلى وسرعة أكبر على الأجهزة الضعيفة، لكن مقاطع الصوت تُرسَل إلى '
-      'Deepgram. تبقى البصمات الصوتية على جهازك.';
+      'Deepgram لمعالجتها. يطلب إنصاتو عدم استخدامها في تدريب النماذج، '
+      'ويخضع الاحتفاظ بها لسياسة بيانات Deepgram. تبقى البصمات الصوتية على '
+      'جهازك.';
 
   /// Deepgram key.
   static const String deepgramKey = 'مفتاح Deepgram API';
@@ -758,11 +787,14 @@ abstract final class S {
 
   /// Privacy text.
   static const String privacyBody =
-      '• يبقى الصوت والنص والبصمات الصوتية على جهازك فقط، ولا تُنسخ احتياطيًا '
-      'إلى السحابة.\n'
+      '• تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك فقط، ولا تُنسخ '
+      'احتياطيًا إلى السحابة.\n'
       '• لكتابة المحضر يُرسَل نص الاجتماع فقط إلى Anthropic (Claude).\n'
-      '• في التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram.\n'
-      '• مفاتيح API محفوظة في المخزن الآمن للجهاز.\n'
+      '• في التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram لمعالجتها، مع '
+      'طلب عدم استخدامها في تدريب النماذج؛ ويخضع الاحتفاظ بها لسياسة بيانات '
+      'Deepgram.\n'
+      '• مفاتيح API محفوظة مشفّرة في المخزن الآمن للنظام، لا في قاعدة بيانات '
+      'التطبيق.\n'
       '• أبلغ المشاركين دائمًا بأن الاجتماع يُسجَّل.';
 
   /// Section: about.

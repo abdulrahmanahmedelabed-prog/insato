@@ -57,8 +57,13 @@ class CloudAsrEngine implements AsrEngine {
   /// Timeout of one HTTP request.
   final Duration requestTimeout;
 
-  /// Source of the API key, queried before every request.
+  /// Source of the API key, queried before every request (so a key changed
+  /// in the settings applies at once). When it cannot be read (e.g. the
+  /// keystore is locked), the key read last is used instead.
   final ApiKeyProvider apiKeyProvider;
+
+  /// Key returned by the last successful [apiKeyProvider] call.
+  String? _lastKey;
 
   final http.Client _client;
   final bool _ownsClient;
@@ -69,12 +74,28 @@ class CloudAsrEngine implements AsrEngine {
   String get name => 'deepgram-$model (cloud)';
 
   Future<String> _key() async {
-    final k = (await apiKeyProvider())?.trim();
+    String? k;
+    try {
+      k = (await apiKeyProvider())?.trim();
+    } catch (e) {
+      // The key store failed (not "no key"): keep using the key read earlier
+      // in this session, or fail this segment as a transient error so it is
+      // not reported as a missing key.
+      final last = _lastKey;
+      if (last != null) return last;
+      throw AsrException(
+        'تعذّرت قراءة مفتاح Deepgram المحفوظ الآن. افتح قفل الجهاز وحاول '
+        'مجددًا.',
+        debugDetails: 'api key provider failed: $e',
+        cause: e,
+      );
+    }
     if (k == null || k.isEmpty) {
+      _lastKey = null;
       throw const MissingApiKeyException(
           'لم يتم إدخال مفتاح Deepgram. أضفه من الإعدادات لاستخدام التفريغ السحابي.');
     }
-    return k;
+    return _lastKey = k;
   }
 
   @override

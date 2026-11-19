@@ -36,7 +36,10 @@ Anthropic وسياسة خصوصيتها الخاصة بالواجهة البرم
 
 ### ب) التفريغ السحابي — Deepgram (اختياري، معطّل افتراضياً)
 إذا اخترت محرك التفريغ السحابي، تُرسَل **مقاطع الصوت** إلى Deepgram عبر
-HTTPS باستخدام مفتاحك، ويعود النص فقط. تخضع لسياسة Deepgram:
+HTTPS باستخدام مفتاحك لمعالجتها، ويعود النص فقط. يطلب إنصاتو في كل طلب
+الانسحاب من برنامج تحسين النماذج لدى Deepgram (`mip_opt_out=true`)، أي ألّا
+تُستخدم هذه المقاطع في تدريب نماذجها. ومع ذلك فإن مدة احتفاظ Deepgram بالصوت
+والنص وكيفية تعاملها معهما تحكمهما سياسة بياناتها هي، لا إنصاتو:
 <https://deepgram.com/privacy>. مع التفريغ على الجهاز (الافتراضي) لا يُرسَل أي
 صوت.
 
@@ -52,14 +55,30 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
 
 ## 3. الحماية والاحتفاظ والحذف
 
-- تُحفظ مفاتيح API في المخزن الآمن للنظام: Android Keystore، و‏iOS Keychain،
-  وتشفير DPAPI المرتبط بحساب المستخدم على Windows.
+- تُحفظ مفاتيح API في المخزن الآمن للنظام، لا في قاعدة بيانات التطبيق:
+  - Android: تشفير مرتبط بـ Android Keystore.
+  - iOS: سلسلة المفاتيح (Keychain) بفئة الوصول «بعد أول فتح للقفل، على هذا
+    الجهاز فقط»: تبقى قابلة للقراءة والشاشة مقفلة (ليستمر التفريغ السحابي
+    والمحضر أثناء التسجيل في الخلفية) بعد أول فتح لقفل الجهاز منذ تشغيله،
+    ولا تُنقل إلى جهاز آخر (لا تُستعاد من نسخة احتياطية إلا على الجهاز نفسه)
+    ولا تُزامَن عبر iCloud Keychain.
+  - Windows: ملف مشفّر بتقنية DPAPI المرتبطة بحساب المستخدم في
+    `%APPDATA%\Insato\Insato`.
 - تُستثنى بيانات التطبيق من النسخ الاحتياطي السحابي ومن النقل بين الأجهزة
   على Android، ومن نسخ iCloud والحاسوب على iOS. لذلك **لا تنتقل اجتماعاتك
   تلقائياً إلى جهاز جديد**؛ صدّر ما تحتاجه من محاضر قبل تغيير الجهاز.
+- على Windows تُحفظ الاجتماعات (قاعدة البيانات والتسجيلات والملفات المصدَّرة)
+  في المجلد المحلي الخاص بالتطبيق `%LOCALAPPDATA%\Insato\Insato`، لا في مجلد
+  «المستندات» الذي تشاركه تطبيقات أخرى وكثيراً ما يُزامَن مع OneDrive. تُنقل
+  بيانات الإصدارات السابقة من «المستندات» إليه تلقائياً عند أول تشغيل، أما
+  الملفات المصدَّرة سابقاً في `Documents\exports` فتبقى في مكانها لأن اسم المجلد
+  عام وقد يخص تطبيقات أخرى؛ احذفها يدوياً إن لم تعد تحتاجها. تُحفظ نماذج
+  التعرّف على الكلام في `%APPDATA%\Insato\Insato\models`.
 - يمكنك اختيار عدم الاحتفاظ بملفات الصوت بعد التفريغ من «الإعدادات».
 - يمكنك حذف أي اجتماع أو متحدث أو بصمة صوتية في أي وقت من داخل التطبيق.
-  حذف التطبيق يحذف كل بياناته من الجهاز.
+  حذف التطبيق على Android وiOS يحذف كل بياناته من الجهاز. على Windows يُوزَّع
+  التطبيق مجلداً بلا برنامج إزالة، فاحذف المجلدين المذكورين أعلاه يدوياً لإزالة
+  بياناته ومفاتيحه.
 - البيانات المرسَلة إلى Anthropic أو Deepgram يحكمها احتفاظ تلك الجهات
   وفق شروطها؛ لا يملك إنصاتو نسخة منها.
 
@@ -130,9 +149,13 @@ Anthropic's API terms and privacy policy: <https://www.anthropic.com/legal/priva
 
 ### b) Cloud transcription — Deepgram (optional, off by default)
 If you select the cloud transcription engine, **audio segments** are sent
-over HTTPS to Deepgram with your API key and only text comes back. Governed
-by Deepgram's policy: <https://deepgram.com/privacy>. With on-device
-transcription (the default) no audio is sent anywhere.
+over HTTPS to Deepgram with your API key for processing, and only text comes
+back. Every request opts out of Deepgram's Model Improvement Program
+(`mip_opt_out=true`), asking Deepgram not to use the audio to train its
+models. How long Deepgram retains the audio and transcript, and how it
+handles them, is still governed by Deepgram's own data policy, not by
+Insato: <https://deepgram.com/privacy>. With on-device transcription (the
+default) no audio is sent anywhere.
 
 ### c) Model downloads
 AI models are downloaded once from the sherpa-onnx project's GitHub
@@ -146,14 +169,33 @@ the requesting IP address under its own policy.
 
 ## 3. Security, retention and deletion
 
-- API keys are kept in the OS secure store: Android Keystore, iOS Keychain,
-  and DPAPI encryption bound to your Windows user account.
+- API keys are kept in OS secure storage, never in the app database:
+  - Android: encryption backed by the Android Keystore.
+  - iOS: the Keychain with the "after first unlock, this device only"
+    accessibility class: readable while the screen is locked once the device
+    has been unlocked after boot (so cloud transcription and minutes keep
+    working during background recording), never moved to another device (a
+    backup restores them only onto the same device) and not synced through
+    iCloud Keychain.
+  - Windows: a file encrypted with DPAPI, bound to your Windows user
+    account, in `%APPDATA%\Insato\Insato`.
 - App data is excluded from cloud backup and device-to-device transfer on
   Android, and from iCloud/computer backups on iOS. Consequently **meetings do
   not move to a new device automatically**; export the minutes you need first.
+- On Windows, meetings (database, recordings, exported files) are stored in
+  the app's private local folder `%LOCALAPPDATA%\Insato\Insato`, not in
+  Documents, which other apps share and which is often synced to OneDrive.
+  Data from earlier versions is moved there from Documents on first launch.
+  Files exported earlier to `Documents\exports` are left in place, because
+  that folder name is generic and may belong to other apps; delete them by
+  hand if you no longer need them. Speech models are stored in
+  `%APPDATA%\Insato\Insato\models`.
 - You can choose not to keep audio files after transcription (Settings).
 - Any meeting, speaker or voiceprint can be deleted at any time in the app.
-  Uninstalling the app deletes all of its data from the device.
+  Uninstalling the app on Android and iOS deletes all of its data from the
+  device. On Windows the app is distributed as a folder without an
+  uninstaller: delete the two folders named above to remove its data and
+  keys.
 - Data sent to Anthropic or Deepgram is retained under those providers'
   terms; Insato keeps no copy of it anywhere else.
 

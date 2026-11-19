@@ -26,6 +26,7 @@ import 'package:insato/ui/services/connection_tester.dart';
 import 'package:insato/ui/services/share_gateway.dart';
 import 'package:insato/ui/strings_ar.dart';
 import 'package:insato/ui/theme.dart';
+import 'package:insato/ui/ui_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -184,6 +185,46 @@ void main() {
       expect(find.textContaining('الاتصال ناجح'), findsOneWidget);
       expect(t.takeException(), isNull);
     });
+
+    testWidgets('an unreadable key store is not shown as a missing key', (
+      t,
+    ) async {
+      await pumpBare(
+        t,
+        ApiKeyCard(
+          label: S.anthropicKey,
+          load: () async =>
+              throw const SecureStorageUnavailableException('مقفل'),
+          save: (_) async {},
+          clear: () async {},
+        ),
+      );
+      await t.pump();
+      expect(find.text(S.keyUnreadable), findsOneWidget);
+      expect(find.text(S.keyNotConfigured), findsNothing);
+      expect(find.text(S.clearKey), findsNothing);
+      expect(t.takeException(), isNull);
+    });
+
+    test(
+      'key-configured providers report null while the store is locked',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            secureSettingsProvider.overrideWithValue(_LockedSecureSettings()),
+          ],
+        );
+        addTearDown(container.dispose);
+        expect(
+          await container.read(anthropicKeyConfiguredProvider.future),
+          isNull,
+        );
+        expect(
+          await container.read(deepgramKeyConfiguredProvider.future),
+          isNull,
+        );
+      },
+    );
 
     testWidgets('clearing a key that fails reports the error', (t) async {
       await pumpBare(
@@ -410,6 +451,9 @@ void main() {
       await t.tap(find.widgetWithText(FilledButton, S.save).last);
       await settle(t, rounds: 10);
 
+      // The session title and the recording notification follow too.
+      expect(env.hooks.titles, ['مراجعة الميزانية']);
+
       await popTop(t);
       await settle(t, rounds: 10);
       final bar = find.ancestor(
@@ -420,6 +464,38 @@ void main() {
         find.descendant(of: bar.first, matching: find.text('مراجعة الميزانية')),
         findsOneWidget,
       );
+      await env.dispose(t);
+    });
+
+    testWidgets('finish later on the finishing overlay saves the meeting', (
+      t,
+    ) async {
+      setScreenSize(t, kPhone);
+      final env = UiTestEnv();
+      await env.run(t, () async {
+        await AppSettings(env.db)
+            .save(const AppSettingsData(consentAcknowledged: true));
+      });
+      await pumpApp(t, env);
+      await t.tap(find.byType(FloatingActionButton));
+      await settle(t, rounds: 10);
+      final gate = env.engines.asr.gate = Completer<void>();
+      env.audio.emit(voiceSamples(0, 2000));
+      env.audio.emit(voiceSamples(1, 2000));
+      await settle(t, rounds: 10);
+
+      await t.tap(find.widgetWithText(FilledButton, S.stop));
+      await settle(t);
+      await t.tap(find.widgetWithText(FilledButton, S.stop).last);
+      await settle(t, rounds: 10);
+      expect(find.text(S.finishLater), findsOneWidget);
+
+      await t.tap(find.text(S.finishLater));
+      await settle(t, rounds: 20);
+      expect(find.byType(MeetingDetailScreen), findsOneWidget);
+      expect(find.byType(RecordingScreen, skipOffstage: false), findsNothing);
+      gate.complete();
+      await settle(t);
       await env.dispose(t);
     });
 
@@ -528,4 +604,14 @@ void main() {
       expect(File(r.savedPath!).existsSync(), isTrue);
     });
   });
+}
+
+class _LockedSecureSettings extends FakeSecureSettings {
+  @override
+  Future<String?> getAnthropicApiKey() async =>
+      throw const SecureStorageUnavailableException('مقفل');
+
+  @override
+  Future<String?> getDeepgramApiKey() async =>
+      throw const SecureStorageUnavailableException('مقفل');
 }

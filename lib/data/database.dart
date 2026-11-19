@@ -150,8 +150,25 @@ class Settings extends Table {
 @DriftDatabase(tables: [Speakers, Meetings, Segments, Settings])
 class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database file `insato.sqlite` in the application
-  /// documents directory (Android, iOS, Windows) on a background isolate.
+  /// documents directory on a background isolate. Used on Android and iOS;
+  /// on Windows the app opens it in a private local app-data folder with
+  /// [AppDatabase.inDirectory] instead (see `openAppDatabase` in main.dart),
+  /// because Documents is shared with other apps and often synced.
   AppDatabase() : super(driftDatabase(name: 'insato'));
+
+  /// Opens `insato.sqlite` in the directory returned by [directory] on a
+  /// background isolate. [tempDirectory] (SQLite's temporary files) defaults
+  /// to the platform temporary directory.
+  AppDatabase.inDirectory(
+    Future<String> Function() directory, {
+    Future<String?> Function()? tempDirectory,
+  }) : super(driftDatabase(
+          name: 'insato',
+          native: DriftNativeOptions(
+            databaseDirectory: () async => directory(),
+            tempDirectoryPath: tempDirectory,
+          ),
+        ));
 
   /// Opens the database on an arbitrary [executor], e.g.
   /// `NativeDatabase.memory()` in tests.
