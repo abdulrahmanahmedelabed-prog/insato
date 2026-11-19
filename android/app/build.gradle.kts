@@ -58,7 +58,7 @@ fun releaseProperty(name: String): String =
 
 android {
     namespace = "app.insato.insato"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
