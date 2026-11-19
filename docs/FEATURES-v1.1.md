@@ -175,3 +175,22 @@ an extra `codes` section of the JSON schema; detector 1 also uses audio-level
 signals from the ASR stage. Same transparency rules as F16: findings are
 descriptive and evidence-backed; participants should be informed that
 meetings are recorded and analysed.
+
+## D1 — Windows = mobile (تطابق كامل بين ويندوز والجوال)
+Owner requirement: the Windows app is the same app as the phone app in every
+respect, **including appearance**.
+* One layout for all platforms: the phone UI (bottom NavigationBar, single
+  column screens, same sheets/dialogs/animations). No NavigationRail,
+  no two-pane master/detail, no desktop-specific widgets.
+* Windows window opens at a phone-like size (≈ 440 × 900 logical px,
+  centred, resizable, minimum 360 × 640). If the user enlarges the window the
+  content stays a centred phone-width column (max ≈ 600 px) on the app
+  background — it never re-flows into a desktop layout.
+* Same theme, fonts, icons, colours, strings, feature set and settings on
+  all platforms. Platform-specific behaviour is limited to what the OS forces
+  (permissions, background service) and is invisible in the UI.
+* Only extra on Windows: the audio-source selector (mic / system audio /
+  both, F13), because phones cannot capture other apps' audio. Keyboard
+  shortcuts remain as invisible conveniences.
+* Visual regression: golden tests render key screens at phone size and are
+  the reference for both platforms.
