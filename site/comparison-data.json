@@ -946,8 +946,8 @@
   {
    "title_en": "Accuracy is unproven: no benchmarks, no users",
    "title_ar": "دقة غير مُثبتة: لا قياسات ولا مستخدمين",
-   "detail_en": "Raqim is pre-release. It has published no word error rate, speaker-attribution accuracy or minutes-quality evaluation, and no meeting has been recorded in the field. Every quality claim is still a design intent.",
-   "detail_ar": "رقيم ما زال قبل الإطلاق، ولم ينشر أي معدل لخطأ الكلمات أو لدقة نسبة الكلام أو لجودة المحاضر، ولم يُسجَّل به أي اجتماع ميداني. كل ادعاء عن الجودة ما زال هدفًا تصميميًا.",
+   "detail_en": "Insato is pre-release. It has published no word error rate, speaker-attribution accuracy or minutes-quality evaluation, and no meeting has been recorded in the field. Every quality claim is still a design intent.",
+   "detail_ar": "إنصاتو ما زال قبل الإطلاق، ولم ينشر أي معدل لخطأ الكلمات أو لدقة نسبة الكلام أو لجودة المحاضر، ولم يُسجَّل به أي اجتماع ميداني. كل ادعاء عن الجودة ما زال هدفًا تصميميًا.",
    "who_does_better": "Otter.ai, Fireflies.ai and Microsoft Teams are shipped at scale. Arabic ASR vendors such as Munsit, Jais-ASR and Lisan publish vendor-reported Arabic WER/CER.",
    "severity": "high",
    "mitigation_en": "Before launch, publish a reproducible benchmark: WER on public Arabic sets (SADA, Casablanca, Common Voice) and on a consented in-house set of real meetings, plus speaker-attribution accuracy and a human rating of minutes quality.",
@@ -966,8 +966,8 @@
   {
    "title_en": "Cannot capture remote meetings properly",
    "title_ar": "لا يلتقط الاجتماعات عن بُعد بشكل سليم",
-   "detail_en": "Raqim has no meeting bot. System-audio capture on Windows is still only planned. iOS does not let apps record other apps' audio, so remote participants are captured only if they play through a speaker.",
-   "detail_ar": "لا يملك رقيم روبوت اجتماعات، والتقاط صوت النظام في ويندوز ما زال مخططًا له، ونظام iOS لا يسمح بتسجيل صوت التطبيقات الأخرى، فلا يُلتقط صوت المشاركين عن بُعد إلا إذا خرج من مكبر الصوت.",
+   "detail_en": "Insato has no meeting bot. System-audio capture on Windows is still only planned. iOS does not let apps record other apps' audio, so remote participants are captured only if they play through a speaker.",
+   "detail_ar": "لا يملك إنصاتو روبوت اجتماعات، والتقاط صوت النظام في ويندوز ما زال مخططًا له، ونظام iOS لا يسمح بتسجيل صوت التطبيقات الأخرى، فلا يُلتقط صوت المشاركين عن بُعد إلا إذا خرج من مكبر الصوت.",
    "who_does_better": "Otter.ai, Fireflies.ai, Zoom My Notes, Plaud Desktop, MacWhisper and Sembly all capture remote meetings, and Teams and Zoom capture natively on their own platforms.",
    "severity": "high",
    "mitigation_en": "Ship Windows system-audio capture (WASAPI loopback) first. Document the speakerphone workaround on phones. Consider importing recordings from Zoom and Teams.",
@@ -996,8 +996,8 @@
   {
    "title_en": "No team collaboration, integrations or calendar",
    "title_ar": "لا عمل جماعي ولا تكاملات ولا تقويم",
-   "detail_en": "Raqim is single-user and only exports PDF and Markdown. It has no shared workspace, calendar, task tools or CRM sync, and no question-answering across meetings yet.",
-   "detail_ar": "رقيم أداة لمستخدم واحد تصدّر PDF وMarkdown فقط، ولا تملك بعد مساحة عمل مشتركة ولا تقويمًا ولا ربطًا بأدوات المهام أو أنظمة إدارة العملاء، ولا أسئلة عبر الاجتماعات.",
+   "detail_en": "Insato is single-user and only exports PDF and Markdown. It has no shared workspace, calendar, task tools or CRM sync, and no question-answering across meetings yet.",
+   "detail_ar": "إنصاتو أداة لمستخدم واحد تصدّر PDF وMarkdown فقط، ولا تملك بعد مساحة عمل مشتركة ولا تقويمًا ولا ربطًا بأدوات المهام أو أنظمة إدارة العملاء، ولا أسئلة عبر الاجتماعات.",
    "who_does_better": "Otter.ai, Fireflies.ai (AskFred), Microsoft Teams/Copilot, Google Meet and Sembly.",
    "severity": "medium",
    "mitigation_en": "Ship the planned DOCX export, Q&A across meetings and action-item tracking. Add calendar context and sharing on top of the on-device-first design.",
@@ -1006,12 +1006,12 @@
   {
    "title_en": "No compliance certifications",
    "title_ar": "لا شهادات امتثال",
-   "detail_en": "Raqim has no SOC 2, no ISO 27001, no HIPAA attestation and no documented PDPL review. This blocks many enterprise and government procurements.",
-   "detail_ar": "لا يملك رقيم SOC 2 ولا ISO 27001 ولا اعتماد HIPAA ولا مراجعة موثقة لنظام حماية البيانات الشخصية السعودي، وهذا يمنع كثيرًا من مشتريات المؤسسات والجهات الحكومية.",
+   "detail_en": "Insato has no SOC 2, no ISO 27001, no HIPAA attestation and no documented PDPL review. This blocks many enterprise and government procurements.",
+   "detail_ar": "لا يملك إنصاتو SOC 2 ولا ISO 27001 ولا اعتماد HIPAA ولا مراجعة موثقة لنظام حماية البيانات الشخصية السعودي، وهذا يمنع كثيرًا من مشتريات المؤسسات والجهات الحكومية.",
    "who_does_better": "Microsoft Teams, Zoom, Google Meet, Otter.ai, Fireflies.ai, Sembly and Plaud (vendor-claimed). Mudawin claims Saudi hosting.",
    "severity": "medium",
-   "mitigation_en": "Publish a clear data-flow and threat model. Show that on-device processing keeps data out of Raqim's hands. Document PDPL alignment. Plan certification once there is a managed service.",
-   "mitigation_ar": "نشر مخطط واضح لتدفق البيانات ونموذج للتهديدات، وإبراز أن المعالجة على الجهاز تبقي البيانات بعيدًا عن يد رقيم، وتوثيق التوافق مع نظام حماية البيانات الشخصية، والتخطيط للحصول على الشهادات عند إطلاق خدمة مُدارة."
+   "mitigation_en": "Publish a clear data-flow and threat model. Show that on-device processing keeps data out of Insato's hands. Document PDPL alignment. Plan certification once there is a managed service.",
+   "mitigation_ar": "نشر مخطط واضح لتدفق البيانات ونموذج للتهديدات، وإبراز أن المعالجة على الجهاز تبقي البيانات بعيدًا عن يد إنصاتو، وتوثيق التوافق مع نظام حماية البيانات الشخصية، والتخطيط للحصول على الشهادات عند إطلاق خدمة مُدارة."
   },
   {
    "title_en": "Diarization limits with one microphone, overlapping speech and far-field audio",
@@ -1046,8 +1046,8 @@
   {
    "title_en": "No web app, Mac or Linux",
    "title_ar": "لا تطبيق ويب ولا ماك ولا لينكس",
-   "detail_en": "Raqim runs only on Android, iOS and Windows, so many executives and teams on Mac or in the browser are left out.",
-   "detail_ar": "يعمل رقيم على أندرويد وiOS وويندوز فقط، فيُستبعد كثير من التنفيذيين والفرق الذين يعملون على ماك أو عبر المتصفح.",
+   "detail_en": "Insato runs only on Android, iOS and Windows, so many executives and teams on Mac or in the browser are left out.",
+   "detail_ar": "يعمل إنصاتو على أندرويد وiOS وويندوز فقط، فيُستبعد كثير من التنفيذيين والفرق الذين يعملون على ماك أو عبر المتصفح.",
    "who_does_better": "Otter.ai, Fireflies.ai and Plaud cover web, Mac and Windows. Zoom also supports Linux.",
    "severity": "low",
    "mitigation_en": "Flutter makes a macOS build feasible. Prioritize Mac after Windows system-audio capture.",
@@ -1056,20 +1056,20 @@
   {
    "title_en": "New brand with no track record",
    "title_ar": "علامة جديدة بلا سجل سابق",
-   "detail_en": "Raqim has no reviews, case studies or customers yet, while buyers can choose long-established brands.",
-   "detail_ar": "لا يملك رقيم بعد أي مراجعات أو دراسات حالة أو عملاء، بينما يستطيع المشترون اختيار علامات راسخة منذ سنوات.",
+   "detail_en": "Insato has no reviews, case studies or customers yet, while buyers can choose long-established brands.",
+   "detail_ar": "لا يملك إنصاتو بعد أي مراجعات أو دراسات حالة أو عملاء، بينما يستطيع المشترون اختيار علامات راسخة منذ سنوات.",
    "who_does_better": "Microsoft, Zoom, Google and Otter are established brands.",
    "severity": "low",
-   "mitigation_en": "Run pilot programs with published case studies and a public changelog, and register the Raqim trademark in target markets before launch.",
-   "mitigation_ar": "تنفيذ برامج تجريبية مع نشر دراسات حالة وسجل تغييرات علني، وتسجيل علامة «رقيم» التجارية في الأسواق المستهدفة قبل الإطلاق."
+   "mitigation_en": "Run pilot programs with published case studies and a public changelog, and register the Insato trademark in target markets before launch.",
+   "mitigation_ar": "تنفيذ برامج تجريبية مع نشر دراسات حالة وسجل تغييرات علني، وتسجيل علامة «إنصاتو» التجارية في الأسواق المستهدفة قبل الإطلاق."
   }
  ],
  "katib_strengths": [
   {
    "title_en": "Formal Arabic minutes are the core product",
    "title_ar": "المحضر العربي الرسمي هو جوهر المنتج",
-   "detail_en": "Raqim's main output is structured Arabic minutes: summary, topics, decisions and action items. Templates with quorum, Hijri and Gregorian dates, and signatures are planned.",
-   "detail_ar": "يخرج رقيم محضرًا عربيًا منظمًا يضم الملخص والمحاور والقرارات والمهام، مع قوالب مخطط لها تشمل النصاب والتاريخين الهجري والميلادي والتوقيعات.",
+   "detail_en": "Insato's main output is structured Arabic minutes: summary, topics, decisions and action items. Templates with quorum, Hijri and Gregorian dates, and signatures are planned.",
+   "detail_ar": "يخرج إنصاتو محضرًا عربيًا منظمًا يضم الملخص والمحاور والقرارات والمهام، مع قوالب مخطط لها تشمل النصاب والتاريخين الهجري والميلادي والتوقيعات.",
    "evidence_en": "Global tools produce generic notes. Fireflies, Zoom and Teams can output Arabic summaries but no formal minutes. Otter and Google Meet have no Arabic at all. Only Saudi tools Mudawin and Faris claim Arabic minutes, and they are web or enterprise products tied to online meetings.",
    "evidence_ar": "تخرج الأدوات العالمية ملاحظات عامة: Fireflies وZoom وTeams تعطي ملخصات عربية دون صيغة محضر رسمي، وOtter وGoogle Meet لا تدعم العربية أصلًا. وحدهما مدوّن وفارس السعوديتان تدّعيان محاضر عربية، وهما منتجان ويب أو مؤسسيان مرتبطان بالاجتماعات عن بُعد."
   },
@@ -1087,38 +1087,38 @@
    "detail_en": "Unknown voices get a temporary label. Renaming a voice once applies to past and future meetings, with no enrollment step and no cloud biometric store.",
    "detail_ar": "تُعطى الأصوات المجهولة تسمية مؤقتة، وإعادة تسمية الصوت مرة واحدة تسري على الاجتماعات السابقة واللاحقة، دون تسجيل مسبق ولا مخزن سحابي للبيانات الحيوية.",
    "evidence_en": "Not unique as a concept. Otter keeps voice profiles in the cloud and faces BIPA claims. Sembly needs enrollment and works within one workspace only. Teams needs Rooms hardware. Plaud recognizes only its owner. MacWhisper and Pixel keep no voiceprints. Jamie remembers voices, but in the cloud.",
-   "evidence_ar": "الفكرة ليست حكرًا على رقيم: Otter يحفظ الملفات الصوتية سحابيًا ويواجه دعاوى BIPA، وSembly يتطلب تسجيلًا مسبقًا داخل مساحة عمل واحدة، وTeams يتطلب أجهزة Rooms، وPlaud لا يعرف إلا مالكه، وMacWhisper وPixel لا يحفظان بصمات، وJamie يتذكر الأصوات لكن في السحابة."
+   "evidence_ar": "الفكرة ليست حكرًا على إنصاتو: Otter يحفظ الملفات الصوتية سحابيًا ويواجه دعاوى BIPA، وSembly يتطلب تسجيلًا مسبقًا داخل مساحة عمل واحدة، وTeams يتطلب أجهزة Rooms، وPlaud لا يعرف إلا مالكه، وMacWhisper وPixel لا يحفظان بصمات، وJamie يتذكر الأصوات لكن في السحابة."
   },
   {
    "title_en": "Offline transcription and speaker ID on phones and Windows",
    "title_ar": "تفريغ وتمييز للمتحدثين دون اتصال على الهواتف وويندوز",
-   "detail_en": "Raqim can transcribe and identify speakers with no internet, using on-device Whisper and sherpa-onnx on Android, iOS and Windows.",
-   "detail_ar": "يستطيع رقيم التفريغ وتمييز المتحدثين دون إنترنت باستخدام Whisper وsherpa-onnx على الجهاز في أندرويد وiOS وويندوز.",
+   "detail_en": "Insato can transcribe and identify speakers with no internet, using on-device Whisper and sherpa-onnx on Android, iOS and Windows.",
+   "detail_ar": "يستطيع إنصاتو التفريغ وتمييز المتحدثين دون إنترنت باستخدام Whisper وsherpa-onnx على الجهاز في أندرويد وiOS وويندوز.",
    "evidence_en": "Otter, Fireflies, Teams, Zoom, Meet, Plaud, Sembly and Mudawin process in the cloud. MacWhisper works offline but only on Mac. Pixel and Samsung work offline only on their own phones and without Arabic summaries. Munsit Edge is an SDK available on request.",
    "evidence_ar": "تعالج Otter وFireflies وTeams وZoom وMeet وPlaud وSembly ومدوّن البيانات سحابيًا. MacWhisper يعمل دون اتصال على ماك فقط، وPixel وSamsung على أجهزتهما فقط ودون ملخصات عربية، وMunsit Edge حزمة تطوير متاحة عند الطلب."
   },
   {
    "title_en": "In-room meetings in any language with no bot or extra hardware",
    "title_ar": "اجتماعات حضورية بأي لغة دون روبوت أو جهاز إضافي",
-   "detail_en": "Raqim turns the phone or laptop already in the room into the recorder, for any input language.",
-   "detail_ar": "يجعل رقيم الهاتف أو الحاسوب الموجود في القاعة جهاز التسجيل، لأي لغة مدخلة.",
+   "detail_en": "Insato turns the phone or laptop already in the room into the recorder, for any input language.",
+   "detail_ar": "يجعل إنصاتو الهاتف أو الحاسوب الموجود في القاعة جهاز التسجيل، لأي لغة مدخلة.",
    "evidence_en": "Meet's in-person notes do not support Arabic. Teams needs a Rooms device. Mudawin relies on meeting integrations. Plaud does in-room capture well but needs $159+ hardware and handles one language per recording. Otter, Fireflies and Sembly mobile apps also record in person.",
    "evidence_ar": "ملاحظات Meet الحضورية لا تدعم العربية، وTeams يتطلب جهاز Rooms، ومدوّن يعتمد على تكاملات الاجتماعات. Plaud يجيد التسجيل الحضوري لكنه يتطلب جهازًا بـ159$ فأكثر ولغة واحدة لكل تسجيل، كما تسجّل تطبيقات Otter وFireflies وSembly للجوال حضوريًا."
   },
   {
-   "title_en": "No Raqim server and no vendor lock-in",
-   "title_ar": "لا خادم لرقيم ولا ارتهان لمورّد",
-   "detail_en": "Raqim runs no server that stores meetings. Cloud calls go directly to the user's own Anthropic and Deepgram accounts, and engines can be switched: on-device or cloud ASR, with local LLMs planned.",
-   "detail_ar": "لا يشغّل رقيم خادمًا يخزّن الاجتماعات، وتذهب الطلبات السحابية مباشرة إلى حسابات المستخدم نفسه لدى Anthropic وDeepgram، ويمكن تبديل المحركات بين تفريغ على الجهاز وآخر سحابي، مع نماذج لغوية محلية مخطط لها.",
+   "title_en": "No Insato server and no vendor lock-in",
+   "title_ar": "لا خادم لإنصاتو ولا ارتهان لمورّد",
+   "detail_en": "Insato runs no server that stores meetings. Cloud calls go directly to the user's own Anthropic and Deepgram accounts, and engines can be switched: on-device or cloud ASR, with local LLMs planned.",
+   "detail_ar": "لا يشغّل إنصاتو خادمًا يخزّن الاجتماعات، وتذهب الطلبات السحابية مباشرة إلى حسابات المستخدم نفسه لدى Anthropic وDeepgram، ويمكن تبديل المحركات بين تفريغ على الجهاز وآخر سحابي، مع نماذج لغوية محلية مخطط لها.",
    "evidence_en": "Otter trains on de-identified customer data, and Granola trains by default on Free and Business plans. Both store meetings on their own US servers. MacWhisper offers a similar choice of providers, but only on Mac.",
    "evidence_ar": "تدرّب Otter نماذجها على بيانات العملاء بعد إزالة ما يحدد هويتهم، وتدرّب Granola افتراضيًا في الخطتين المجانية وBusiness، وكلتاهما تخزّن الاجتماعات على خوادمها في الولايات المتحدة. يتيح MacWhisper خيارًا مشابهًا للمزوّدين، لكن على ماك فقط."
   }
  ],
- "accuracy_note_en": "No meeting notetaker we reviewed publishes an Arabic word error rate (WER). Raqim has none either. Reported figures, all unverified, as of 2026-11-19:\n- Whisper large-v3, the family Raqim runs on-device, averages about 36.86% WER (17.21% CER) on the Open Universal Arabic ASR Leaderboard.\n- One vendor table puts Whisper at 46% (Gulf), 59% (Levantine) and 72% (North African) WER.\n- Whisper large-v3-turbo and int8 builds are reported somewhat worse than large-v3.\n- Arabic-specialist models report lower leaderboard averages: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87% and Munsit 26.68%. All three are vendor-reported.\n- Deepgram Nova-3, Raqim's cloud engine, has no public Arabic WER. A competitor (Munsit) reports 35.87% WER for it on Saudi audio.\n- Recent papers report MAI-Transcribe-2 at 13.51%, Gemini at 16.13% and ElevenLabs Scribe at 16.12% on a 120-hour Arabic test.\nThese numbers come from different test sets, text normalization and averaging methods, so they cannot be ranked against each other directly. Speaker diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.",
- "accuracy_note_ar": "لا ينشر أي من مساعدي الاجتماعات الذين راجعناهم معدل خطأ الكلمات (WER) للعربية، ورقيم كذلك. الأرقام المبلّغ عنها، وكلها غير مؤكدة، حتى 19 نوفمبر 2026:\n- يسجل Whisper large-v3، وهي العائلة التي يشغّلها رقيم على الجهاز، متوسط خطأ يقارب 36.86% (و17.21% على مستوى الحروف) في لوحة Open Universal Arabic ASR.\n- يذكر جدول لأحد المورّدين أن خطأ Whisper يبلغ 46% في الخليجية و59% في الشامية و72% في لهجات شمال أفريقيا.\n- تشير التقارير إلى أن نسختي large-v3-turbo وint8 أضعف قليلًا من large-v3.\n- تسجل النماذج المتخصصة بالعربية متوسطات أدنى في اللوحة: Jais-ASR بنسبة 22.85%، وCohere Transcribe Arabic بنسبة 25.87%، وMunsit بنسبة 26.68%، وكلها أرقام يعلنها مورّدوها.\n- لا يوجد معدل خطأ عربي منشور لمحرك Deepgram Nova-3 الذي يستخدمه رقيم سحابيًا، وقد نشر منافس (Munsit) أنه يسجل 35.87% على صوت سعودي.\n- تذكر أوراق بحثية حديثة نتائج MAI-Transcribe-2 بنسبة 13.51%، وGemini بنسبة 16.13%، وElevenLabs Scribe بنسبة 16.12% على اختبار عربي مدته 120 ساعة.\nهذه الأرقام مأخوذة من مجموعات اختبار وطرق تطبيع للنص وحساب للمتوسط مختلفة، فلا يصح ترتيبها مباشرة. وللمقارنة في تمييز المتحدثين: يسجل نموذج pyannote 3.1 المفتوح خطأ 22.7% في اجتماعات AMI المسجلة من مسافة.",
- "name_collision_note": "The product was renamed from Raqim to Raqim (رقيم) to avoid a collision with the existing \"Kateb\" dictation app. A quick search on 2026-11-19 found no meeting product named Raqim; a formal trademark search is still required.",
- "methodology_en": "We researched this comparison on 2026-11-19 through web searches of vendor help centers, pricing pages, trust and security pages, release notes and app-store listings. Third-party reviews and pricing aggregators, court records and law-firm alerts, and arXiv papers and public ASR leaderboards fill the gaps. Several vendor sites could not be opened directly, so some prices and claims rely on search snippets or third-party sources and are marked unverified.\n\nRatings mean:\n- Yes: documented and available.\n- Partial: available with significant limits.\n- No: not offered.\n- Unknown: no reliable evidence.\n- Planned: on Raqim's roadmap, not built.\n\nAccuracy and compliance figures are vendor-reported unless stated otherwise. Raqim is pre-release software with no users and no published benchmarks. Its \"yes\" ratings mean the feature is built but not yet field-tested. Prices and features change often, so check vendor sites before deciding.",
- "methodology_ar": "أُعدّت هذه المقارنة في 19 نوفمبر 2026 بالبحث على الويب في مراكز مساعدة المورّدين وصفحات الأسعار والأمان والثقة وملاحظات الإصدارات وصفحات متاجر التطبيقات. واستُكملت الفجوات بمراجعات الأطراف الثالثة ومجمّعات الأسعار وسجلات المحاكم وتنبيهات مرقيم المحاماة وأوراق arXiv واللوحات العامة لقياس التعرف على الكلام. تعذّر فتح بعض مواقع المورّدين مباشرة، فاعتمدت بعض الأسعار والادعاءات على مقتطفات البحث أو مصادر خارجية، ووُسمت بأنها غير مؤكدة.\n\nمعاني التقييمات:\n- نعم: موثّق ومتاح.\n- جزئي: متاح بقيود جوهرية.\n- لا: غير متاح.\n- غير معروف: لا دليل موثوق.\n- مخطط له: ضمن خطة رقيم ولم يُنفَّذ بعد.\n\nأرقام الدقة والامتثال هي أرقام المورّدين ما لم يُذكر غير ذلك. رقيم برنامج لم يُطلق بعد، بلا مستخدمين ولا قياسات منشورة، وتقييم «نعم» له يعني أن الميزة منجزة لكنها لم تُختبر ميدانيًا. تتغير الأسعار والميزات باستمرار، فتحقق من مواقع المورّدين قبل اتخاذ القرار.",
+ "accuracy_note_en": "No meeting notetaker we reviewed publishes an Arabic word error rate (WER). Insato has none either. Reported figures, all unverified, as of 2026-11-19:\n- Whisper large-v3, the family Insato runs on-device, averages about 36.86% WER (17.21% CER) on the Open Universal Arabic ASR Leaderboard.\n- One vendor table puts Whisper at 46% (Gulf), 59% (Levantine) and 72% (North African) WER.\n- Whisper large-v3-turbo and int8 builds are reported somewhat worse than large-v3.\n- Arabic-specialist models report lower leaderboard averages: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87% and Munsit 26.68%. All three are vendor-reported.\n- Deepgram Nova-3, Insato's cloud engine, has no public Arabic WER. A competitor (Munsit) reports 35.87% WER for it on Saudi audio.\n- Recent papers report MAI-Transcribe-2 at 13.51%, Gemini at 16.13% and ElevenLabs Scribe at 16.12% on a 120-hour Arabic test.\nThese numbers come from different test sets, text normalization and averaging methods, so they cannot be ranked against each other directly. Speaker diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.",
+ "accuracy_note_ar": "لا ينشر أي من مساعدي الاجتماعات الذين راجعناهم معدل خطأ الكلمات (WER) للعربية، وإنصاتو كذلك. الأرقام المبلّغ عنها، وكلها غير مؤكدة، حتى 19 نوفمبر 2026:\n- يسجل Whisper large-v3، وهي العائلة التي يشغّلها إنصاتو على الجهاز، متوسط خطأ يقارب 36.86% (و17.21% على مستوى الحروف) في لوحة Open Universal Arabic ASR.\n- يذكر جدول لأحد المورّدين أن خطأ Whisper يبلغ 46% في الخليجية و59% في الشامية و72% في لهجات شمال أفريقيا.\n- تشير التقارير إلى أن نسختي large-v3-turbo وint8 أضعف قليلًا من large-v3.\n- تسجل النماذج المتخصصة بالعربية متوسطات أدنى في اللوحة: Jais-ASR بنسبة 22.85%، وCohere Transcribe Arabic بنسبة 25.87%، وMunsit بنسبة 26.68%، وكلها أرقام يعلنها مورّدوها.\n- لا يوجد معدل خطأ عربي منشور لمحرك Deepgram Nova-3 الذي يستخدمه إنصاتو سحابيًا، وقد نشر منافس (Munsit) أنه يسجل 35.87% على صوت سعودي.\n- تذكر أوراق بحثية حديثة نتائج MAI-Transcribe-2 بنسبة 13.51%، وGemini بنسبة 16.13%، وElevenLabs Scribe بنسبة 16.12% على اختبار عربي مدته 120 ساعة.\nهذه الأرقام مأخوذة من مجموعات اختبار وطرق تطبيع للنص وحساب للمتوسط مختلفة، فلا يصح ترتيبها مباشرة. وللمقارنة في تمييز المتحدثين: يسجل نموذج pyannote 3.1 المفتوح خطأ 22.7% في اجتماعات AMI المسجلة من مسافة.",
+ "name_collision_note": "The product name is Insato (إنصاتو), chosen on 2026-11-19 after the working names Katib (collision with the \"Kateb\" dictation app) and Insato (used by Saudi AI and software companies) were dropped. Web searches found no app, company or trademark named Insato; a formal trademark search in KSA, UAE and Egypt and a domain check are still required.",
+ "methodology_en": "We researched this comparison on 2026-11-19 through web searches of vendor help centers, pricing pages, trust and security pages, release notes and app-store listings. Third-party reviews and pricing aggregators, court records and law-firm alerts, and arXiv papers and public ASR leaderboards fill the gaps. Several vendor sites could not be opened directly, so some prices and claims rely on search snippets or third-party sources and are marked unverified.\n\nRatings mean:\n- Yes: documented and available.\n- Partial: available with significant limits.\n- No: not offered.\n- Unknown: no reliable evidence.\n- Planned: on Insato's roadmap, not built.\n\nAccuracy and compliance figures are vendor-reported unless stated otherwise. Insato is pre-release software with no users and no published benchmarks. Its \"yes\" ratings mean the feature is built but not yet field-tested. Prices and features change often, so check vendor sites before deciding.",
+ "methodology_ar": "أُعدّت هذه المقارنة في 19 نوفمبر 2026 بالبحث على الويب في مراكز مساعدة المورّدين وصفحات الأسعار والأمان والثقة وملاحظات الإصدارات وصفحات متاجر التطبيقات. واستُكملت الفجوات بمراجعات الأطراف الثالثة ومجمّعات الأسعار وسجلات المحاكم وتنبيهات مإنصاتو المحاماة وأوراق arXiv واللوحات العامة لقياس التعرف على الكلام. تعذّر فتح بعض مواقع المورّدين مباشرة، فاعتمدت بعض الأسعار والادعاءات على مقتطفات البحث أو مصادر خارجية، ووُسمت بأنها غير مؤكدة.\n\nمعاني التقييمات:\n- نعم: موثّق ومتاح.\n- جزئي: متاح بقيود جوهرية.\n- لا: غير متاح.\n- غير معروف: لا دليل موثوق.\n- مخطط له: ضمن خطة إنصاتو ولم يُنفَّذ بعد.\n\nأرقام الدقة والامتثال هي أرقام المورّدين ما لم يُذكر غير ذلك. إنصاتو برنامج لم يُطلق بعد، بلا مستخدمين ولا قياسات منشورة، وتقييم «نعم» له يعني أن الميزة منجزة لكنها لم تُختبر ميدانيًا. تتغير الأسعار والميزات باستمرار، فتحقق من مواقع المورّدين قبل اتخاذ القرار.",
  "all_sources": [
   {
    "label": "Otter: 27 new languages, Arabic coming soon",
