@@ -22,6 +22,9 @@ void main() {
   late FakeSecureSettings secure;
   late ProviderContainer container;
   FakeMinutesEngine? minutes;
+  Object? documentsError;
+  RefinementRunner? refinementRunner;
+  int backlogLimitMs = 15 * 60 * 1000;
 
   setUp(() async {
     db = memoryDb();
@@ -31,12 +34,43 @@ void main() {
     engines = FakeEnginesFactory();
     secure = FakeSecureSettings();
     minutes = null;
+    documentsError = null;
+    refinementRunner = null;
+    backlogLimitMs = 15 * 60 * 1000;
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
         secureSettingsProvider.overrideWithValue(secure),
         appPathsProvider.overrideWithValue(
-          AppPaths(documentsDir: () async => tmp, supportDir: () async => tmp),
+          AppPaths(
+            documentsDir: () async {
+              final e = documentsError;
+              if (e != null) throw e;
+              return tmp;
+            },
+            supportDir: () async => tmp,
+          ),
+        ),
+        liveBacklogLimitMsProvider.overrideWith((ref) => backlogLimitMs),
+        postProcessorProvider.overrideWith(
+          (ref) => PostProcessor(
+            db: db,
+            meetings: ref.watch(meetingRepositoryProvider),
+            segments: ref.watch(segmentRepositoryProvider),
+            speakers: ref.watch(speakerRepositoryProvider),
+            settings: ref.watch(appSettingsProvider),
+            minutesEngineFactory: ref.watch(minutesEngineFactoryProvider),
+            enginesFactory: ref.watch(sessionEnginesFactoryProvider),
+            paths: ref.watch(appPathsProvider),
+            runRefinement: (input) {
+              final r = refinementRunner;
+              return r == null ? runRefinementInBackground(input) : r(input);
+            },
+            isMeetingActive: (id) {
+              final s = ref.read(meetingSessionControllerProvider);
+              return s.isActive && s.meetingId == id;
+            },
+          ),
         ),
         sessionAudioSourceProvider.overrideWithValue(audio),
         sessionPlatformHooksProvider.overrideWithValue(hooks),

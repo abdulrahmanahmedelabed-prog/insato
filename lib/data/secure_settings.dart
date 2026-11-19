@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../core/errors.dart';
 import 'database.dart';
 import 'repositories.dart';
 
@@ -19,13 +20,43 @@ import 'repositories.dart';
 // Secure settings (API keys)
 // ---------------------------------------------------------------------------
 
+/// The platform keystore could not be read (for example the iOS keychain
+/// while the device is locked). Distinct from "no key configured": the key
+/// may well exist, so callers should retry or postpone rather than ask the
+/// user to enter it again.
+class SecureStorageUnavailableException extends InsatoException {
+  const SecureStorageUnavailableException(super.messageAr,
+      {super.debugDetails, super.cause});
+}
+
 /// API keys stored in the platform's secure storage.
 class SecureSettings {
   /// Creates the store. [storage] can be injected for tests.
   SecureSettings({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? defaultStorage;
+
+  /// The storage used by default.
+  ///
+  /// On iOS the keychain items use `kSecAttrAccessibleAfterFirstUnlock-
+  /// ThisDeviceOnly`: they stay readable while the phone is locked (a
+  /// recording continues in the background with the screen off, and cloud
+  /// ASR / minutes need the keys then), and they are never included in
+  /// backups nor migrated to another device. The plugin default
+  /// (`WhenUnlocked`) fails every read while the device is locked and lets the
+  /// keys travel in encrypted backups. Not synchronizable (iCloud Keychain).
+  static const FlutterSecureStorage defaultStorage = FlutterSecureStorage(
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+      synchronizable: false,
+    ),
+  );
 
   final FlutterSecureStorage _storage;
+
+  /// Last value read from or written to the keystore in this process, per
+  /// key (null value = known to be absent). Used when a later read fails
+  /// transiently (e.g. a locked device), so a running meeting keeps working.
+  final Map<String, String?> _lastKnown = {};
 
   /// Secure-storage key of the Anthropic (Claude) API key.
   static const String anthropicApiKeyKey = 'insato.anthropic_api_key';
@@ -33,15 +64,49 @@ class SecureSettings {
   /// Secure-storage key of the Deepgram API key.
   static const String deepgramApiKeyKey = 'insato.deepgram_api_key';
 
+  /// Marker written once [migrateAccessibility] has rewritten the keys.
+  static const String accessibilityMigratedKey =
+      'insato.keychain_accessibility_v1';
+
   Future<String?> _read(String key) async {
     try {
       final v = await _storage.read(key: key);
       final t = v?.trim();
-      return (t == null || t.isEmpty) ? null : t;
+      final out = (t == null || t.isEmpty) ? null : t;
+      _lastKnown[key] = out;
+      return out;
+    } on PlatformException catch (e) {
+      // A missing item is reported as null, never as an exception: an error
+      // means the keystore could not be read (iOS: errSecInteractionNotAllowed
+      // while locked). That is not "no key": fall back to the value seen
+      // earlier in this process, or report the failure distinctly.
+      if (_lastKnown.containsKey(key)) return _lastKnown[key];
+      throw SecureStorageUnavailableException(
+        'تعذّرت قراءة المفاتيح المحفوظة الآن. افتح قفل الجهاز وحاول مجددًا.',
+        debugDetails: 'secure storage read failed: ${e.code} ${e.message}',
+        cause: e,
+      );
+    }
+  }
+
+  /// Rewrites stored keys once so that items created with an older keychain
+  /// accessibility class (the plugin default `WhenUnlocked`) get the class of
+  /// [defaultStorage]. Changing the option does not touch existing items;
+  /// the plugin's write deletes the old item and re-adds it with the new
+  /// class. Call at app start while in the foreground (device unlocked).
+  /// Never throws: on failure it is retried at the next launch.
+  Future<void> migrateAccessibility() async {
+    try {
+      if (await _storage.read(key: accessibilityMigratedKey) != null) return;
+      for (final k in [anthropicApiKeyKey, deepgramApiKeyKey]) {
+        final v = await _storage.read(key: k);
+        if (v != null && v.trim().isNotEmpty) {
+          await _storage.write(key: k, value: v);
+        }
+      }
+      await _storage.write(key: accessibilityMigratedKey, value: '1');
     } on PlatformException {
-      // A corrupted or reset keystore entry is equivalent to "no key": the
-      // user is asked to enter it again instead of the app failing.
-      return null;
+      // Locked or unavailable keystore: try again next launch.
     }
   }
 
@@ -49,8 +114,10 @@ class SecureSettings {
     final t = value?.trim();
     if (t == null || t.isEmpty) {
       await _storage.delete(key: key);
+      _lastKnown[key] = null;
     } else {
       await _storage.write(key: key, value: t);
+      _lastKnown[key] = t;
     }
   }
 
@@ -406,8 +473,24 @@ class AppSettings {
     return _put(kClaudeModel, t);
   }
 
-  /// Removes all stored preferences (back to defaults).
-  Future<void> resetToDefaults() => _db.delete(_db.settings).go();
+  /// Preference keys owned by this store. Other modules keep their own rows
+  /// in the same table (e.g. the per-meeting voiceprint ledgers), which a
+  /// reset must not touch.
+  static const List<String> preferenceKeys = [
+    kAsrEngine,
+    kWhisperModelId,
+    kLanguageHint,
+    kKeepAudio,
+    kMatchThreshold,
+    kConsentAcknowledged,
+    kMinutesDetail,
+    kClaudeModel,
+  ];
+
+  /// Removes all stored preferences (back to defaults). Other data kept in
+  /// the settings table, such as the voiceprint ledgers, is left alone.
+  Future<void> resetToDefaults() =>
+      (_db.delete(_db.settings)..where((s) => s.key.isIn(preferenceKeys))).go();
 }
 
 // ---------------------------------------------------------------------------
