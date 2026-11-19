@@ -241,6 +241,12 @@ abstract final class S {
   /// Elapsed time semantics.
   static const String elapsedTime = 'مدة التسجيل';
 
+  /// No active recording.
+  static const String noActiveRecording = 'لا يوجد تسجيل قيد التشغيل.';
+
+  /// Open meeting.
+  static const String openMeeting = 'فتح الاجتماع';
+
   /// Engine label.
   static String engine(String e) => 'محرك التفريغ: $e';
 

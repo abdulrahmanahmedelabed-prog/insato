@@ -1,27 +1,32 @@
-// TEMPORARY placeholder so the app builds before the UI module lands.
-// The UI module replaces this file with the real MaterialApp (theme, RTL,
-// routes); only the `KatibApp` class name is relied upon by `main.dart`.
+// Root widget of Katib (كاتب): Material 3 app, Arabic locale with RTL
+// layout, light / dark themes following the system, and the home shell.
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Root widget of Katib.
-class KatibApp extends StatelessWidget {
+import 'ui/screens/home_shell.dart';
+import 'ui/strings_ar.dart';
+import 'ui/theme.dart';
+
+/// Root widget of Katib. Must be placed under a Riverpod `ProviderScope`
+/// (main.dart uses an `UncontrolledProviderScope` with the app database).
+class KatibApp extends ConsumerWidget {
   /// Creates the app.
   const KatibApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'كاتب',
+      title: S.appName,
+      onGenerateTitle: (_) => S.appName,
       debugShowCheckedModeBanner: false,
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF1565C0),
-        fontFamily: 'NotoNaskhArabic',
-      ),
-      home: const Scaffold(body: Center(child: Text('كاتب'))),
+      theme: KatibTheme.light(),
+      darkTheme: KatibTheme.dark(),
+      themeMode: ThemeMode.system,
+      home: const HomeShell(),
     );
   }
 }

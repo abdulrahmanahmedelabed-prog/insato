@@ -17,13 +17,13 @@ import '../session/meeting_session_controller.dart'
 import 'strings_ar.dart';
 
 /// Unicode LEFT-TO-RIGHT ISOLATE.
-const String kLri = '⁦';
+const String kLri = '\u2066';
 
 /// Unicode FIRST STRONG ISOLATE.
-const String kFsi = '⁨';
+const String kFsi = '\u2068';
 
 /// Unicode POP DIRECTIONAL ISOLATE.
-const String kPdi = '⁩';
+const String kPdi = '\u2069';
 
 /// Wraps [text] in a left-to-right isolate so numbers such as `00:12:34` or
 /// Latin fragments keep their order inside Arabic sentences.
