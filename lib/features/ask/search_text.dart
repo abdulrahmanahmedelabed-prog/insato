@@ -9,20 +9,24 @@
 /// Arabic diacritics (harakat, tanwin, shadda, sukun, superscript alef),
 /// Quranic annotation marks and tatweel.
 final RegExp _arabicMarks = RegExp(
-  '[ؐ-ًؚ-ٰٟۖ-ۭـ]',
+  r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]',
+  unicode: true,
 );
 
 /// Bidi controls and zero-width characters that split words invisibly.
-final RegExp _invisible = RegExp('[​-‏‪-‮⁦-⁩﻿]');
+final RegExp _invisible = RegExp(
+  r'[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]',
+  unicode: true,
+);
 
 /// A token: a run of letters / digits (any script).
 final RegExp _tokenPattern = RegExp(r'[\p{L}\p{N}]+', unicode: true);
 
-final RegExp _hasArabic = RegExp('[؀-ۿ]');
+final RegExp _hasArabic = RegExp(r'[\u0600-\u06FF]', unicode: true);
 
 /// Normalises [text] for matching: Western digits, lower-case Latin, no
 /// diacritics / tatweel / invisible marks, unified alef (أإآٱ → ا), ya
-/// (ى، ی → ي), ta marbuta (ة → ه), hamza seats (ؤ → و، ئ → ي) and Persian
+/// (ى، ی → ي), ta marbuta (ة → ه), hamza seats (ؤ، ئ → ء) and Persian
 /// kaf (ک → ك).
 String normalizeSearchText(String text) {
   final buffer = StringBuffer();
@@ -36,8 +40,7 @@ String normalizeSearchText(String text) {
         0x0623 || 0x0625 || 0x0622 || 0x0671 => 0x0627, // أ إ آ ٱ → ا
         0x0649 || 0x06CC || 0x064A => 0x064A, // ى ی → ي
         0x0629 => 0x0647, // ة → ه
-        0x0624 => 0x0648, // ؤ → و
-        0x0626 => 0x064A, // ئ → ي
+        0x0624 || 0x0626 => 0x0621, // ؤ ئ → ء (مسؤول = مسئول)
         0x06A9 => 0x0643, // ک → ك
         _ => rune,
       });
@@ -64,7 +67,8 @@ const Set<String> _arabicStopWordsRaw = {
   'ك', 'به', 'بها', 'له', 'لها', 'لهم', 'فيه', 'فيها', 'منه', 'منها',
   'عليه', 'عليها', 'هناك', 'هنا', 'الان', 'الآن', 'بين', 'حول', 'قبل',
   'بعد', 'خلال', 'دون', 'ذات', 'يا', 'اما', 'أما', 'اذ', 'إذ', 'كما', 'مثل',
-  'تم', 'وما', 'وهل', 'فما', 'شيء', 'اللي', 'اللى', 'يعني', 'طيب',
+  'تم', 'وما', 'وهل', 'فما', 'شيء', 'اللي', 'اللى', 'يعني', 'طيب', 'بشأن',
+  'حيث', 'لدى', 'عبر', 'ضمن', 'نحو', 'لدي', 'منذ', 'سوف',
 };
 
 /// English stop words.
