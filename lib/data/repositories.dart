@@ -448,6 +448,7 @@ class SegmentRepository {
         language: r.language,
         embedding: _safeBlob(r.embedding),
         speakerLocked: r.speakerLocked,
+        speakerConfidence: r.speakerConfidence,
       );
 
   static SegmentsCompanion _toCompanion(TranscriptSegment s, String id) =>
@@ -464,6 +465,7 @@ class SegmentRepository {
             ? null
             : float32ToBlob(s.embedding!)),
         speakerLocked: Value(s.speakerLocked),
+        speakerConfidence: Value(s.speakerConfidence),
       );
 
   /// Inserts [segment]. An empty [TranscriptSegment.id] is replaced by a new
@@ -501,6 +503,7 @@ class SegmentRepository {
         language: s.language,
         embedding: s.embedding,
         speakerLocked: s.speakerLocked,
+        speakerConfidence: s.speakerConfidence,
       );
 
   /// Overwrites every stored field of [segment] (matched by id; meetingId is
@@ -566,6 +569,8 @@ class SegmentRepository {
         .write(SegmentsCompanion(
       speakerId: Value(speakerId),
       speakerLocked: Value(locked),
+      // A manual assignment is certain; an automatic one is not known.
+      speakerConfidence: Value(locked ? 1.0 : null),
     ));
     return n > 0;
   }
@@ -586,6 +591,23 @@ class SegmentRepository {
               ? s.id.equals(e.key) & s.speakerLocked.equals(false)
               : s.id.equals(e.key));
         total += await q.write(SegmentsCompanion(speakerId: Value(e.value)));
+      }
+      return total;
+    });
+  }
+
+  /// Stores the speaker-assignment confidence of many segments in one
+  /// transaction (segment id → confidence, null = unknown). User-locked
+  /// segments are left unchanged. Returns the number of segments updated.
+  Future<int> bulkSetSpeakerConfidence(Map<String, double?> confidences) {
+    if (confidences.isEmpty) return Future.value(0);
+    return _db.transaction(() async {
+      var total = 0;
+      for (final e in confidences.entries) {
+        final q = _db.update(_db.segments)
+          ..where((s) => s.id.equals(e.key) & s.speakerLocked.equals(false));
+        total += await q.write(
+            SegmentsCompanion(speakerConfidence: Value(e.value)));
       }
       return total;
     });

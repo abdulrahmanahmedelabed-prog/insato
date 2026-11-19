@@ -113,6 +113,7 @@ class TranscriptSegment {
     this.language,
     this.embedding,
     this.speakerLocked = false,
+    this.speakerConfidence,
   });
 
   final String id;
@@ -134,11 +135,26 @@ class TranscriptSegment {
   /// override it.
   final bool speakerLocked;
 
+  /// Heuristic confidence in `[0, 1]` that [speakerId] is right (null when
+  /// unknown, e.g. rows stored before this was recorded). User-locked
+  /// segments are certain regardless of this value.
+  final double? speakerConfidence;
+
+  /// True when the speaker attribution is doubtful: an assigned, unlocked
+  /// segment whose [speakerConfidence] is below
+  /// [kUncertainSpeakerConfidence].
+  bool get isSpeakerUncertain =>
+      !speakerLocked &&
+      speakerId != null &&
+      speakerConfidence != null &&
+      speakerConfidence! < kUncertainSpeakerConfidence;
+
   TranscriptSegment copyWith({
     String? text,
     String? speakerId,
     bool? speakerLocked,
     String? language,
+    double? speakerConfidence,
   }) {
     return TranscriptSegment(
       id: id,
@@ -151,9 +167,14 @@ class TranscriptSegment {
       language: language ?? this.language,
       embedding: embedding,
       speakerLocked: speakerLocked ?? this.speakerLocked,
+      speakerConfidence: speakerConfidence ?? this.speakerConfidence,
     );
   }
 }
+
+/// Speaker attributions with a confidence below this are shown as doubtful
+/// (transcript UI) and flagged to the minutes model.
+const double kUncertainSpeakerConfidence = 0.5;
 
 enum MeetingStatus {
   recording,

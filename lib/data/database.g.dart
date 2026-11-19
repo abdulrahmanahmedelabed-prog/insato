@@ -1143,6 +1143,18 @@ class $SegmentsTable extends Segments
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _speakerConfidenceMeta = const VerificationMeta(
+    'speakerConfidence',
+  );
+  @override
+  late final GeneratedColumn<double> speakerConfidence =
+      GeneratedColumn<double>(
+        'speaker_confidence',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1155,6 +1167,7 @@ class $SegmentsTable extends Segments
     language,
     embedding,
     speakerLocked,
+    speakerConfidence,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1240,6 +1253,15 @@ class $SegmentsTable extends Segments
         ),
       );
     }
+    if (data.containsKey('speaker_confidence')) {
+      context.handle(
+        _speakerConfidenceMeta,
+        speakerConfidence.isAcceptableOrUnknown(
+          data['speaker_confidence']!,
+          _speakerConfidenceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1289,6 +1311,10 @@ class $SegmentsTable extends Segments
         DriftSqlType.bool,
         data['${effectivePrefix}speaker_locked'],
       )!,
+      speakerConfidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speaker_confidence'],
+      ),
     );
   }
 
@@ -1328,6 +1354,10 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
 
   /// True when the user manually assigned the speaker.
   final bool speakerLocked;
+
+  /// Confidence (0..1) of the automatic speaker assignment; null when
+  /// unknown (rows from schema 1).
+  final double? speakerConfidence;
   const SegmentRow({
     required this.id,
     required this.meetingId,
@@ -1339,6 +1369,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     this.language,
     this.embedding,
     required this.speakerLocked,
+    this.speakerConfidence,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1359,6 +1390,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       map['embedding'] = Variable<Uint8List>(embedding);
     }
     map['speaker_locked'] = Variable<bool>(speakerLocked);
+    if (!nullToAbsent || speakerConfidence != null) {
+      map['speaker_confidence'] = Variable<double>(speakerConfidence);
+    }
     return map;
   }
 
@@ -1380,6 +1414,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
           ? const Value.absent()
           : Value(embedding),
       speakerLocked: Value(speakerLocked),
+      speakerConfidence: speakerConfidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(speakerConfidence),
     );
   }
 
@@ -1399,6 +1436,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       language: serializer.fromJson<String?>(json['language']),
       embedding: serializer.fromJson<Uint8List?>(json['embedding']),
       speakerLocked: serializer.fromJson<bool>(json['speakerLocked']),
+      speakerConfidence: serializer.fromJson<double?>(
+        json['speakerConfidence'],
+      ),
     );
   }
   @override
@@ -1415,6 +1455,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       'language': serializer.toJson<String?>(language),
       'embedding': serializer.toJson<Uint8List?>(embedding),
       'speakerLocked': serializer.toJson<bool>(speakerLocked),
+      'speakerConfidence': serializer.toJson<double?>(speakerConfidence),
     };
   }
 
@@ -1429,6 +1470,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     Value<String?> language = const Value.absent(),
     Value<Uint8List?> embedding = const Value.absent(),
     bool? speakerLocked,
+    Value<double?> speakerConfidence = const Value.absent(),
   }) => SegmentRow(
     id: id ?? this.id,
     meetingId: meetingId ?? this.meetingId,
@@ -1440,6 +1482,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     language: language.present ? language.value : this.language,
     embedding: embedding.present ? embedding.value : this.embedding,
     speakerLocked: speakerLocked ?? this.speakerLocked,
+    speakerConfidence: speakerConfidence.present
+        ? speakerConfidence.value
+        : this.speakerConfidence,
   );
   SegmentRow copyWithCompanion(SegmentsCompanion data) {
     return SegmentRow(
@@ -1455,6 +1500,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       speakerLocked: data.speakerLocked.present
           ? data.speakerLocked.value
           : this.speakerLocked,
+      speakerConfidence: data.speakerConfidence.present
+          ? data.speakerConfidence.value
+          : this.speakerConfidence,
     );
   }
 
@@ -1470,7 +1518,8 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
           ..write('speakerId: $speakerId, ')
           ..write('language: $language, ')
           ..write('embedding: $embedding, ')
-          ..write('speakerLocked: $speakerLocked')
+          ..write('speakerLocked: $speakerLocked, ')
+          ..write('speakerConfidence: $speakerConfidence')
           ..write(')'))
         .toString();
   }
@@ -1487,6 +1536,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     language,
     $driftBlobEquality.hash(embedding),
     speakerLocked,
+    speakerConfidence,
   );
   @override
   bool operator ==(Object other) =>
@@ -1501,7 +1551,8 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
           other.speakerId == this.speakerId &&
           other.language == this.language &&
           $driftBlobEquality.equals(other.embedding, this.embedding) &&
-          other.speakerLocked == this.speakerLocked);
+          other.speakerLocked == this.speakerLocked &&
+          other.speakerConfidence == this.speakerConfidence);
 }
 
 class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
@@ -1515,6 +1566,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
   final Value<String?> language;
   final Value<Uint8List?> embedding;
   final Value<bool> speakerLocked;
+  final Value<double?> speakerConfidence;
   final Value<int> rowid;
   const SegmentsCompanion({
     this.id = const Value.absent(),
@@ -1527,6 +1579,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     this.language = const Value.absent(),
     this.embedding = const Value.absent(),
     this.speakerLocked = const Value.absent(),
+    this.speakerConfidence = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SegmentsCompanion.insert({
@@ -1540,6 +1593,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     this.language = const Value.absent(),
     this.embedding = const Value.absent(),
     this.speakerLocked = const Value.absent(),
+    this.speakerConfidence = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        meetingId = Value(meetingId),
@@ -1558,6 +1612,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     Expression<String>? language,
     Expression<Uint8List>? embedding,
     Expression<bool>? speakerLocked,
+    Expression<double>? speakerConfidence,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1571,6 +1626,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
       if (language != null) 'language': language,
       if (embedding != null) 'embedding': embedding,
       if (speakerLocked != null) 'speaker_locked': speakerLocked,
+      if (speakerConfidence != null) 'speaker_confidence': speakerConfidence,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1586,6 +1642,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     Value<String?>? language,
     Value<Uint8List?>? embedding,
     Value<bool>? speakerLocked,
+    Value<double?>? speakerConfidence,
     Value<int>? rowid,
   }) {
     return SegmentsCompanion(
@@ -1599,6 +1656,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
       language: language ?? this.language,
       embedding: embedding ?? this.embedding,
       speakerLocked: speakerLocked ?? this.speakerLocked,
+      speakerConfidence: speakerConfidence ?? this.speakerConfidence,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1636,6 +1694,9 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     if (speakerLocked.present) {
       map['speaker_locked'] = Variable<bool>(speakerLocked.value);
     }
+    if (speakerConfidence.present) {
+      map['speaker_confidence'] = Variable<double>(speakerConfidence.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1655,6 +1716,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
           ..write('language: $language, ')
           ..write('embedding: $embedding, ')
           ..write('speakerLocked: $speakerLocked, ')
+          ..write('speakerConfidence: $speakerConfidence, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2628,6 +2690,7 @@ typedef $$SegmentsTableCreateCompanionBuilder = SegmentsCompanion Function({
   Value<String?> language,
   Value<Uint8List?> embedding,
   Value<bool> speakerLocked,
+  Value<double?> speakerConfidence,
   Value<int> rowid,
 });
 typedef $$SegmentsTableUpdateCompanionBuilder = SegmentsCompanion Function({
@@ -2641,6 +2704,7 @@ typedef $$SegmentsTableUpdateCompanionBuilder = SegmentsCompanion Function({
   Value<String?> language,
   Value<Uint8List?> embedding,
   Value<bool> speakerLocked,
+  Value<double?> speakerConfidence,
   Value<int> rowid,
 });
 
@@ -2729,6 +2793,11 @@ class $$SegmentsTableFilterComposer
 
   ColumnFilters<bool> get speakerLocked => $composableBuilder(
     column: $table.speakerLocked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2828,6 +2897,11 @@ class $$SegmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$MeetingsTableOrderingComposer get meetingId {
     final $$MeetingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -2907,6 +2981,11 @@ class $$SegmentsTableAnnotationComposer
 
   GeneratedColumn<bool> get speakerLocked => $composableBuilder(
     column: $table.speakerLocked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
     builder: (column) => column,
   );
 
@@ -2995,6 +3074,7 @@ class $$SegmentsTableTableManager
                 Value<String?> language = const Value.absent(),
                 Value<Uint8List?> embedding = const Value.absent(),
                 Value<bool> speakerLocked = const Value.absent(),
+                Value<double?> speakerConfidence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SegmentsCompanion(
                 id: id,
@@ -3007,6 +3087,7 @@ class $$SegmentsTableTableManager
                 language: language,
                 embedding: embedding,
                 speakerLocked: speakerLocked,
+                speakerConfidence: speakerConfidence,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3021,6 +3102,7 @@ class $$SegmentsTableTableManager
                 Value<String?> language = const Value.absent(),
                 Value<Uint8List?> embedding = const Value.absent(),
                 Value<bool> speakerLocked = const Value.absent(),
+                Value<double?> speakerConfidence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SegmentsCompanion.insert(
                 id: id,
@@ -3033,6 +3115,7 @@ class $$SegmentsTableTableManager
                 language: language,
                 embedding: embedding,
                 speakerLocked: speakerLocked,
+                speakerConfidence: speakerConfidence,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

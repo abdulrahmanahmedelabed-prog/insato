@@ -512,6 +512,9 @@ abstract final class S {
 
   /// Locked indicator.
   static const String lockedByUser = 'حدّدتَ المتحدث يدويًا';
+  static const String speakerUncertain = 'المتحدث غير مؤكد';
+  static const String speakerUncertainTapToFix =
+      'المتحدث غير مؤكد، اضغط للتصحيح';
 
   /// Reassigned.
   static const String speakerAssigned = 'تم تعيين المتحدث.';

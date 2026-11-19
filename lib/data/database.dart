@@ -129,6 +129,10 @@ class Segments extends Table {
   BoolColumn get speakerLocked =>
       boolean().withDefault(const Constant(false))();
 
+  /// Confidence (0..1) of the automatic speaker assignment; null when
+  /// unknown (rows from schema 1).
+  RealColumn get speakerConfidence => real().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -175,13 +179,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forExecutor(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
-          // Version 1 is the first schema; future versions add steps here.
+          if (from < 2) {
+            await m.addColumn(segments, segments.speakerConfidence);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

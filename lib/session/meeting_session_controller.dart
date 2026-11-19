@@ -789,6 +789,7 @@ class SessionPipeline {
         speakerId: speaker?.id,
         language: r.asr.language,
         embedding: r.embedding,
+        speakerConfidence: speaker == null ? null : assignment.confidence,
       );
       TranscriptSegment stored;
       try {

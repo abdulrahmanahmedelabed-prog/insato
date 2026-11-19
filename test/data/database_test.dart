@@ -104,8 +104,30 @@ void main() {
       );
     });
 
-    test('schema version is 1', () {
-      expect(db.schemaVersion, 1);
+    test('schema version is 2', () {
+      expect(db.schemaVersion, 2);
+    });
+
+    test('upgrading from schema 1 adds the speaker confidence column',
+        () async {
+      final dir = await Directory.systemTemp.createTemp('insato_migrate');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/v1.sqlite');
+      // Build a current database, then turn it back into schema 1.
+      var d = AppDatabase.forExecutor(NativeDatabase(file));
+      await d.customStatement(
+          'ALTER TABLE segments DROP COLUMN speaker_confidence');
+      await d.customStatement('PRAGMA user_version = 1');
+      await d.close();
+
+      d = AppDatabase.forExecutor(NativeDatabase(file));
+      addTearDown(d.close);
+      final cols = await d.customSelect('PRAGMA table_info(segments)').get();
+      expect(cols.map((r) => r.read<String>('name')),
+          contains('speaker_confidence'));
+      final version =
+          await d.customSelect('PRAGMA user_version').getSingle();
+      expect(version.read<int>('user_version'), 2);
     });
 
     test('blob columns store raw bytes', () async {

@@ -125,6 +125,61 @@ void main() {
       ]);
     });
 
+    test('marks doubtful speakers and never merges them', () {
+      final segments = [
+        seg(
+          0,
+          0,
+          4000,
+          'أقترح تأجيل الإطلاق',
+          speakerId: 'a',
+          speakerConfidence: 0.9,
+        ),
+        seg(1, 4400, 5000, 'موافق', speakerId: 'a', speakerConfidence: 0.3),
+        seg(2, 5200, 8000, 'إذن نؤجله أسبوعين', speakerId: 'a'),
+      ];
+      final marked = renderTranscript(
+        segments,
+        speakers,
+        markUncertainSpeakers: true,
+      ).split('\n');
+      expect(marked, [
+        '[00:00:00] سارة (ar): أقترح تأجيل الإطلاق',
+        '[00:00:04] سارة (؟) (ar): موافق',
+        '[00:00:05] سارة (ar): إذن نؤجله أسبوعين',
+      ]);
+      // Without the flag the line split stays but no marker is shown.
+      expect(
+        renderTranscript(segments, speakers).split('\n')[1],
+        '[00:00:04] سارة (ar): موافق',
+      );
+      final blocks = buildTranscriptBlocks(segments, speakers);
+      expect(
+        [for (final b in blocks) b.speakerUncertain],
+        [false, true, false],
+      );
+    });
+
+    test('locked or unassigned segments are never doubtful', () {
+      final locked = seg(
+        0,
+        0,
+        1000,
+        'نعم',
+        speakerId: 'a',
+        speakerConfidence: 0.1,
+      ).copyWith(speakerLocked: true);
+      expect(locked.isSpeakerUncertain, isFalse);
+      expect(
+        seg(1, 0, 1000, 'نعم', speakerConfidence: 0.1).isSpeakerUncertain,
+        isFalse,
+      );
+      expect(
+        seg(2, 0, 1000, 'نعم', speakerId: 'a').isSpeakerUncertain,
+        isFalse,
+      );
+    });
+
     test('splits on language change and caps very long blocks', () {
       final segments = [
         for (var i = 0; i < 10; i++)

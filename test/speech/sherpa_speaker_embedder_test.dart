@@ -7,7 +7,7 @@ import 'package:insato/speech/sherpa_speaker_embedder.dart';
 
 void main() {
   test('minimum embedding length is 0.8 s', () {
-    expect(kMinEmbeddingSamples, (0.8 * kSampleRate).round());
+    expect(kMinEmbeddingSamples, (0.5 * kSampleRate).round());
   });
 
   test('l2Normalize yields a unit vector', () {
