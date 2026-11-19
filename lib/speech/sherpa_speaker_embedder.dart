@@ -10,8 +10,13 @@ import '../core/interfaces.dart';
 import '../core/models.dart';
 import 'sherpa_asr_engine.dart' show ensureSherpaBindings, recommendedThreadCount;
 
-/// Segments shorter than this are not embedded (unreliable voiceprints).
-const int kMinEmbeddingSamples = (kSampleRate * 8) ~/ 10; // 0.8 s
+/// Segments shorter than this are not embedded.
+///
+/// Embeddings of sub-second segments are noisy, so they never create or
+/// update speakers (see `SpeakerTracker` and the refinement): they are only
+/// compared with speakers already heard, which is enough to tell who said a
+/// short reply such as «نعم» or «موافق».
+const int kMinEmbeddingSamples = kSampleRate ~/ 2; // 0.5 s
 
 /// [SpeakerEmbedder] backed by a sherpa-onnx speaker embedding model
 /// (WeSpeaker / 3D-Speaker ONNX). Embeddings are L2-normalised.

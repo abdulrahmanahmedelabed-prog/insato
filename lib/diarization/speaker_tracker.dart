@@ -259,6 +259,15 @@ class SpeakerTracker {
   /// * [shortSegmentSwitchMargin]: how much better another local cluster must
   ///   match a short segment (vs. the previous speaker's cluster) to override
   ///   continuity.
+  /// * [shortSegmentTurnSwitchMargin]: the same margin when the short
+  ///   segment follows a pause of at least [turnTakingGapMs] (a likely turn
+  ///   change: short replies such as «نعم» or «موافق» usually come from
+  ///   another person).
+  /// * [turnTakingGapMs]: silence after which a short segment is treated as
+  ///   a possible change of speaker.
+  /// * [uncertainInheritConfidence]: confidence cap for a short segment that
+  ///   inherits the previous speaker without voice evidence for it (below
+  ///   the doubtful threshold, so the transcript and minutes flag it).
   /// * [voiceprintPriorWeight]: weight (in seconds of speech) of a linked
   ///   voiceprint inside its cluster centroid.
   /// * [maxSegmentWeightSec]: cap on a single segment's centroid weight
@@ -274,6 +283,9 @@ class SpeakerTracker {
     this.newSpeakerMinDurationMs = 1000,
     this.continuityGapMs = 1500,
     this.shortSegmentSwitchMargin = 0.15,
+    this.shortSegmentTurnSwitchMargin = 0.05,
+    this.turnTakingGapMs = 250,
+    this.uncertainInheritConfidence = 0.35,
     this.voiceprintPriorWeight = 3,
     this.maxSegmentWeightSec = 10,
     this.maxClusters = 64,
@@ -316,6 +328,15 @@ class SpeakerTracker {
 
   /// Margin a short segment needs to switch away from the previous speaker.
   final double shortSegmentSwitchMargin;
+
+  /// Smaller switch margin for short segments after a pause.
+  final double shortSegmentTurnSwitchMargin;
+
+  /// Pause (ms) after which a short segment may be another speaker.
+  final int turnTakingGapMs;
+
+  /// Confidence cap for doubtful inherited short segments.
+  final double uncertainInheritConfidence;
 
   /// Weight (seconds of speech) of a linked voiceprint in its cluster.
   final double voiceprintPriorWeight;
@@ -391,12 +412,17 @@ class SpeakerTracker {
     // --- No embedding --------------------------------------------------------
     if (e == null) {
       if (continuity) {
+        // After a real pause a short reply ("نعم", "تمام") is usually
+        // someone else answering: keep the label but mark it doubtful.
+        final c = _continuityConfidence(gap);
         return _commit(
           segmentIndex: segmentIndex,
           cluster: prev,
           endMs: endMs,
           decision: AssignmentDecision.inherited,
-          confidence: _continuityConfidence(gap),
+          confidence: gap >= turnTakingGapMs
+              ? math.min(c, uncertainInheritConfidence)
+              : c,
         );
       }
       return _unknown(segmentIndex, endMs);
@@ -412,10 +438,16 @@ class SpeakerTracker {
       final margin = second.isFinite ? best - second : null;
       if (continuity) {
         final prevSim = localSims[_clusters.indexOf(prev)];
+        // After a real pause the floor may have changed hands, so a smaller
+        // margin is enough to switch to another local speaker.
+        final afterPause = gap >= turnTakingGapMs;
+        final switchMargin = afterPause
+            ? math.min(shortSegmentSwitchMargin, shortSegmentTurnSwitchMargin)
+            : shortSegmentSwitchMargin;
         if (bi >= 0 &&
             !identical(_clusters[bi], prev) &&
             best >= matchThreshold &&
-            best - prevSim >= shortSegmentSwitchMargin) {
+            best - prevSim >= switchMargin) {
           return _commit(
             segmentIndex: segmentIndex,
             cluster: _clusters[bi],
@@ -427,13 +459,18 @@ class SpeakerTracker {
                 0.6 * _matchConfidence(best, best - prevSim, matchThreshold),
           );
         }
+        // The voice does not resemble the previous speaker either: inherit
+        // the label, but flag it as doubtful.
+        final c = _continuityConfidence(gap);
+        final doubtful = prevSim < matchThreshold &&
+            (afterPause || prevSim < matchThreshold - 0.1);
         return _commit(
           segmentIndex: segmentIndex,
           cluster: prev,
           endMs: endMs,
           decision: AssignmentDecision.inherited,
           similarity: prevSim,
-          confidence: _continuityConfidence(gap),
+          confidence: doubtful ? math.min(c, uncertainInheritConfidence) : c,
         );
       }
       if (bi >= 0 && best >= matchThreshold) {

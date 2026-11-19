@@ -92,8 +92,22 @@ void main() {
     await db.close();
   });
 
-  test('a fresh database is created at v2', () async {
+  test('v2 → v3 produces exactly the v3 schema', () async {
     final schema = await verifier.schemaAt(2);
+    final db = AppDatabase.forExecutor(schema.newConnection());
+    await verifier.migrateAndValidate(db, 3);
+    await db.close();
+  });
+
+  test('v1 → v3 produces exactly the v3 schema', () async {
+    final schema = await verifier.schemaAt(1);
+    final db = AppDatabase.forExecutor(schema.newConnection());
+    await verifier.migrateAndValidate(db, 3);
+    await db.close();
+  });
+
+  test('a fresh database is created at the current version', () async {
+    final schema = await verifier.schemaAt(AppDatabase.currentSchemaVersion);
     final db = AppDatabase.forExecutor(schema.newConnection());
     await verifier.migrateAndValidate(db, AppDatabase.currentSchemaVersion);
     await db.close();
