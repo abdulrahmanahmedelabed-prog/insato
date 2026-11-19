@@ -1474,7 +1474,16 @@ class MeetingSessionController extends Notifier<SessionState> {
   ///
   /// On failure nothing is left behind, the state becomes
   /// [SessionPhase.error] and the [InsatoException] is rethrown.
-  Future<String> start({String? title, bool consentGiven = false}) async {
+  ///
+  /// v1.1: [context] (F3: agenda, expected attendees, notes) is stored with
+  /// the meeting; [inputDevice] (F18) records the microphone used (the
+  /// capture itself is configured by the audio source).
+  Future<String> start({
+    String? title,
+    bool consentGiven = false,
+    MeetingContext context = MeetingContext.empty,
+    String? inputDevice,
+  }) async {
     if (state.isActive) {
       throw const InsatoException('يوجد تسجيل قيد التشغيل بالفعل.');
     }
@@ -1524,6 +1533,8 @@ class MeetingSessionController extends Notifier<SessionState> {
       meeting = await meetings.create(
         title: (t == null || t.isEmpty) ? defaultSessionTitle(now) : t,
         createdAt: now,
+        context: context,
+        inputDevice: inputDevice,
       );
       String? archivePath;
       if (settings.keepAudio) {

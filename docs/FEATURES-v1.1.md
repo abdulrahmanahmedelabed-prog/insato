@@ -75,8 +75,14 @@ Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
   delivers no packets when nothing plays — fill with zeros by wall clock).
 
 ## F14 — Minutes engine: local or cloud (محرك المحضر: محلي أو سحابي)
-Settings → “محرك كتابة المحضر” with three choices (all implement `MinutesEngine`):
-1. **Cloud — Claude** (default, highest quality): `claude-opus-5-5` as in v1.
+Settings → “محرك كتابة المحضر” with these choices (all are a `MinutesBackend`
+behind the one `StructuredMinutesEngine`, see docs/V11-CONTRACTS.md):
+0. **Cloud — Google Gemini** (DEFAULT, owner decision: free tier, key from
+   Google AI Studio). Settings shows honestly that on the free tier Google may
+   use prompts/responses to improve its products and human reviewers may read
+   them (a billed Cloud project is treated as paid); the user accepts this
+   before the first request. Rate limits are respected (never hammered).
+1. **Cloud — Claude** (optional, highest quality): `claude-opus-5-5` as in v1.
 2. **On-device** (fully offline, private): GGUF model run in-process via
    `llamadart` (llama.cpp; Android / iOS / Windows). Model catalog entries
    with sizes and RAM requirements, downloaded through `ModelManager`, e.g.
