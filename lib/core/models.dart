@@ -149,6 +149,7 @@ class TranscriptSegment {
     this.speakerLocked = false,
     this.kind = SegmentKind.speech,
     this.asrConfidence,
+    this.speakerConfidence,
   });
 
   final String id;
@@ -178,6 +179,20 @@ class TranscriptSegment {
   /// v1.1: recogniser confidence 0..1 when reported.
   final double? asrConfidence;
 
+  /// Heuristic confidence in `[0, 1]` that [speakerId] is right (null when
+  /// unknown, e.g. rows stored before this was recorded). User-locked
+  /// segments are certain regardless of this value.
+  final double? speakerConfidence;
+
+  /// True when the speaker attribution is doubtful: an assigned, unlocked
+  /// segment whose [speakerConfidence] is below
+  /// [kUncertainSpeakerConfidence].
+  bool get isSpeakerUncertain =>
+      !speakerLocked &&
+      speakerId != null &&
+      speakerConfidence != null &&
+      speakerConfidence! < kUncertainSpeakerConfidence;
+
   /// True for [SegmentKind.unintelligible] segments.
   bool get isUnintelligible => kind == SegmentKind.unintelligible;
 
@@ -192,6 +207,7 @@ class TranscriptSegment {
     String? language,
     SegmentKind? kind,
     double? asrConfidence,
+    double? speakerConfidence,
   }) {
     return TranscriptSegment(
       id: id,
@@ -206,9 +222,14 @@ class TranscriptSegment {
       speakerLocked: speakerLocked ?? this.speakerLocked,
       kind: kind ?? this.kind,
       asrConfidence: asrConfidence ?? this.asrConfidence,
+      speakerConfidence: speakerConfidence ?? this.speakerConfidence,
     );
   }
 }
+
+/// Speaker attributions with a confidence below this are shown as doubtful
+/// (transcript UI) and flagged to the minutes model.
+const double kUncertainSpeakerConfidence = 0.5;
 
 enum MeetingStatus {
   recording,

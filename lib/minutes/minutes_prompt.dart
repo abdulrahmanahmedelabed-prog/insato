@@ -26,6 +26,11 @@ enum MinutesDetailLevel {
 /// Label used in transcripts for segments without an assigned speaker.
 const String kUnknownSpeakerName = 'متحدث غير محدد';
 
+/// Marker appended to the speaker name of a minutes-transcript line whose
+/// speaker attribution is doubtful ([TranscriptSegment.isSpeakerUncertain]).
+/// It is not part of the name; the system prompt explains it.
+const String kUncertainSpeakerMarker = ' (؟)';
+
 Map<String, dynamic> _str() => {'type': 'string'};
 Map<String, dynamic> _nullableStr() => {
   'type': ['string', 'null'],
@@ -225,6 +230,7 @@ Each transcript line has the form:
 - `#id` is the segment id: a stable integer identifying that utterance. Cite segment ids as evidence (see "Evidence").
 - The timestamp is the offset from the start of the recording.
 - The speaker label comes from automatic voice-based speaker identification. It is usually right but can occasionally split one person into two labels or merge two people; use conversational context (who answers whom, self-introductions, how people address each other) only to understand the discussion, never to rename or re-attribute speakers.
+- A speaker name followed by "(؟)" (for example "متحدث 2 (؟)") means the voice-based attribution of that line is doubtful: it may belong to another participant (often a short reply such as «نعم» or «موافق», or two people talking at once). "(؟)" is not part of the name: never copy it into the minutes.
 - The language code is what the speech recogniser detected (e.g. ar, en, fr). It may be missing or wrong for short utterances.
 - The text was produced by automatic speech recognition from multilingual, possibly noisy, overlapping or code-switched speech. Expect misheard words, wrong homophones, broken sentences, missing punctuation, duplicated fragments, and occasional hallucinated filler (for example a lone "شكراً" or "Thank you." at a pause, or subtitle-like phrases). Infer the intended meaning carefully from context. When a passage is too garbled to understand with confidence, do not guess its content: either omit it or state plainly that the passage was unclear.
 - A line whose utterance is "[غير مفهوم — مقطع #n، m ث]" is real speech (detected by voice activity detection) that the recogniser could not decode: m is its duration in seconds. It may be followed by the recogniser's low-confidence guess in «…», which is unreliable. Never invent its content; treat it as described under "Codes" (coded_speech).
@@ -249,6 +255,7 @@ Each transcript line has the form:
 - Do not replace a label with a name you inferred from the conversation (for example someone being addressed as "Ahmed"), and do not merge or split speakers. You may mention in `notes` that, for example, "متحدث 2" was addressed as Ahmed during the meeting.
 - `attendees` lists the speakers who actually spoke, using their names exactly as given, ordered by first appearance. Add a person who did not speak only if the transcript explicitly states they attended. The label "متحدث غير محدد" means unidentified speech: never list it as an attendee.
 - Attribute statements, proposals and objections to the right speaker. When attribution is uncertain, write it impersonally (e.g. «طُرح اقتراح بـ...») instead of guessing.
+- Lines marked "(؟)" are uncertain attributions. Do not name their speaker as the author of a proposal, objection, approval or commitment, as `proposed_by`, or as an action item `owner`, unless unmarked lines confirm it; report such content impersonally (e.g. «وأُبديت موافقة على...»). If a decision or task depends on a marked line, you may say so in `notes`.
 
 # Content of each field
 - `title`: a concise, specific Arabic title describing the meeting's subject. If the metadata title is meaningful, keep its intent; if it is generic (a default name or a date), derive a better title from the content.
@@ -515,7 +522,9 @@ String renderTranscript(
 /// `[#42 00:12:31] Name (lang): text`, where `42` is the segment's
 /// `TranscriptSegment.index` — the id the engine cites in `evidence`.
 /// Segments without content are omitted; unintelligible segments appear as
-/// their [formatUnintelligibleMarker] (without a language).
+/// their [formatUnintelligibleMarker] (without a language). A segment whose
+/// speaker attribution is doubtful gets [kUncertainSpeakerMarker] after the
+/// name.
 String renderEvidenceTranscript(
   List<TranscriptSegment> segments,
   Map<String, Speaker> speakersById,
@@ -525,8 +534,9 @@ String renderEvidenceTranscript(
       .map((s) {
         final lang = s.isUnintelligible ? null : _normalizeLang(s.language);
         final langPart = lang == null ? '' : ' ($lang)';
+        final mark = s.isSpeakerUncertain ? kUncertainSpeakerMarker : '';
         return '[#${s.index} ${formatTimestamp(s.startMs)}] '
-            '${speakerDisplayName(s.speakerId, speakersById)}$langPart: '
+            '${speakerDisplayName(s.speakerId, speakersById)}$mark$langPart: '
             '${segmentTranscriptText(s)}';
       })
       .join('\n');
