@@ -63,18 +63,20 @@ class ModelsScreen extends ConsumerWidget {
                           ? S.recommendationNote
                           : S.cloudModeNote,
                     ),
-                    SectionHeader(
+                    const SectionHeader(
                       S.requiredModels,
                       icon: Icons.checklist_rounded,
-                      trailing: missing.isEmpty
-                          ? null
-                          : FilledButton.icon(
-                              onPressed: () =>
-                                  _downloadAll(context, ref, missing, states),
-                              icon: const Icon(Icons.download_rounded),
-                              label: const Text(S.downloadRequired),
-                            ),
                     ),
+                    if (missing.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: FilledButton.icon(
+                          onPressed: () =>
+                              _downloadAll(context, ref, missing, states),
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text(S.downloadRequired),
+                        ),
+                      ),
                     for (final id in needed)
                       if (ModelCatalog.tryById(id) case final spec?)
                         ModelCard(

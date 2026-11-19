@@ -338,7 +338,7 @@ class _IconText extends StatelessWidget {
     children: [
       Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
       const SizedBox(width: 4),
-      child,
+      Flexible(child: child),
     ],
   );
 }
