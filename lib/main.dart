@@ -3,7 +3,9 @@
 // connection, crash recovery of interrupted meetings, and the provider scope.
 
 import 'dart:async';
+import 'dart:io';
 
+import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -27,9 +29,13 @@ Future<void> main() async {
   LicenseRegistry.addLicense(bundledFontLicenses);
 
   // One database connection for the whole app.
-  final db = AppDatabase();
+  final paths = AppPaths();
+  final db = await openAppDatabase(paths);
   final container = ProviderContainer(
-    overrides: [databaseProvider.overrideWithValue(db)],
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      appPathsProvider.overrideWithValue(paths),
+    ],
   );
   unawaited(recoverInterruptedMeetings(container));
 
@@ -43,6 +49,36 @@ Future<void> main() async {
 Stream<LicenseEntry> bundledFontLicenses() async* {
   final text = await rootBundle.loadString('assets/fonts/OFL.txt');
   yield LicenseEntryWithLineBreaks(const ['NotoNaskhArabic', 'NotoSans'], text);
+}
+
+/// Opens the app database.
+///
+/// Android / iOS: `insato.sqlite` in the private app documents directory
+/// ([AppDatabase.new]). Windows: the private local app-data directory
+/// ([AppPaths.databaseDir]) instead of the user's Documents folder (shared
+/// with other apps, often synced to OneDrive); data v1 left in Documents is
+/// moved there first. If that move failed, the old location is used so no
+/// data ever appears lost.
+Future<AppDatabase> openAppDatabase(AppPaths paths) async {
+  if (!Platform.isWindows) return AppDatabase();
+  var dir = await paths.databaseDir();
+  try {
+    await paths.migrateLegacyWindowsData();
+    final name = '${AppPaths.databaseName}.sqlite';
+    final legacyDir = await paths.legacyDatabaseDir();
+    if (!File('$dir${Platform.pathSeparator}$name').existsSync() &&
+        File('$legacyDir${Platform.pathSeparator}$name').existsSync()) {
+      dir = legacyDir;
+    }
+  } catch (e, st) {
+    debugPrint('Insato: database migration failed: $e\n$st');
+  }
+  return AppDatabase.forExecutor(
+    driftDatabase(
+      name: AppPaths.databaseName,
+      native: DriftNativeOptions(databaseDirectory: () async => dir),
+    ),
+  );
 }
 
 /// Finalises meetings left `recording` / `processing` by a crash or a killed

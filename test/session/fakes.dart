@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:insato/audio/audio_capture_service.dart';
+import 'package:insato/audio/wav_writer.dart';
 import 'package:insato/core/errors.dart';
 import 'package:insato/core/interfaces.dart';
 import 'package:insato/core/models.dart';
@@ -88,6 +89,9 @@ class FakeAsr implements AsrEngine {
   int calls = 0;
   bool disposed = false;
 
+  /// When set, every transcription waits for it (a slow engine).
+  Completer<void>? gate;
+
   @override
   String get name => 'fake-asr';
   @override
@@ -98,6 +102,8 @@ class FakeAsr implements AsrEngine {
     String? languageHint,
   }) async {
     calls++;
+    final g = gate;
+    if (g != null) await g.future;
     if (failIndices.contains(segment.index)) {
       throw const AsrException('فشل التفريغ', debugDetails: 'fake failure');
     }
@@ -213,8 +219,14 @@ class FakeAudioSource implements SessionAudioSource {
   int _samples = 0;
   Object? startError;
 
+  /// When true, [stop] writes every emitted frame to the archive as a WAV
+  /// file (like the real capture service), so it can be re-processed.
+  bool writeWavOnStop = false;
+  final List<Float32List> _emitted = [];
+
   void emit(Float32List samples) {
     _samples += samples.length;
+    if (writeWavOnStop) _emitted.add(samples);
     _frames.add(samples);
     _level.add(0.5);
   }
@@ -254,6 +266,14 @@ class FakeAudioSource implements SessionAudioSource {
   Future<void> resume() async => paused = false;
   @override
   Future<Duration> stop() async {
+    final path = archivePath;
+    if (writeWavOnStop && path != null) {
+      final w = await WavWriter.open(path);
+      for (final f in _emitted) {
+        await w.appendFloat32(f);
+      }
+      await w.close();
+    }
     started = false;
     _states.add(AudioCaptureState.idle);
     return elapsed;
@@ -321,6 +341,13 @@ class FakeEnginesFactory implements SessionEnginesFactory {
 /// Segmenter fake for file re-processing: splits the incoming audio into
 /// segments at value changes (each run of the same value = one segment).
 class RunSegmenter implements SpeechSegmenter {
+  /// Creates the segmenter; with [errorAfterSegments] the stream reports a
+  /// VAD error after that many segments (and keeps going).
+  RunSegmenter({this.errorAfterSegments});
+
+  /// See the constructor.
+  final int? errorAfterSegments;
+
   final StreamController<SpeechSegment> _out = StreamController();
   final List<double> _run = [];
   int _runStart = 0;
@@ -351,6 +378,9 @@ class RunSegmenter implements SpeechSegmenter {
           samples: Float32List.fromList(_run),
         ),
       );
+      if (_index == errorAfterSegments) {
+        _out.addError(const ModelException('خطأ في اكتشاف الكلام'));
+      }
     }
     _run.clear();
   }

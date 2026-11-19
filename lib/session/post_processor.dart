@@ -57,6 +57,14 @@ const int kMinLearnSegmentMs = 1000;
 /// Settings-table key prefix of the per-meeting voiceprint ledger.
 const String kVoiceprintLedgerPrefix = 'voiceprint_ledger:';
 
+/// Failed speech segments [PostProcessor.reprocessFromAudio] tolerates out
+/// of [attempted] non-silent segments before it refuses to replace the
+/// transcript: at most 2, or 5 %. A segment that fails deterministically
+/// must not block re-processing forever, while an outage (which fails many
+/// segments in a row) must not truncate the transcript.
+int maxToleratedReprocessFailures(int attempted) =>
+    math.max(2, (math.max(0, attempted) * 0.05).ceil());
+
 /// Default average-linkage similarity for offline re-clustering.
 const double kDefaultRefineClusterThreshold = 0.5;
 
@@ -474,6 +482,9 @@ class PostProcessor {
   ///   meetings are not re-processed or recovered).
   /// * [runRefinement]: clustering runner (default
   ///   [runRefinementInBackground]).
+  /// * [paths]: resolves stored recording file names
+  ///   ([AppPaths.resolveRecording]); without it `Meeting.audioPath` is used
+  ///   as stored.
   PostProcessor({
     required this._db,
     required this._meetings,
@@ -482,6 +493,7 @@ class PostProcessor {
     required this._settings,
     MinutesEngineFactory? minutesEngineFactory,
     this._enginesFactory,
+    this._paths,
     bool Function(String meetingId)? isMeetingActive,
     RefinementRunner? runRefinement,
   }) : _minutesFactory = minutesEngineFactory,
@@ -495,6 +507,7 @@ class PostProcessor {
   final AppSettings _settings;
   final MinutesEngineFactory? _minutesFactory;
   final SessionEnginesFactory? _enginesFactory;
+  final AppPaths? _paths;
   final bool Function(String meetingId) _isActive;
   final RefinementRunner _runRefinement;
 
@@ -524,6 +537,46 @@ class PostProcessor {
     if (items.isEmpty) {
       return RefinementReport(learning: await learnFromCorrections(meetingId));
     }
+    final RefinementReport report;
+    try {
+      report = await _refineClusters(
+        meetingId,
+        segs,
+        settings,
+        speakersById,
+        items,
+        sessionCreatedSpeakerIds,
+      );
+    } catch (_) {
+      // F15: the voices of this meeting must still get voiceprints, learned
+      // from the assignments as they stand (the live labels, or whatever
+      // the failed refinement committed). Best effort: the refinement error
+      // is what the caller sees.
+      try {
+        await learnFromCorrections(meetingId);
+      } catch (_) {
+        // The database itself is failing; nothing more to do here.
+      }
+      rethrow;
+    }
+    return RefinementReport(
+      clusters: report.clusters,
+      relabeledSegments: report.relabeledSegments,
+      createdSpeakerIds: report.createdSpeakerIds,
+      removedSpeakerIds: report.removedSpeakerIds,
+      learning: await learnFromCorrections(meetingId),
+    );
+  }
+
+  /// Clustering + relabelling part of [refine] (no learning).
+  Future<RefinementReport> _refineClusters(
+    String meetingId,
+    List<TranscriptSegment> segs,
+    AppSettingsData settings,
+    Map<String, Speaker> speakersById,
+    List<(String, Float32List, int)> items,
+    Set<String> sessionCreatedSpeakerIds,
+  ) async {
     final known = [
       for (final s in speakersById.values)
         if (isUsableEmbedding(s.centroid)) s,
@@ -594,13 +647,11 @@ class PostProcessor {
       if ((counts[id] ?? 0) > 0) continue;
       if (await _speakers.delete(id)) removed.add(id);
     }
-    final learning = await learnFromCorrections(meetingId);
     return RefinementReport(
       clusters: result.clusters.length,
       relabeledSegments: relabeled,
       createdSpeakerIds: created,
       removedSpeakerIds: removed,
-      learning: learning,
     );
   }
 
@@ -650,14 +701,11 @@ class PostProcessor {
         final cur = s.speakerId;
         if (prev == cur) continue;
         if (prev != null) {
-          if (speakers.containsKey(prev)) {
-            (removes[prev] ??= []).add(e);
-          } else if (cur != null) {
-            // The previous speaker was merged into the current one; its
-            // voiceprint (with this contribution) was combined by the merge.
-            ledger[s.id] = cur;
-            continue;
-          }
+          // A merge rewrites the ledger ([mergeSpeakers]), so a previous
+          // speaker that no longer exists was deleted: its voiceprint is
+          // gone, there is nothing to unlearn, and the segment is learned
+          // into its current speaker like any new segment.
+          if (speakers.containsKey(prev)) (removes[prev] ??= []).add(e);
           ledger.remove(s.id);
         }
         if (cur == null) continue;
@@ -760,14 +808,43 @@ class PostProcessor {
   /// Merges speaker [fromId] into [intoId] (same person): all their segments
   /// in every meeting move to [intoId], voiceprints are combined, and a
   /// user-given name of [fromId] is kept when [intoId] has none.
+  ///
+  /// The voiceprint ledgers of all meetings are rewritten in the same
+  /// transaction (contributions of [fromId] now belong to [intoId], whose
+  /// merged voiceprint contains them), so nothing is learned twice and a
+  /// later correction is learned normally.
   Future<Speaker> mergeSpeakers(String fromId, String intoId) async {
     try {
-      return await _speakers.merge(fromId, intoId);
+      return await _db.transaction(() async {
+        final merged = await _speakers.merge(fromId, intoId);
+        if (fromId != intoId) await _renameInLedgers(fromId, intoId);
+        return merged;
+      });
     } on StateError catch (e) {
       throw InsatoException(
         'أحد المتحدثَين غير موجود.',
         debugDetails: e.message,
         cause: e,
+      );
+    }
+  }
+
+  Future<void> _renameInLedgers(String fromId, String intoId) async {
+    final rows = await _db.select(_db.settings).get();
+    for (final row in rows) {
+      if (!row.key.startsWith(kVoiceprintLedgerPrefix)) continue;
+      final ledger = decodeVoiceprintLedger(row.value);
+      var changed = false;
+      for (final e in ledger.entries.toList()) {
+        if (e.value == fromId) {
+          ledger[e.key] = intoId;
+          changed = true;
+        }
+      }
+      if (!changed) continue;
+      await _saveLedger(
+        row.key.substring(kVoiceprintLedgerPrefix.length),
+        ledger,
       );
     }
   }
@@ -792,8 +869,23 @@ class PostProcessor {
         'لا يمكن حذف اجتماع قيد التسجيل. أوقف التسجيل أولًا.',
       );
     }
+    final meeting = await _meetings.get(meetingId);
+    final stored = meeting?.audioPath;
+    final audio = stored == null || stored.isEmpty
+        ? null
+        : await _resolveAudio(stored);
     final deleted = await _meetings.delete(meetingId);
     await _saveLedger(meetingId, const {});
+    // The repository deletes the file at the stored path only; with a stored
+    // file name (or a stale absolute path) the recording is elsewhere.
+    if (deleted && audio != null) {
+      try {
+        final f = File(audio);
+        if (await f.exists()) await f.delete();
+      } on FileSystemException {
+        // The row is gone; never fail the user's delete because of the file.
+      }
+    }
     return deleted;
   }
 
@@ -906,8 +998,13 @@ class PostProcessor {
   ///
   /// User-locked speaker assignments are carried over by time overlap
   /// ([carryOverLocks]); manual text edits of the old transcript are lost.
-  /// The minutes are left as they are (regenerate them afterwards). On
-  /// failure the old transcript is kept and a [InsatoException] is thrown.
+  /// The minutes are left as they are (regenerate them afterwards).
+  ///
+  /// On failure the old transcript (and the voiceprints learned from it) is
+  /// kept and an [InsatoException] is thrown. Failure includes any error of
+  /// the voice-activity detection and more failed speech segments than
+  /// [maxToleratedReprocessFailures] allows (a few isolated failures are
+  /// tolerated and reported in [ReprocessReport.failedSegments]).
   Future<ReprocessReport> reprocessFromAudio(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
@@ -921,7 +1018,8 @@ class PostProcessor {
     }
     final meeting = await _meetings.get(meetingId);
     if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
-    final path = meeting.audioPath;
+    final stored = meeting.audioPath;
+    final path = stored == null ? null : await _resolveAudio(stored);
     if (path == null || !await File(path).exists()) {
       throw const InsatoException(
         'لا يوجد تسجيل صوتي محفوظ لهذا الاجتماع، لذا تتعذّر إعادة معالجته.',
@@ -1022,13 +1120,33 @@ class PostProcessor {
           );
         },
       );
-      if (segmenterError != null && collected.isEmpty) {
-        throw _insato(segmenterError!, 'حدث خطأ أثناء تحليل الصوت.');
+      // Never replace a transcript with a partial one: any VAD error means
+      // the audio was not fully analysed, and more than a few failed
+      // segments (e.g. the network dropped half-way with cloud ASR) mean
+      // whole stretches are missing. Throwing here keeps the old transcript
+      // and voiceprints untouched (see the catch/finally below).
+      if (segmenterError != null) {
+        final e = _insato(segmenterError!, 'حدث خطأ أثناء تحليل الصوت.');
+        throw InsatoException(
+          '${e.messageAr} أُبقي على النص السابق دون تغيير.',
+          debugDetails: e.debugDetails,
+          cause: segmenterError,
+        );
       }
-      if (collected.isEmpty &&
-          pipeline.failedCount > 0 &&
-          pipeline.lastError != null) {
-        throw pipeline.lastError!;
+      final failed = pipeline.failedCount;
+      if (failed > 0 &&
+          (collected.isEmpty ||
+              failed > maxToleratedReprocessFailures(
+                pipeline.completedCount - pipeline.skippedCount,
+              ))) {
+        final last = pipeline.lastError;
+        throw InsatoException(
+          'تعذّر تفريغ $failed من المقاطع'
+          '${last == null ? '' : ' (${last.messageAr})'}، '
+          'لذا أُبقي على النص السابق دون تغيير. حاول مجددًا لاحقًا.',
+          debugDetails: last?.debugDetails ?? '$last',
+          cause: last,
+        );
       }
 
       report(0.9, 'جارٍ حفظ النص الجديد…');
@@ -1073,13 +1191,24 @@ class PostProcessor {
       await sub.cancel();
       await engines.dispose();
       if (!success) {
-        await _deleteOrphans(pipeline.createdSpeakerIds);
+        await deleteOrphanSpeakers(pipeline.createdSpeakerIds);
         await _meetings.updateStatus(
           meetingId,
           previousStatus,
           clearError: false,
         );
       }
+    }
+  }
+
+  /// Current location of a stored `Meeting.audioPath`.
+  Future<String> _resolveAudio(String stored) async {
+    final paths = _paths;
+    if (paths == null) return stored;
+    try {
+      return await paths.resolveRecording(stored);
+    } catch (_) {
+      return stored;
     }
   }
 
@@ -1124,18 +1253,27 @@ class PostProcessor {
     await _saveLedger(meetingId, const {});
   }
 
-  Future<void> _deleteOrphans(Set<String> speakerIds) async {
-    if (speakerIds.isEmpty) return;
+  /// Deletes those of [speakerIds] (speakers created by a discarded or
+  /// failed run) that are still unused: not named by the user, without any
+  /// segment in any meeting, and without a voiceprint. Runs never store
+  /// voiceprints before they finish, so a voiceprint means the user merged
+  /// an older speaker into this one (or confirmed it) meanwhile. Never
+  /// throws; returns the ids deleted.
+  Future<List<String>> deleteOrphanSpeakers(Set<String> speakerIds) async {
+    final deleted = <String>[];
+    if (speakerIds.isEmpty) return deleted;
     try {
       final counts = await _segmentCountsBySpeaker();
       for (final id in speakerIds) {
         if ((counts[id] ?? 0) > 0) continue;
         final sp = await _speakers.get(id);
-        if (sp != null && !sp.isNamedByUser) await _speakers.delete(id);
+        if (sp == null || sp.isNamedByUser || sp.centroid != null) continue;
+        if (await _speakers.delete(id)) deleted.add(id);
       }
     } catch (_) {
       // Leftover unnamed speakers are harmless.
     }
+    return deleted;
   }
 
   // -------------------------------------------------------------------------
@@ -1157,7 +1295,8 @@ class PostProcessor {
       try {
         var durationMs = m.durationMs;
         var hasAudio = false;
-        final path = m.audioPath;
+        final stored = m.audioPath;
+        final path = stored == null ? null : await _resolveAudio(stored);
         if (path != null && await File(path).exists()) {
           try {
             await WavWriter.repair(path);

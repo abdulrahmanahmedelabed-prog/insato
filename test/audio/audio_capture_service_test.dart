@@ -141,15 +141,18 @@ void main() {
     expect(android.sampleRate, 16000);
     expect(android.numChannels, 1);
     expect(android.echoCancel, isFalse);
-    expect(android.noiseSuppress, isTrue);
-    expect(android.autoGain, isTrue);
+    // Call-style NS/AGC are opt-in: they hurt far-field ASR and voiceprints.
+    expect(android.noiseSuppress, isFalse);
+    expect(android.autoGain, isFalse);
     expect(android.androidConfig.useLegacy, isFalse);
     expect(
       android.androidConfig.audioSource,
       AndroidAudioSource.voiceRecognition,
     );
     expect(android.androidConfig.manageBluetooth, isFalse);
-    expect(android.audioInterruption, AudioInterruptionMode.pauseResume);
+    // Android must never request audio focus: media / notifications / VoIP
+    // would otherwise pause the take (permanently on AUDIOFOCUS_LOSS).
+    expect(android.audioInterruption, AudioInterruptionMode.none);
     expect(android.audioRouteChange, AudioRouteChangeMode.follow);
 
     final ios = buildRecordConfig(platform: CapturePlatform.ios);
@@ -157,6 +160,19 @@ void main() {
     expect(ios.echoCancel, isFalse);
     expect(ios.noiseSuppress, isFalse);
     expect(ios.iosConfig.allowHapticsAndSystemSoundsDuringRecording, isTrue);
+    expect(ios.audioInterruption, AudioInterruptionMode.pauseResume);
+    // No HFP by default: iOS would route input to a connected headset mic.
+    expect(
+      ios.iosConfig.categoryOptions,
+      isNot(contains(IosAudioCategoryOption.allowBluetooth)),
+    );
+    expect(
+      ios.iosConfig.categoryOptions,
+      containsAll(<IosAudioCategoryOption>[
+        IosAudioCategoryOption.defaultToSpeaker,
+        IosAudioCategoryOption.allowBluetoothA2DP,
+      ]),
+    );
 
     const device = InputDevice(id: 'usb', label: 'USB Mic');
     final win = buildRecordConfig(
@@ -165,6 +181,160 @@ void main() {
     );
     expect(win.device, device);
     expect(win.autoGain, isFalse);
+  });
+
+  test('opt-in Android NS/AGC are still passed through', () {
+    final cfg = buildRecordConfig(
+      platform: CapturePlatform.android,
+      options: const AudioCaptureOptions(
+        noiseSuppress: true,
+        autoGainOnAndroid: true,
+      ),
+    );
+    expect(cfg.noiseSuppress, isTrue);
+    expect(cfg.autoGain, isTrue);
+  });
+
+  test('iOS allows HFP only for an explicitly selected Bluetooth mic', () {
+    const airpods = InputDevice(
+      id: 'x',
+      label: 'AirPods',
+      type: InputDeviceType.bluetoothSco,
+    );
+    final bt = buildRecordConfig(
+      platform: CapturePlatform.ios,
+      device: airpods,
+    );
+    expect(
+      bt.iosConfig.categoryOptions,
+      contains(IosAudioCategoryOption.allowBluetooth),
+    );
+    expect(
+      bt.iosConfig.categoryOptions
+          .where((o) => o == IosAudioCategoryOption.allowBluetooth)
+          .length,
+      1,
+    );
+
+    const builtIn = InputDevice(
+      id: 'b',
+      label: 'iPhone Microphone',
+      type: InputDeviceType.builtIn,
+    );
+    final mic = buildRecordConfig(
+      platform: CapturePlatform.ios,
+      device: builtIn,
+    );
+    expect(
+      mic.iosConfig.categoryOptions,
+      isNot(contains(IosAudioCategoryOption.allowBluetooth)),
+    );
+
+    // Already allowed by the caller: not duplicated.
+    final dup = buildRecordConfig(
+      platform: CapturePlatform.ios,
+      device: airpods,
+      options: const AudioCaptureOptions(
+        iosCategoryOptions: [IosAudioCategoryOption.allowBluetooth],
+      ),
+    );
+    expect(dup.iosConfig.categoryOptions, [
+      IosAudioCategoryOption.allowBluetooth,
+    ]);
+  });
+
+  group('silence watchdog', () {
+    const watchdog = Duration(milliseconds: 100);
+    // 100 ms at 16 kHz.
+    const watchdogSamples = 1600;
+
+    AudioCaptureService make(CapturePlatform platform) => AudioCaptureService(
+      platform: platform,
+      options: const AudioCaptureOptions(silenceWatchdog: watchdog),
+    );
+
+    test(
+      'warns once (with the Windows privacy hint) on all-zero PCM',
+      () async {
+        final svc = make(CapturePlatform.windows);
+        final errors = <AudioCaptureException>[];
+        svc.errors.listen(errors.add);
+        await svc.start();
+        fake.data!.add(Uint8List(watchdogSamples * 2 - 2));
+        await pump();
+        expect(errors, isEmpty);
+        fake.data!.add(Uint8List(4));
+        await pump();
+        expect(errors, hasLength(1));
+        expect(errors.single.messageAr, contains('الخصوصية'));
+        expect(errors.single.debugDetails, contains('all-zero'));
+        // Keeps recording; no repeated warning.
+        fake.data!.add(Uint8List(watchdogSamples * 4));
+        await Future<void>.delayed(watchdog * 2);
+        expect(errors, hasLength(1));
+        expect(svc.state, AudioCaptureState.recording);
+        await svc.dispose();
+      },
+    );
+
+    test('warns when no audio arrives at all', () async {
+      final svc = make(CapturePlatform.windows);
+      final errors = <AudioCaptureException>[];
+      svc.errors.listen(errors.add);
+      await svc.start();
+      await Future<void>.delayed(watchdog * 2);
+      expect(errors, hasLength(1));
+      expect(errors.single.debugDetails, contains('no PCM'));
+      expect(svc.isRecording, isTrue);
+      await svc.dispose();
+    });
+
+    test('stays quiet when the mic delivers real signal', () async {
+      final svc = make(CapturePlatform.android);
+      final errors = <AudioCaptureException>[];
+      svc.errors.listen(errors.add);
+      await svc.start();
+      // Very low-level noise floor (a few LSB) still counts as signal.
+      fake.data!.add(tonePcm(16000, 1, 160, amp: 4 / 32768));
+      fake.data!.add(Uint8List(watchdogSamples * 4));
+      await Future<void>.delayed(watchdog * 2);
+      expect(errors, isEmpty);
+      await svc.dispose();
+    });
+
+    test('does not fire while paused and re-arms on resume', () async {
+      final svc = make(CapturePlatform.android);
+      final errors = <AudioCaptureException>[];
+      svc.errors.listen(errors.add);
+      await svc.start();
+      await svc.pause();
+      await Future<void>.delayed(watchdog * 2);
+      expect(errors, isEmpty);
+      await svc.resume();
+      await Future<void>.delayed(watchdog * 2);
+      expect(errors, hasLength(1));
+      expect(errors.single.messageAr, isNot(contains('Windows')));
+      await svc.stop();
+      await Future<void>.delayed(watchdog * 2);
+      expect(errors, hasLength(1));
+      await svc.dispose();
+    });
+  });
+
+  test('Windows access-denied start error carries the privacy hint', () async {
+    final svc = AudioCaptureService(platform: CapturePlatform.windows);
+    fake.startError = Exception('MF error 0x80070005 (E_ACCESSDENIED)');
+    await expectLater(
+      svc.start(),
+      throwsA(
+        isA<AudioCaptureException>().having(
+          (e) => e.messageAr,
+          'messageAr',
+          contains('الخصوصية'),
+        ),
+      ),
+    );
+    await svc.dispose();
   });
 
   test(

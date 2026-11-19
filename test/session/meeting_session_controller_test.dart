@@ -136,7 +136,8 @@ void main() {
     expect(m.status, MeetingStatus.ready);
     expect(m.durationMs, 12000);
     expect(m.minutes, isNull);
-    expect(m.audioPath, '${tmp.path}/recordings/$id.wav');
+    // Only the file name is stored (iOS container paths change on updates).
+    expect(m.audioPath, '$id.wav');
     // Both new speakers have ≥ 3 s of speech: voiceprints were learned.
     final after = await SpeakerRepository(db).getAll();
     expect(after, hasLength(2));

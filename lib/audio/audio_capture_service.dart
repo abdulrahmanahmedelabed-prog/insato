@@ -6,9 +6,12 @@
 //
 // * Android: `pcm16bits` streaming uses AudioRecord (advanced recorder only;
 //   `AndroidRecordConfig.useLegacy` must stay false — the legacy MediaRecorder
-//   path rejects pcm16bits). Effects (NS/AGC/AEC) are applied through
-//   android.media.audiofx when the device offers them; otherwise they are
-//   silently skipped. AudioRecord honours 16 kHz on practically all devices.
+//   path rejects pcm16bits). Effects (NS/AGC/AEC) are off by default: they
+//   are call-style processing (android.media.audiofx) that hurts far-field
+//   ASR and voiceprints; when opted in they are applied only if the device
+//   offers them. AudioRecord honours 16 kHz on practically all devices.
+//   Audio focus is never requested (`AudioInterruptionMode.none`), so media,
+//   notifications or VoIP apps cannot pause the take.
 // * iOS: capture goes through AVAudioEngine and an AVAudioConverter to the
 //   requested rate, so 16 kHz is delivered. Streaming may *reduce* the
 //   channel count to what the input has and reports that via
@@ -20,6 +23,9 @@
 // * Windows: Media Foundation source reader delivers PCM16 at the requested
 //   rate; the channel count may be lowered to the device's and is reported
 //   through `onConfigChanged`. NS/AGC/AEC flags are not applied on Windows.
+//   `hasPermission` always returns true on Windows, so a mic blocked by the
+//   privacy settings is only detected by the digital-silence watchdog in
+//   [AudioCaptureService] (all-zero or no PCM for a few seconds).
 //
 // Whatever format the platform finally delivers is converted to 16 kHz mono
 // here (see [PcmStreamConverter]), so downstream code can rely on
@@ -69,26 +75,30 @@ enum CapturePlatform {
 class AudioCaptureOptions {
   /// Creates capture options.
   const AudioCaptureOptions({
-    this.noiseSuppress = true,
-    this.autoGainOnAndroid = true,
+    this.noiseSuppress = false,
+    this.autoGainOnAndroid = false,
     this.androidAudioSource = AndroidAudioSource.voiceRecognition,
     this.androidManageBluetooth = false,
     this.iosCategoryOptions = const [
       IosAudioCategoryOption.defaultToSpeaker,
-      IosAudioCategoryOption.allowBluetooth,
       IosAudioCategoryOption.allowBluetoothA2DP,
     ],
     this.iosAllowSystemSoundsDuringRecording = true,
     this.levelFloorDb = -60.0,
     this.wavPatchInterval = const Duration(seconds: 5),
+    this.silenceWatchdog = const Duration(seconds: 5),
   });
 
-  /// Platform noise suppression where available (Android). Defaults to true.
+  /// Opt-in platform noise suppression (Android `NoiseSuppressor`). Off by
+  /// default: it is call-style processing that removes quiet far-field
+  /// speech and adds artifacts, which hurts ASR and speaker voiceprints.
+  /// The `voiceRecognition` source is chosen for its unprocessed signal.
   final bool noiseSuppress;
 
-  /// Platform automatic gain control on Android (helps far-away speakers).
-  /// Never enabled on iOS, where it would switch on call-style voice
-  /// processing.
+  /// Opt-in platform automatic gain control on Android
+  /// (`AutomaticGainControl`). Off by default: gain pumping between near and
+  /// far talkers hurts ASR and shifts speaker embeddings. Never enabled on
+  /// iOS, where it would switch on call-style voice processing.
   final bool autoGainOnAndroid;
 
   /// Android audio source. `voiceRecognition` is tuned for ASR (flat
@@ -101,6 +111,12 @@ class AudioCaptureOptions {
   final bool androidManageBluetooth;
 
   /// AVAudioSession category options for the `playAndRecord` session.
+  ///
+  /// `allowBluetooth` (HFP) is excluded by default, like
+  /// [androidManageBluetooth]: with HFP allowed iOS routes input to a
+  /// connected headset / car kit, whose mic only hears its wearer (and in
+  /// narrowband). The defaults are output-only. HFP is added automatically
+  /// when the user explicitly selects a Bluetooth call-profile mic.
   final List<IosAudioCategoryOption> iosCategoryOptions;
 
   /// iOS: keep recording while an incoming call rings (the take is only
@@ -112,6 +128,13 @@ class AudioCaptureOptions {
 
   /// How often the WAV archive header is patched / fsync'ed.
   final Duration wavPatchInterval;
+
+  /// After (re)starting, how long capture may deliver no audio or only
+  /// digital silence before a warning is sent to
+  /// [AudioCaptureService.errors]. A real mic's noise floor is never exactly
+  /// zero, so this catches a mic blocked by privacy settings (Windows
+  /// reports permission as always granted) or muted in hardware.
+  final Duration silenceWatchdog;
 }
 
 /// Builds the `record` configuration for [platform].
@@ -125,6 +148,16 @@ RecordConfig buildRecordConfig({
   InputDevice? device,
 }) {
   final isIos = platform == CapturePlatform.ios;
+  final iosOptions = <IosAudioCategoryOption>[
+    ...options.iosCategoryOptions,
+    // The user explicitly picked a Bluetooth headset mic: HFP must be allowed
+    // or the port is not an available input of the playAndRecord session.
+    if (device?.type == InputDeviceType.bluetoothSco &&
+        !options.iosCategoryOptions.contains(
+          IosAudioCategoryOption.allowBluetooth,
+        ))
+      IosAudioCategoryOption.allowBluetooth,
+  ];
   return RecordConfig(
     encoder: AudioEncoder.pcm16bits,
     sampleRate: kSampleRate,
@@ -139,12 +172,18 @@ RecordConfig buildRecordConfig({
       audioSource: options.androidAudioSource,
     ),
     iosConfig: IosRecordConfig(
-      categoryOptions: options.iosCategoryOptions,
+      categoryOptions: iosOptions,
       allowHapticsAndSystemSoundsDuringRecording:
           options.iosAllowSystemSoundsDuringRecording,
     ),
-    // A phone call pauses the take and it resumes automatically afterwards.
-    audioInterruption: AudioInterruptionMode.pauseResume,
+    // iOS: a phone call pauses the take and resumes it afterwards.
+    // Android: never take audio focus, because a meeting recorder must not
+    // yield to media, notifications or VoIP apps (a permanent focus loss
+    // would leave the take paused for good), and the OS silences the mic
+    // during a call anyway.
+    audioInterruption: platform == CapturePlatform.android
+        ? AudioInterruptionMode.none
+        : AudioInterruptionMode.pauseResume,
     // A disconnected mic should not end a meeting: move to the default input.
     audioRouteChange: AudioRouteChangeMode.follow,
   );
@@ -223,6 +262,15 @@ class AudioCaptureService {
 
   Completer<void>? _finalizing;
   bool _disposed = false;
+
+  // Digital-silence watchdog (see [AudioCaptureOptions.silenceWatchdog]).
+  bool _sawSignal = false;
+  bool _silenceWarned = false;
+  int _silentSamples = 0;
+  Timer? _noDataTimer;
+
+  /// |sample| above ±1 LSB of PCM16 counts as real signal.
+  static const double _signalThreshold = 1.5 / 32768;
 
   /// 16 kHz mono float frames, in capture order. Chunk sizes vary by
   /// platform (typically 20–200 ms).
@@ -396,6 +444,13 @@ class AudioCaptureService {
       try {
         stream = await rec.startStream(config);
       } catch (e) {
+        if (_platform == CapturePlatform.windows && _isAccessDenied(e)) {
+          throw AudioCaptureException(
+            _windowsPrivacyHintAr,
+            debugDetails: '$e',
+            cause: e,
+          );
+        }
         throw AudioCaptureException(
           'تعذّر بدء التسجيل من الميكروفون. تأكّد من توصيل الميكروفون وعدم '
           'استخدامه من تطبيق آخر.',
@@ -410,6 +465,7 @@ class AudioCaptureService {
         onDone: () => unawaited(_finalize()),
       );
       _setState(AudioCaptureState.recording);
+      _armSilenceWatchdog();
     } catch (e) {
       await _abortStart();
       if (e is AudioCaptureException) rethrow;
@@ -471,6 +527,7 @@ class AudioCaptureService {
     }
     if (_state == AudioCaptureState.paused) {
       _setState(AudioCaptureState.recording);
+      _armSilenceWatchdog();
     }
   }
 
@@ -517,6 +574,7 @@ class AudioCaptureService {
       }
     }
     _disposed = true;
+    _cancelSilenceWatchdog();
     await _dataSub?.cancel();
     await _recorderStateSub?.cancel();
     await _recorderStopSub?.cancel();
@@ -558,6 +616,80 @@ class AudioCaptureService {
     _wav = null;
     _wavFailed = false;
     _aligner.reset();
+    _cancelSilenceWatchdog();
+    _sawSignal = false;
+    _silenceWarned = false;
+    _silentSamples = 0;
+  }
+
+  static const String _windowsPrivacyHintAr =
+      'لا يصل أي صوت من الميكروفون. على Windows تحقّق من الإعدادات ← '
+      'الخصوصية والأمان ← الميكروفون وفعّل "السماح لتطبيقات سطح المكتب '
+      'بالوصول إلى الميكروفون"، أو تأكّد من أن الميكروفون غير مكتوم.';
+
+  static const String _silenceHintAr =
+      'لا يصل أي صوت من الميكروفون. تأكّد من أن الميكروفون غير مكتوم وأن '
+      'التطبيق مسموح له باستخدامه من إعدادات الخصوصية.';
+
+  static bool _isAccessDenied(Object e) {
+    final text = '$e'.toLowerCase();
+    return text.contains('0x80070005') || text.contains('e_accessdenied');
+  }
+
+  /// Starts watching for a dead mic after (re)starting capture.
+  void _armSilenceWatchdog() {
+    _cancelSilenceWatchdog();
+    _sawSignal = false;
+    _silenceWarned = false;
+    _silentSamples = 0;
+    _noDataTimer = Timer(options.silenceWatchdog, () {
+      _noDataTimer = null;
+      if (_state == AudioCaptureState.recording &&
+          !_sawSignal &&
+          _silentSamples == 0) {
+        _warnSilence('no PCM for ${options.silenceWatchdog.inSeconds} s');
+      }
+    });
+  }
+
+  void _cancelSilenceWatchdog() {
+    _noDataTimer?.cancel();
+    _noDataTimer = null;
+  }
+
+  void _checkSilence(Float32List samples) {
+    if (_sawSignal || _silenceWarned) return;
+    for (var i = 0; i < samples.length; i++) {
+      final s = samples[i];
+      if (s > _signalThreshold || s < -_signalThreshold) {
+        _sawSignal = true;
+        _cancelSilenceWatchdog();
+        return;
+      }
+    }
+    _silentSamples += samples.length;
+    final limit =
+        options.silenceWatchdog.inMicroseconds *
+        kSampleRate ~/
+        Duration.microsecondsPerSecond;
+    if (_silentSamples >= limit) {
+      _warnSilence('all-zero PCM for ${options.silenceWatchdog.inSeconds} s');
+    }
+  }
+
+  void _warnSilence(String details) {
+    if (_silenceWarned) return;
+    _silenceWarned = true;
+    _cancelSilenceWatchdog();
+    if (_errorsCtrl.isClosed) return;
+    _errorsCtrl.add(
+      AudioCaptureException(
+        _platform == CapturePlatform.windows
+            ? _windowsPrivacyHintAr
+            : _silenceHintAr,
+        debugDetails: details,
+      ),
+    );
   }
 
   void _configure(int sampleRate, int channels) {
@@ -596,6 +728,7 @@ class AudioCaptureService {
   void _emit(Float32List samples, Uint8List? pcm) {
     if (samples.isEmpty) return;
     _samplesEmitted += samples.length;
+    if (_state == AudioCaptureState.recording) _checkSilence(samples);
     _archive(samples, pcm);
     if (!_framesCtrl.isClosed && _framesCtrl.hasListener) {
       _framesCtrl.add(samples);
@@ -654,6 +787,7 @@ class AudioCaptureService {
   void _enterPaused() {
     if (_state != AudioCaptureState.recording) return;
     _setState(AudioCaptureState.paused);
+    _cancelSilenceWatchdog();
     _emitZeroLevel();
     // A pause is a natural checkpoint: make the archive consistent on disk.
     final wav = _wav;
@@ -670,6 +804,7 @@ class AudioCaptureService {
       case RecordState.record:
         if (_state == AudioCaptureState.paused) {
           _setState(AudioCaptureState.recording);
+          _armSilenceWatchdog();
         }
       case RecordState.stop:
         // Handled through the stream's done event / onStopped.
@@ -715,6 +850,7 @@ class AudioCaptureService {
     if (existing != null) return existing.future;
     final done = Completer<void>();
     _finalizing = done;
+    _cancelSilenceWatchdog();
     () async {
       try {
         if (_state != AudioCaptureState.stopping) {
@@ -762,6 +898,7 @@ class AudioCaptureService {
   }
 
   Future<void> _abortStart() async {
+    _cancelSilenceWatchdog();
     final wav = _wav;
     _wav = null;
     if (wav != null) {
