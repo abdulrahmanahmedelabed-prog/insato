@@ -13,7 +13,9 @@ final RegExp _arabicMarks = RegExp(
 );
 
 /// Bidi controls and zero-width characters that split words invisibly.
-final RegExp _invisible = RegExp('[​-‏‪-‮⁦-⁩﻿]');
+final RegExp _invisible = RegExp(
+  '[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]',
+);
 
 /// A token: a run of letters / digits (any script).
 final RegExp _tokenPattern = RegExp(r'[\p{L}\p{N}]+', unicode: true);
