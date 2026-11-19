@@ -96,8 +96,7 @@ String formatDurationWords(int ms) {
   final seconds = totalSeconds % 60;
   final parts = <String>[
     if (hours > 0) _countNoun(hours, 'ساعة', 'ساعتان', 'ساعات', 'ساعة'),
-    if (minutes > 0)
-      _countNoun(minutes, 'دقيقة', 'دقيقتان', 'دقائق', 'دقيقة'),
+    if (minutes > 0) _countNoun(minutes, 'دقيقة', 'دقيقتان', 'دقائق', 'دقيقة'),
     if (seconds > 0 && hours == 0)
       _countNoun(seconds, 'ثانية', 'ثانيتان', 'ثوانٍ', 'ثانية'),
   ];
@@ -138,7 +137,9 @@ void ensureArabicDateFormatting() {
 /// [arabicDigits] to use Arabic-Indic digits.
 String formatArabicDate(DateTime date, {bool arabicDigits = false}) {
   ensureArabicDateFormatting();
-  final text = toWesternDigits(DateFormat.yMMMMEEEEd('ar').format(date.toLocal()));
+  final text = toWesternDigits(
+    DateFormat.yMMMMEEEEd('ar').format(date.toLocal()),
+  );
   return arabicDigits ? toArabicDigits(text) : text;
 }
 

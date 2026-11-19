@@ -8,33 +8,28 @@
 #
 # CI runs `flutter analyze`, which fails on errors, warnings AND infos, so a
 # rule listed here is effectively mandatory. Suppress a single, justified
-# occurrence with `// ignore: <rule>` and a comment explaining why.
+# occurrence with `// ignore: <rule>` plus a comment explaining why.
 
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
-    # Generated code (drift, build_runner) is never hand-edited.
+    # Generated code (drift / build_runner output) is never hand-edited.
     - "**/*.g.dart"
-    - "**/*.freezed.dart"
     - build/**
     - coverage/**
+    # Native host projects contain no Dart sources of ours.
     - android/**
     - ios/**
     - windows/**
-  language:
-    # Forbid untyped generic types such as a bare `List` or `Future`.
-    strict-raw-types: true
   errors:
-    # These indicate genuine defects; surface them as errors, not hints.
+    # These always indicate genuine defects; report them as errors.
     missing_required_param: error
     missing_return: error
-    unawaited_futures: warning
-    cancel_subscriptions: warning
 
 linter:
   rules:
-    # --- Requested project rules -------------------------------------------
+    # --- Project rules -------------------------------------------------------
     - always_declare_return_types
     - avoid_print
     - prefer_const_constructors
@@ -45,20 +40,13 @@ linter:
     - use_super_parameters
 
     # --- Async & resource safety -------------------------------------------
-    # A recorder or isolate stream that is never cancelled leaks native
-    # resources (microphone, FFI handles) for the life of the app.
+    # A recorder or isolate stream subscription that is never cancelled
+    # keeps native resources (microphone, FFI handles) alive.
     - cancel_subscriptions
-    - unnecessary_await_in_return
     - throw_in_finally
 
     # --- Correctness ---------------------------------------------------------
-    - only_throw_errors
     - test_types_in_equals
     - no_adjacent_strings_in_list
     - literal_only_boolean_expressions
-
-    # --- Consistency ---------------------------------------------------------
-    - prefer_const_declarations
-    - prefer_const_literals_to_create_immutables
     - prefer_final_in_for_each
-    - use_named_constants

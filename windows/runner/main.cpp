@@ -26,8 +26,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
-  if (!window.Create(L"katib", origin, size)) {
+  Win32Window::Size size(1280, 800);
+  // Window title, Arabic for "Katib - meeting minutes" (U+0643 ... U+062A).
+  // Written as UTF-16 escapes so this file stays pure ASCII: MSVC reads
+  // sources in the system code page unless /utf-8 is passed, and with /WX a
+  // non-representable character (C4819) would fail the build.
+  constexpr wchar_t kWindowTitle[] =
+      L"\u0643\u0627\u062A\u0628 \u2014 "
+      L"\u0645\u062D\u0627\u0636\u0631 "
+      L"\u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639\u0627\u062A";
+  if (!window.Create(kWindowTitle, origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

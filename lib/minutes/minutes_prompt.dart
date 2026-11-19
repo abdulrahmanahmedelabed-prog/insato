@@ -25,15 +25,15 @@ const String kUnknownSpeakerName = 'متحدث غير محدد';
 
 Map<String, dynamic> _str() => {'type': 'string'};
 Map<String, dynamic> _nullableStr() => {
-      'type': ['string', 'null'],
-    };
+  'type': ['string', 'null'],
+};
 Map<String, dynamic> _strArray() => {'type': 'array', 'items': _str()};
 Map<String, dynamic> _object(Map<String, dynamic> properties) => {
-      'type': 'object',
-      'properties': properties,
-      'required': properties.keys.toList(),
-      'additionalProperties': false,
-    };
+  'type': 'object',
+  'properties': properties,
+  'required': properties.keys.toList(),
+  'additionalProperties': false,
+};
 
 /// JSON schema for Claude's structured output. Mirrors
 /// [Minutes.contentJson] exactly (same keys, same nesting).
@@ -43,37 +43,34 @@ Map<String, dynamic> _object(Map<String, dynamic> properties) => {
 /// optional values are expressed as nullable types; no length/range
 /// constraints; no recursion.
 Map<String, dynamic> minutesJsonSchema() => _object({
+  'title': _str(),
+  'summary': _str(),
+  'attendees': _strArray(),
+  'topics': {
+    'type': 'array',
+    'items': _object({
       'title': _str(),
-      'summary': _str(),
-      'attendees': _strArray(),
-      'topics': {
-        'type': 'array',
-        'items': _object({
-          'title': _str(),
-          'discussion': _str(),
-          'speakers': _strArray(),
-        }),
-      },
-      'decisions': {
-        'type': 'array',
-        'items': _object({
-          'text': _str(),
-          'proposed_by': _nullableStr(),
-        }),
-      },
-      'action_items': {
-        'type': 'array',
-        'items': _object({
-          'task': _str(),
-          'owner': _nullableStr(),
-          'due': _nullableStr(),
-        }),
-      },
-      'open_questions': _strArray(),
-      'languages_detected': _strArray(),
-      'next_meeting': _nullableStr(),
-      'notes': _nullableStr(),
-    });
+      'discussion': _str(),
+      'speakers': _strArray(),
+    }),
+  },
+  'decisions': {
+    'type': 'array',
+    'items': _object({'text': _str(), 'proposed_by': _nullableStr()}),
+  },
+  'action_items': {
+    'type': 'array',
+    'items': _object({
+      'task': _str(),
+      'owner': _nullableStr(),
+      'due': _nullableStr(),
+    }),
+  },
+  'open_questions': _strArray(),
+  'languages_detected': _strArray(),
+  'next_meeting': _nullableStr(),
+  'notes': _nullableStr(),
+});
 
 /// The system prompt. It is constant (no per-meeting data) so it can be
 /// prompt-cached across requests; everything meeting-specific goes in the
@@ -155,13 +152,16 @@ String _cleanInline(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
 /// Neutralises anything in transcript text that could close or open the
 /// `<transcript>` block early.
 String _escapeTranscriptText(String s) => s.replaceAllMapped(
-      RegExp(r'<\s*(/?)\s*transcript\s*>', caseSensitive: false),
-      (m) => '‹${m.group(1)}transcript›',
-    );
+  RegExp(r'<\s*(/?)\s*transcript\s*>', caseSensitive: false),
+  (m) => '‹${m.group(1)}transcript›',
+);
 
 /// Resolves a segment's display name: the speaker's name, or
 /// [kUnknownSpeakerName] when unassigned / unknown.
-String speakerDisplayName(String? speakerId, Map<String, Speaker> speakersById) {
+String speakerDisplayName(
+  String? speakerId,
+  Map<String, Speaker> speakersById,
+) {
   if (speakerId == null) return kUnknownSpeakerName;
   final name = speakersById[speakerId]?.name;
   if (name == null) return kUnknownSpeakerName;
@@ -213,9 +213,7 @@ List<TranscriptBlock> buildTranscriptBlocks(
   int mergeGapMs = 2000,
   int maxBlockMs = 90000,
 }) {
-  final sorted = segments
-      .where((s) => s.text.trim().isNotEmpty)
-      .toList()
+  final sorted = segments.where((s) => s.text.trim().isNotEmpty).toList()
     ..sort((a, b) {
       final c = a.startMs.compareTo(b.startMs);
       return c != 0 ? c : a.index.compareTo(b.index);
@@ -230,21 +228,24 @@ List<TranscriptBlock> buildTranscriptBlocks(
 
   void flush() {
     if (curText.isEmpty) return;
-    blocks.add(TranscriptBlock(
-      speakerId: curSpeaker,
-      speakerName: speakerDisplayName(curSpeaker, speakersById),
-      language: curLang,
-      startMs: curStart,
-      endMs: curEnd,
-      text: curText.join(' '),
-    ));
+    blocks.add(
+      TranscriptBlock(
+        speakerId: curSpeaker,
+        speakerName: speakerDisplayName(curSpeaker, speakersById),
+        language: curLang,
+        startMs: curStart,
+        endMs: curEnd,
+        text: curText.join(' '),
+      ),
+    );
     curText.clear();
   }
 
   for (final s in sorted) {
     final lang = _normalizeLang(s.language);
     final text = _cleanInline(s.text);
-    final canMerge = curText.isNotEmpty &&
+    final canMerge =
+        curText.isNotEmpty &&
         s.speakerId == curSpeaker &&
         lang == curLang &&
         s.startMs - curEnd <= mergeGapMs &&
@@ -287,11 +288,14 @@ String renderTranscript(
     mergeGapMs: mergeGapMs,
     maxBlockMs: maxBlockMs,
   );
-  return blocks.map((b) {
-    final lang =
-        (includeLanguage && b.language != null) ? ' (${b.language})' : '';
-    return '[${formatTimestamp(b.startMs)}] ${b.speakerName}$lang: ${b.text}';
-  }).join('\n');
+  return blocks
+      .map((b) {
+        final lang = (includeLanguage && b.language != null)
+            ? ' (${b.language})'
+            : '';
+        return '[${formatTimestamp(b.startMs)}] ${b.speakerName}$lang: ${b.text}';
+      })
+      .join('\n');
 }
 
 /// Per-speaker statistics used in the meeting metadata.
@@ -348,15 +352,18 @@ List<SpeakerStat> speakerStats(
       );
     }
   }
-  final stats = byKey.values
-      .map((v) => SpeakerStat(
-            name: v.name,
-            isAutoName: v.auto,
-            speakingMs: v.ms,
-            firstMs: v.first,
-          ))
-      .toList()
-    ..sort((a, b) => a.firstMs.compareTo(b.firstMs));
+  final stats =
+      byKey.values
+          .map(
+            (v) => SpeakerStat(
+              name: v.name,
+              isAutoName: v.auto,
+              speakingMs: v.ms,
+              firstMs: v.first,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => a.firstMs.compareTo(b.firstMs));
   return stats;
 }
 
@@ -369,7 +376,9 @@ String buildMinutesUserMessage({
   required Map<String, Speaker> speakersById,
   MinutesDetailLevel detailLevel = MinutesDetailLevel.detailed,
 }) {
-  final transcript = _escapeTranscriptText(renderTranscript(segments, speakersById));
+  final transcript = _escapeTranscriptText(
+    renderTranscript(segments, speakersById),
+  );
   final stats = speakerStats(segments, speakersById);
   final nonEmpty = segments.where((s) => s.text.trim().isNotEmpty).toList();
   final lastEnd = nonEmpty.fold<int>(0, (m, s) => s.endMs > m ? s.endMs : m);
@@ -388,11 +397,17 @@ String buildMinutesUserMessage({
   final b = StringBuffer()
     ..writeln('<meeting_metadata>')
     ..writeln('Title given by the user: ${_cleanInline(meeting.title)}')
-    ..writeln('Date: ${formatArabicDateTime(meeting.createdAt)} '
-        '(${meeting.createdAt.toLocal().toIso8601String()})')
-    ..writeln('Recorded duration: ${formatDuration(durationMs, alwaysHours: true)}')
-    ..writeln('Recogniser language codes (by speaking time): '
-        '${langs.isEmpty ? 'unknown' : langs.join(', ')}')
+    ..writeln(
+      'Date: ${formatArabicDateTime(meeting.createdAt)} '
+      '(${meeting.createdAt.toLocal().toIso8601String()})',
+    )
+    ..writeln(
+      'Recorded duration: ${formatDuration(durationMs, alwaysHours: true)}',
+    )
+    ..writeln(
+      'Recogniser language codes (by speaking time): '
+      '${langs.isEmpty ? 'unknown' : langs.join(', ')}',
+    )
     ..writeln('Speakers (by first appearance; use these names verbatim):');
   if (stats.isEmpty) {
     b.writeln('- (none)');
@@ -401,8 +416,10 @@ String buildMinutesUserMessage({
     final kind = s.name == kUnknownSpeakerName
         ? 'unidentified speech, not a person'
         : (s.isAutoName ? 'automatic label' : 'name set by the user');
-    b.writeln('- ${s.name} — $kind; speaking time '
-        '${formatDuration(s.speakingMs, alwaysHours: true)}');
+    b.writeln(
+      '- ${s.name} — $kind; speaking time '
+      '${formatDuration(s.speakingMs, alwaysHours: true)}',
+    );
   }
   b
     ..writeln('</meeting_metadata>')
@@ -412,13 +429,17 @@ String buildMinutesUserMessage({
     ..writeln('</transcript>')
     ..writeln()
     ..writeln('<instructions>')
-    ..writeln('Write the official minutes of the meeting above in Modern '
-        'Standard Arabic, following all rules in the system prompt, and '
-        'return them as JSON matching the schema.')
+    ..writeln(
+      'Write the official minutes of the meeting above in Modern '
+      'Standard Arabic, following all rules in the system prompt, and '
+      'return them as JSON matching the schema.',
+    )
     ..writeln(detailLevelInstruction(detailLevel))
-    ..writeln('Remember: never invent decisions, owners, deadlines or facts; '
-        'keep speaker names exactly as written; mention any uncertainty in '
-        '`notes`.')
+    ..writeln(
+      'Remember: never invent decisions, owners, deadlines or facts; '
+      'keep speaker names exactly as written; mention any uncertainty in '
+      '`notes`.',
+    )
     ..write('</instructions>');
   return b.toString();
 }

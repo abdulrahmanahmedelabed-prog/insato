@@ -18,8 +18,9 @@ import '../core/errors.dart';
 const String kDefaultClaudeModel = 'claude-opus-5-5';
 
 /// Messages API endpoint.
-final Uri kClaudeMessagesEndpoint =
-    Uri.parse('https://api.anthropic.com/v1/messages');
+final Uri kClaudeMessagesEndpoint = Uri.parse(
+  'https://api.anthropic.com/v1/messages',
+);
 
 /// `anthropic-version` header value.
 const String kAnthropicVersion = '2026-10-21';
@@ -142,13 +143,15 @@ class SseParser {
 
   void _dispatch(List<SseEvent> out) {
     if (_hasData) {
-      out.add(SseEvent(
-        event: (_eventType == null || _eventType!.isEmpty)
-            ? 'message'
-            : _eventType!,
-        data: _data.join('\n'),
-        id: _lastId,
-      ));
+      out.add(
+        SseEvent(
+          event: (_eventType == null || _eventType!.isEmpty)
+              ? 'message'
+              : _eventType!,
+          data: _data.join('\n'),
+          id: _lastId,
+        ),
+      );
     }
     _data.clear();
     _hasData = false;
@@ -207,10 +210,14 @@ class ClaudeUsage {
     return ClaudeUsage(
       inputTokens: pick('input_tokens', inputTokens),
       outputTokens: pick('output_tokens', outputTokens),
-      cacheCreationInputTokens:
-          pick('cache_creation_input_tokens', cacheCreationInputTokens),
-      cacheReadInputTokens:
-          pick('cache_read_input_tokens', cacheReadInputTokens),
+      cacheCreationInputTokens: pick(
+        'cache_creation_input_tokens',
+        cacheCreationInputTokens,
+      ),
+      cacheReadInputTokens: pick(
+        'cache_read_input_tokens',
+        cacheReadInputTokens,
+      ),
     );
   }
 
@@ -306,12 +313,12 @@ class ClaudeClient {
     this.maxRetryDelay = const Duration(seconds: 60),
     RetryDelay? delay,
     math.Random? random,
-  })  : _apiKey = apiKey.trim(),
-        _client = client ?? http.Client(),
-        _ownsClient = client == null,
-        endpoint = endpoint ?? kClaudeMessagesEndpoint,
-        _delay = delay ?? Future<void>.delayed,
-        _random = random ?? math.Random();
+  }) : _apiKey = apiKey.trim(),
+       _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       endpoint = endpoint ?? kClaudeMessagesEndpoint,
+       _delay = delay ?? Future<void>.delayed,
+       _random = random ?? math.Random();
 
   final String _apiKey;
   final http.Client _client;
@@ -392,13 +399,15 @@ class ClaudeClient {
         'لم يُضبط مفتاح Claude API بعد. أدخل المفتاح من الإعدادات ثم أعد المحاولة.',
       );
     }
-    final body = jsonEncode(buildRequestBody(
-      system: system,
-      user: user,
-      schema: schema,
-      effort: effort,
-      maxTokens: maxTokens,
-    ));
+    final body = jsonEncode(
+      buildRequestBody(
+        system: system,
+        user: user,
+        schema: schema,
+        effort: effort,
+        maxTokens: maxTokens,
+      ),
+    );
 
     _RetryableFailure? last;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -481,7 +490,8 @@ class ClaudeClient {
     }
     final status = response.statusCode;
     final (type, message) = _parseApiError(raw);
-    final details = 'HTTP $status${type == null ? '' : ' $type'}: '
+    final details =
+        'HTTP $status${type == null ? '' : ' $type'}: '
         '${message ?? raw}';
 
     if (status == 401 || status == 403) {
@@ -492,12 +502,15 @@ class ClaudeClient {
       );
     }
     final shouldRetryHeader = response.headers['x-should-retry'];
-    final retryable = shouldRetryHeader == 'true' ||
+    final retryable =
+        shouldRetryHeader == 'true' ||
         (shouldRetryHeader != 'false' &&
             (status == 408 || status == 409 || status == 429 || status >= 500));
     if (retryable) {
-      throw _RetryableFailure(details,
-          retryAfter: parseRetryAfter(response.headers['retry-after']));
+      throw _RetryableFailure(
+        details,
+        retryAfter: parseRetryAfter(response.headers['retry-after']),
+      );
     }
     if (status == 413) {
       throw MinutesGenerationException(
@@ -561,7 +574,8 @@ class ClaudeClient {
               servedModel = (message['model'] as String?) ?? servedModel;
               messageId = message['id'] as String?;
               usage = usage.mergeJson(
-                  message['usage'] as Map<String, dynamic>?);
+                message['usage'] as Map<String, dynamic>?,
+              );
             }
           case 'content_block_start':
             final index = (payload['index'] as num?)?.toInt() ?? -1;
@@ -613,8 +627,7 @@ class ClaudeClient {
             sawMessageStop = true;
           case 'error':
             final error = payload['error'];
-            final errType =
-                error is Map ? error['type'] as String? : null;
+            final errType = error is Map ? error['type'] as String? : null;
             final errMsg = error is Map ? error['message'] as String? : null;
             final details = 'stream error ${errType ?? ''}: ${errMsg ?? ''}';
             if (errType == 'overloaded_error' ||
@@ -643,17 +656,22 @@ class ClaudeClient {
     } on TimeoutException catch (e) {
       throw _RetryableFailure('stream idle timeout', cause: e);
     } on http.ClientException catch (e) {
-      throw _RetryableFailure('network error mid-stream: ${e.message}',
-          cause: e);
+      throw _RetryableFailure(
+        'network error mid-stream: ${e.message}',
+        cause: e,
+      );
     } on FormatException catch (e) {
-      throw _RetryableFailure('invalid UTF-8 in stream: ${e.message}',
-          cause: e);
+      throw _RetryableFailure(
+        'invalid UTF-8 in stream: ${e.message}',
+        cause: e,
+      );
     }
 
     if (stopReason == null) {
       // The connection ended before the message completed.
       throw _RetryableFailure(
-          'stream ended prematurely (message_stop: $sawMessageStop)');
+        'stream ended prematurely (message_stop: $sawMessageStop)',
+      );
     }
     switch (stopReason) {
       case 'refusal':
@@ -667,7 +685,7 @@ class ClaudeClient {
           debugDetails: 'stop_reason=max_tokens chars=${text.length}',
         );
       case 'model_context_window_exceeded':
-        throw MinutesGenerationException(
+        throw const MinutesGenerationException(
           'نص الاجتماع أطول من السعة التي يستطيع النموذج معالجتها.',
           debugDetails: 'stop_reason=model_context_window_exceeded',
         );

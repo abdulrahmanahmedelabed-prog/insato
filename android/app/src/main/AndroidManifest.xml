@@ -1,8 +1,49 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ===================== Permissions ===================== -->
+
+    <!-- Microphone capture (record package, runtime permission). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Route capture to a Bluetooth / wired headset microphone when the user
+         enables it (record: AudioRecorder manageBluetooth). Normal permission. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Model downloads, Claude API (minutes) and optional Deepgram ASR. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Keep the CPU awake during long meetings (wakelock_plus,
+         flutter_foreground_task). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Foreground service that keeps recording alive while the screen is off
+         or another app is in front. Android 14+ (API 34) additionally requires
+         the type-specific permission matching foregroundServiceType below. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Android 13+ (API 33): the ongoing "recording" notification of the
+         foreground service is only visible after this runtime permission. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- The app is useless without a microphone; keep it off devices that
+         have none (Play Store filtering). -->
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="true" />
+
+    <!--
+        allowBackup=false / dataExtractionRules / fullBackupContent:
+        Recordings, transcripts and voiceprints are private and must never be
+        copied to cloud backups or to another device. This is also required by
+        flutter_secure_storage: keys wrapped by the Android Keystore cannot be
+        restored on another device ("Failed to unwrap key").
+    -->
     <application
-        android:label="katib"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:label="كاتب"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="31">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -25,6 +66,23 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!--
+            flutter_foreground_task service (declared exactly as the plugin's
+            README requires; the class name must not change).
+            * foregroundServiceType="microphone": mandatory on Android 14+ for a
+              service that captures audio; it must be started while the app is
+              in the foreground and after RECORD_AUDIO has been granted.
+            * stopWithTask="true": the recorder lives in the UI engine, so when
+              the user swipes the app away the service stops with it instead of
+              leaving an orphaned "recording" notification.
+        -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="microphone"
+            android:stopWithTask="true"
+            android:exported="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

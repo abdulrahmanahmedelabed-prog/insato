@@ -26,6 +26,11 @@ constexpr const wchar_t kGetPreferredBrightnessRegKey[] =
   L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme";
 
+/// Minimum window size in logical pixels. Below this the phone layout of the
+/// app (single column, bottom navigation) can no longer be laid out.
+constexpr int kMinWindowWidth = 400;
+constexpr int kMinWindowHeight = 640;
+
 // The number of Win32Window objects that currently exist.
 static int g_active_window_count = 0;
 
@@ -216,6 +221,16 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_DWMCOLORIZATIONCOLORCHANGED:
       UpdateTheme(hwnd);
       return 0;
+
+    case WM_GETMINMAXINFO: {
+      // Enforce the minimum size, scaled for the monitor's DPI.
+      auto* min_max_info = reinterpret_cast<MINMAXINFO*>(lparam);
+      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      const double scale_factor = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
+      min_max_info->ptMinTrackSize.x = Scale(kMinWindowWidth, scale_factor);
+      min_max_info->ptMinTrackSize.y = Scale(kMinWindowHeight, scale_factor);
+      return 0;
+    }
   }
 
   return DefWindowProc(window_handle_, message, wparam, lparam);
