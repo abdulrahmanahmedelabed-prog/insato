@@ -90,12 +90,7 @@ class HomeShell extends ConsumerWidget {
       _ => meetingsPane(),
     };
 
-    final content = Column(
-      children: [
-        const _RecordingBar(),
-        Expanded(child: body),
-      ],
-    );
+    final content = _RecordingBar(child: body);
 
     final scaffold = wide
         ? Scaffold(
@@ -158,16 +153,41 @@ class HomeShell extends ConsumerWidget {
   }
 }
 
-/// Thin bar shown while a meeting is being recorded and the recording
-/// screen is not on top.
+/// Thin bar shown above [child] while a meeting is being recorded and the
+/// recording screen is not on top. The bar consumes the top (status bar)
+/// inset, so [child] (whose app bars would add it again) gets it removed.
 class _RecordingBar extends ConsumerWidget {
-  const _RecordingBar();
+  const _RecordingBar({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(meetingSessionControllerProvider);
-    if (!s.isCapturing) return const SizedBox.shrink();
+    // Same tree shape whether or not the bar shows, so [child] keeps its
+    // state (scroll position, search) when a recording starts or stops.
+    return Column(
+      children: [
+        if (s.isCapturing) _bar(context, ref, s),
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: s.isCapturing,
+            child: child,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bar(BuildContext context, WidgetRef ref, SessionState s) {
     final scheme = Theme.of(context).colorScheme;
+    // The live title: a rename during the recording updates the row, not
+    // the session state.
+    final id = s.meetingId;
+    final liveTitle = id == null
+        ? null
+        : ref.watch(meetingProvider(id)).value?.title;
     return Material(
       color: scheme.errorContainer,
       child: SafeArea(
@@ -188,7 +208,7 @@ class _RecordingBar extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      s.title ?? S.recordingInProgress,
+                      liveTitle ?? s.title ?? S.recordingInProgress,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: scheme.onErrorContainer),
                     ),

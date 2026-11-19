@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -177,6 +179,90 @@ void main() {
     },
   );
 
+  test('TLS and raw socket errors while connecting are retried', () async {
+    final q = QueueClient([
+      () => throw const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+      () => throw const TlsException('bad record mac'),
+      () => throw const SocketException('Connection reset by peer'),
+      () => chunkedResponse(successStream('{"a":"ok"}')),
+    ]);
+    final result = await call(makeClient(q));
+    expect(result.text, '{"a":"ok"}');
+    expect(q.requests, hasLength(4));
+    expect(delays, hasLength(3));
+  });
+
+  test('persistent TLS failure ends as a retryable error', () async {
+    final q = QueueClient([
+      for (var i = 0; i < 4; i++)
+        () => throw const HandshakeException('captive portal'),
+    ]);
+    await expectLater(
+      call(makeClient(q)),
+      throwsA(
+        isA<MinutesGenerationException>()
+            .having((e) => e.retryable, 'retryable', true)
+            .having((e) => e.cause, 'cause', isA<HandshakeException>()),
+      ),
+    );
+    expect(q.requests, hasLength(4));
+  });
+
+  test('raw socket error mid-stream is retried', () async {
+    final head = utf8.encode(
+      sseEvent('message_start', {
+        'message': {'id': 'm', 'model': 'claude-opus-5-5'},
+      }),
+    );
+    final q = QueueClient([
+      () => http.StreamedResponse(
+        () async* {
+          yield head;
+          throw const SocketException('Connection reset by peer');
+        }(),
+        200,
+        headers: const {'content-type': 'text/event-stream'},
+      ),
+      () => chunkedResponse(successStream('{"a":"d"}')),
+    ]);
+    final result = await call(makeClient(q));
+    expect(result.text, '{"a":"d"}');
+    expect(q.requests, hasLength(2));
+  });
+
+  test('header timeout aborts the abandoned request before retrying', () async {
+    final hung = Completer<http.StreamedResponse>();
+    final client = _ScriptedClient([
+      (_) => hung.future,
+      (_) async => chunkedResponse(successStream('{"a":"e"}')),
+    ]);
+    final c = ClaudeClient(
+      apiKey: 'sk-test',
+      client: client,
+      idleTimeout: const Duration(milliseconds: 50),
+      delay: (_) async {},
+      random: Random(1),
+    );
+    final result = await call(c);
+    expect(result.text, '{"a":"e"}');
+    expect(client.requests, hasLength(2));
+    final first = client.requests.first;
+    expect(first, isA<http.Abortable>());
+    final trigger = (first as http.Abortable).abortTrigger;
+    expect(trigger, isNotNull);
+    var aborted = false;
+    unawaited(trigger!.then((_) => aborted = true));
+    await pumpEventQueue();
+    expect(aborted, isTrue);
+
+    // If headers arrive late anyway, the body is drained and released.
+    var cancelled = false;
+    final late = StreamController<List<int>>(onCancel: () => cancelled = true);
+    hung.complete(http.StreamedResponse(late.stream, 200));
+    await pumpEventQueue();
+    expect(cancelled, isTrue);
+  });
+
   test('mid-stream overloaded error event is retried', () async {
     final broken = StringBuffer()
       ..write(
@@ -272,4 +358,18 @@ void main() {
     );
     expect(q.requests, isEmpty);
   });
+}
+
+/// Client whose responses are produced by scripted handlers, one per call.
+class _ScriptedClient extends http.BaseClient {
+  _ScriptedClient(this.handlers);
+
+  final List<Future<http.StreamedResponse> Function(http.BaseRequest)> handlers;
+  final List<http.BaseRequest> requests = [];
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    requests.add(request);
+    return handlers.removeAt(0)(request);
+  }
 }

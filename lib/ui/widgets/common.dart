@@ -424,7 +424,24 @@ class ReadableWidth extends StatelessWidget {
 void showSnack(BuildContext context, String message, {bool error = false}) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  final scheme = Theme.of(context).colorScheme;
+  showSnackOn(
+    messenger,
+    Theme.of(context).colorScheme,
+    message,
+    error: error,
+  );
+}
+
+/// Like [showSnack], for callers that captured the [messenger] and [scheme]
+/// before an await that may unmount their widget (the root messenger
+/// outlives pages and list tiles).
+void showSnackOn(
+  ScaffoldMessengerState messenger,
+  ColorScheme scheme,
+  String message, {
+  bool error = false,
+}) {
+  if (!messenger.mounted) return;
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(

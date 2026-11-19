@@ -171,7 +171,8 @@
      "en": "Mature product; no published accuracy figures",
      "ar": "منتج ناضج؛ دون أرقام دقة منشورة"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Fireflies.ai",
@@ -258,7 +259,8 @@
      "en": "Widely used; no Arabic accuracy data",
      "ar": "واسع الانتشار؛ دون بيانات دقة للعربية"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Microsoft Teams Premium / Copilot (intelligent recap)",
@@ -345,7 +347,8 @@
      "en": "Enterprise-proven; no Arabic recap benchmarks",
      "ar": "مجرّب مؤسسيًا؛ دون قياسات لملخصات العربية"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Zoom AI Companion",
@@ -432,7 +435,8 @@
      "en": "Mature platform; Arabic summaries still in preview",
      "ar": "منصة ناضجة؛ والملخصات العربية ما زالت تجريبية"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Google Meet (Gemini 'Take notes for me')",
@@ -518,7 +522,8 @@
      "en": "Mature platform; no published accuracy data",
      "ar": "منصة ناضجة؛ دون بيانات دقة منشورة"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Plaud (Note / NotePin + app)",
@@ -605,7 +610,8 @@
      "en": "Widely shipped; no published WER",
      "ar": "منتشر على نطاق واسع؛ دون معدل خطأ منشور"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Sembly AI",
@@ -692,7 +698,8 @@
      "en": "Shipped; mixed app-store accuracy reviews",
      "ar": "منتج مطروح؛ ومراجعات الدقة في المتاجر متباينة"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "MacWhisper",
@@ -779,7 +786,8 @@
      "en": "Mature Mac app; accuracy equals open Whisper",
      "ar": "تطبيق ماك ناضج؛ ودقته هي دقة Whisper المفتوح"
     }
-   ]
+   ],
+   "group": "global"
   },
   {
    "name": "Mudawin (مدوّن)",
@@ -865,7 +873,574 @@
      "en": "User guide still labeled Beta v1.8",
      "ar": "دليل المستخدم ما زال بعنوان «نسخة تجريبية 1.8»"
     }
-   ]
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "Faris AI (MasterTeam)",
+   "category_en": "Saudi enterprise agentic AI (executive/PMO) with meeting minutes",
+   "category_ar": "وكيل ذكاء اصطناعي سعودي للمؤسسات (الإدارة التنفيذية ومكاتب المشاريع) يشمل محاضر الاجتماعات",
+   "best_at_en": "Saudi-hosted enterprise suite that turns Arabic meeting decisions into tasks pushed into MasterTeam's PMO and project systems (vendor)",
+   "best_at_ar": "منظومة مؤسسية مستضافة في السعودية تحوّل قرارات الاجتماعات العربية إلى مهام تُرسل إلى أنظمة ماستر تيم لإدارة المشاريع (حسب المورّد)",
+   "sources": [
+    "https://masterteam.sa/resources/ai-meeting-minutes-system",
+    "https://masterteam.sa/resources/what-is-faris-ai",
+    "https://www.masterteam.sa/resources/the-best-ai-agent-for-saudi-companies",
+    "https://www.masterteam.sa/resources/saudi-local-ai-2026",
+    "https://www.masterteam.sa/resources/faris-ai-use-cases-in-saudi-organizations",
+    "https://masterteam.sa/resources/tgty-aalmy-mshryaa-lsaawdy-trsd-tlq-frs-ai-mn-mstr-tym-fy",
+    "https://masterteam.sa"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "yes",
+     "en": "Arabic minutes with decisions, owners, deadlines and tasks (vendor)",
+     "ar": "محاضر عربية مع القرارات والمسؤولين والمواعيد والمهام (حسب المورّد)"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "partial",
+     "en": "Claims Arabic and Saudi/local dialect transcription; no published accuracy (vendor)",
+     "ar": "يدّعي تفريغ العربية واللهجة السعودية واللهجات المحلية دون أرقام دقة منشورة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "unknown",
+     "en": "No evidence beyond Arabic; code-switching undocumented",
+     "ar": "لا أدلة على لغات غير العربية أو على المزج بين اللغات"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "No documented speaker labeling or voice recognition across meetings",
+     "ar": "لا توثيق لتمييز المتحدثين أو التعرّف عليهم بأصواتهم عبر الاجتماعات"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "unknown",
+     "en": "No documented in-room capture method",
+     "ar": "لا توثيق لطريقة تسجيل الاجتماعات الحضورية"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "partial",
+     "en": "On-premise or national cloud deployment; not on-device (vendor)",
+     "ar": "نشر داخلي أو على السحابة الوطنية، لا معالجة على الجهاز (حسب المورّد)"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "partial",
+     "en": "Vendor says Faris 'joins your meeting'; supported platforms (Zoom/Teams etc.) not named",
+     "ar": "يقول المورّد إن فارس 'ينضم إلى اجتماعك' دون تسمية المنصات المدعومة (زوم أو تيمز وغيرها)"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "unknown",
+     "en": "Client apps and platforms not publicly listed",
+     "ar": "التطبيقات والمنصات المدعومة غير معلنة"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "yes",
+     "en": "Pushes tasks into PMIS/ERP/task systems; ties to MasterTeam +P, +S, Diwan (vendor)",
+     "ar": "يرسل المهام إلى أنظمة إدارة المشاريع والموارد والمهام ويرتبط بمنتجات ماستر تيم ‎+P و‎+S وديوان (حسب المورّد)"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "partial",
+     "en": "Saudi/national-cloud hosting; 'designed to comply' with NCA, Qiyas, SAMA/SDAIA requirements; no certification found (vendor)",
+     "ar": "استضافة سعودية على السحابة الوطنية و'مصمّم للامتثال' لمتطلبات الهيئة الوطنية للأمن السيبراني وقياس وساما وسدايا دون شهادة معلنة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "unknown",
+     "en": "No public pricing; enterprise sales",
+     "ar": "لا أسعار معلنة؛ بيع مؤسسي"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "partial",
+     "en": "Recently launched (site announces 'Faris OS is live'); no independent reviews or benchmarks",
+     "ar": "أُطلق حديثاً (يعلن الموقع إطلاق Faris OS)؛ لا مراجعات أو اختبارات مستقلة"
+    }
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "Anar Minutes",
+   "category_en": "Arabic-first AI suite for Gulf governments (Anar Labs, Abu Dhabi); meeting-minutes product unconfirmed",
+   "category_ar": "منصة ذكاء اصطناعي عربية للجهات الحكومية الخليجية (أنار لابز، أبوظبي)؛ منتج المحاضر غير مؤكَّد",
+   "best_at_en": "Gulf-dialect Arabic speech recognition and sovereign-AI positioning for government entities. These are vendor claims only, and no meetings-specific feature could be verified.",
+   "best_at_ar": "التعرّف على الكلام العربي باللهجات الخليجية وتقديم نفسها كذكاء اصطناعي سيادي للجهات الحكومية (ادعاءات المورّد فقط، ولم يتأكد أي شيء خاص بالاجتماعات)",
+   "sources": [
+    "https://anar-website.pages.dev/products/voice",
+    "https://anar-website.pages.dev/about",
+    "https://anar-website.pages.dev/",
+    "https://anar-website.pages.dev/products/minutes"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "unknown",
+     "en": "A Minutes product page is assumed, but no search surfaced its content; structured minutes, action items and decisions could not be verified",
+     "ar": "يُفترض وجود صفحة لمنتج المحاضر لكن لم يظهر محتواها في أي بحث؛ تعذّر التحقق من المحاضر المنظّمة وبنود العمل والقرارات"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "partial",
+     "en": "Anar Voice claims real-time ASR tuned for Gulf dialects, plus Levantine and MSA, aimed at call centres rather than meetings; no published accuracy (vendor)",
+     "ar": "يدّعي Anar Voice تفريغاً فورياً مضبوطاً على اللهجات الخليجية والشامية والفصحى، موجّهاً لمراكز الاتصال لا للاجتماعات؛ دون أرقام دقة منشورة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "unknown",
+     "en": "Several Arabic varieties are claimed; English and code-switching are not documented",
+     "ar": "يدّعي دعم عدة لهجات عربية؛ لا توثيق للإنجليزية أو خلط اللغات"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "No documented speaker recognition across meetings",
+     "ar": "لا توثيق للتعرّف على المتحدثين عبر الاجتماعات"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "unknown",
+     "en": "Capture method for in-room meetings not documented",
+     "ar": "طريقة تسجيل الاجتماعات الحضورية غير موثّقة"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "unknown",
+     "en": "Sovereign deployment is claimed, but on-premises or offline use is neither confirmed nor ruled out",
+     "ar": "يدّعي نشراً سيادياً، لكن لم يتأكد ولم يُنفَ التشغيل محلياً أو دون اتصال"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "unknown",
+     "en": "Zoom/Teams/Meet capture not documented",
+     "ar": "لا توثيق لالتقاط اجتماعات زوم أو تيمز أو ميت"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "unknown",
+     "en": "Supported apps and platforms not published",
+     "ar": "المنصات والتطبيقات المدعومة غير منشورة"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "unknown",
+     "en": "API and calendar connectors could not be verified in any search result",
+     "ar": "تعذّر التحقق من الواجهات البرمجية وربط التقويم في أي نتيجة بحث"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "partial",
+     "en": "Claims sovereign AI, immutable logs of every AI interaction and real-time monitoring; no certifications listed (vendor)",
+     "ar": "يدّعي ذكاءً اصطناعياً سيادياً وسجلات غير قابلة للتعديل لكل تفاعل ومراقبة فورية؛ دون شهادات معلنة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "unknown",
+     "en": "No public pricing found",
+     "ar": "لا أسعار معلنة"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "unknown",
+     "en": "No independent press, customers or benchmarks found; the homepage shows a '0 AI Products' counter next to a '14 products' claim, which suggests placeholder content",
+     "ar": "لا تغطية مستقلة ولا عملاء ولا مقاييس؛ تعرض الصفحة الرئيسية عدّاد '0 منتجات' بجانب ادعاء '14 منتجاً'، ما يوحي بمحتوى مؤقت"
+    }
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "Taqriry.ai",
+   "category_en": "Arabic/English cloud AI meeting assistant (Riyadh startup)",
+   "category_ar": "مساعد اجتماعات سحابي بالذكاء الاصطناعي للعربية والإنجليزية (شركة ناشئة في الرياض)",
+   "best_at_en": "Arabic-first meeting notes with a dialect-tuned ASR engine (vendor claim)",
+   "best_at_ar": "ملاحظات اجتماعات تركّز على العربية بمحرك تعرّف كلام مهيأ للهجات (حسب المورّد)",
+   "sources": [
+    "https://www.producthunt.com/posts/taqriry-ai",
+    "https://www.producthunt.com/products/taqriry-ai/launches",
+    "https://www.producthunt.com/products/taqriry-ai/reviews",
+    "https://www.producthunt.com/products/taqriry-ai/makers",
+    "https://saasbrowser.com/en/saas/991512/taqriry"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "partial",
+     "en": "Arabic/English notes, summaries and action items (vendor); a formal-minutes format is not documented",
+     "ar": "ملاحظات وملخصات ومهام بالعربية والإنجليزية (حسب المورّد)؛ صيغة المحضر الرسمي غير موثقة"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "partial",
+     "en": "Custom ASR engine 'built for dialects' (vendor); no independent accuracy tests",
+     "ar": "محرك تعرّف كلام مخصص 'مبني للهجات' (حسب المورّد)؛ لا اختبارات دقة مستقلة"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "partial",
+     "en": "Arabic and English only; handling of mixed Arabic-English speech is not documented",
+     "ar": "العربية والإنجليزية فقط؛ دعم الخلط بين اللغتين غير موثق"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "No evidence of speaker identification or recognizing people by voice across meetings",
+     "ar": "لا دليل على تمييز المتحدثين أو التعرّف على الأشخاص بأصواتهم عبر الاجتماعات"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "partial",
+     "en": "Audio upload supported (vendor); live in-room recording is not documented",
+     "ar": "يدعم رفع التسجيلات الصوتية (حسب المورّد)؛ التسجيل الحضوري المباشر غير موثق"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "no",
+     "en": "Cloud service; no on-device processing documented",
+     "ar": "خدمة سحابية؛ لا توجد معالجة على الجهاز موثقة"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "partial",
+     "en": "Says it works with Zoom, Google Meet and Teams (vendor and directory); the method (bot or other) is not verified",
+     "ar": "يذكر أنه يعمل مع Zoom وGoogle Meet وTeams (حسب المورّد ودليل خارجي)؛ طريقة الالتقاط (بوت أو غيره) غير مؤكدة"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "unknown",
+     "en": "Probably a web app; no mobile apps confirmed",
+     "ar": "تطبيق ويب على الأرجح؛ تطبيقات الجوال غير مؤكدة"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "partial",
+     "en": "Claims automatic follow-ups and pushing to Slack, Notion and CRMs (vendor); not verified",
+     "ar": "يذكر إرسال المتابعات تلقائيًا والتحديث في Slack وNotion وأنظمة CRM (حسب المورّد)؛ غير مؤكد"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "unknown",
+     "en": "No public certifications or details on where data is stored",
+     "ar": "لم يُعثر على شهادات امتثال أو تفاصيل لموقع حفظ البيانات"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "partial",
+     "en": "Free trial (vendor); about $0–20 per month according to a third-party directory (unverified)",
+     "ar": "تجربة مجانية (حسب المورّد)؛ نحو 0–20 دولارًا شهريًا حسب دليل خارجي (غير مؤكد)"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "partial",
+     "en": "Launched on Product Hunt in May 2025; no independent reviews or accuracy benchmarks found",
+     "ar": "أُطلق على Product Hunt في مايو 2025؛ لا مراجعات مستقلة أو معايير دقة منشورة"
+    }
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "Soniox (Soniox App)",
+   "category_en": "Cloud speech-to-text API plus consumer/business transcription app",
+   "category_ar": "واجهة برمجية سحابية لتحويل الكلام إلى نص مع تطبيق نسخ للأفراد والشركات",
+   "best_at_en": "High-accuracy multilingual transcription with no meeting bot, low price, strong compliance (vendor)",
+   "best_at_ar": "نسخ متعدد اللغات عالي الدقة دون روبوت اجتماعات، بسعر منخفض وامتثال قوي (حسب المورّد)",
+   "sources": [
+    "https://soniox.com/soniox-app/use-cases/arabic-meeting-transcription",
+    "https://soniox.com/soniox-app/use-cases/meeting-transcription/arabic",
+    "https://soniox.com/soniox-app/for/compliance-officers-meeting-minutes-in-arabic",
+    "https://soniox.com/compare-stt/soniox-vs-openai/arabic",
+    "https://soniox.com/soniox-app/pricing",
+    "https://app.soniox.com/help-center/pricing/plans",
+    "https://soniox.com/soniox-app/use-cases/meeting-transcription",
+    "https://soniox.com/soniox-app/business",
+    "https://soniox.com/blog/2025-12-09-soniox-app-business",
+    "https://soniox.com/blog/2025-05-06-introducing-soniox-app",
+    "https://soniox.com/blog/2025-11-05-soniox-app",
+    "https://soniox.com/blog/2026-01-15-everything-you-do-with-voice",
+    "https://app.soniox.com/help-center/desktop-app/install",
+    "https://soniox.com/docs/stt/security-and-privacy",
+    "https://soniox.com/docs/stt/data-residency",
+    "https://soniox.com/europe",
+    "https://soniox.com/docs/how-to-guides/identify-speakers",
+    "https://apps.apple.com/us/app/soniox/id1560199731",
+    "https://www.capterra.com/p/10034186/Soniox/"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "partial",
+     "en": "Smart Scribe gives Arabic summaries, decisions and action items; no formal minutes template found (vendor)",
+     "ar": "يقدّم Smart Scribe ملخصات عربية وقرارات ومهام؛ لم نجد قالب محاضر رسمية (حسب المورّد)"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "yes",
+     "en": "MSA, Egyptian, Gulf, Levantine listed; vendor WER figures conflict (1.25% vs 16.2%), unverified (vendor)",
+     "ar": "الفصحى والمصرية والخليجية والشامية؛ أرقام الخطأ متضاربة (1.25% و16.2%) وغير مُتحقق منها (حسب المورّد)"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "yes",
+     "en": "60+ languages with mid-sentence switching (vendor)",
+     "ar": "أكثر من 60 لغة مع التبديل داخل الجملة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "App separates speakers per recording; no evidence it remembers voices across meetings. API identifies speakers by voice samples",
+     "ar": "التطبيق يفصل المتحدثين في كل تسجيل؛ لا دليل على تذكّر الأصوات بين الاجتماعات. الواجهة البرمجية تتعرّف على متحدثين عبر عينات صوتية"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "yes",
+     "en": "Records in-room on phone, no bot needed",
+     "ar": "يسجّل الاجتماع الحضوري عبر الهاتف دون روبوت"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "partial",
+     "en": "Can record offline and sync later; transcription runs in the cloud",
+     "ar": "يمكن التسجيل دون اتصال والمزامنة لاحقًا؛ النسخ يتم سحابيًا"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "partial",
+     "en": "Run app beside the call; no bot or native Zoom/Teams/Meet integration found",
+     "ar": "تشغيل التطبيق بجوار المكالمة؛ لم نجد روبوتًا أو تكاملًا أصليًا مع Zoom/Teams/Meet"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "yes",
+     "en": "iOS, Android, web, and Mac/Windows desktop apps (desktop includes Smart Scribe and Voice Typing)",
+     "ar": "iOS وأندرويد والويب وتطبيقات سطح المكتب لماك وويندوز (تشمل Smart Scribe والإملاء)"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "partial",
+     "en": "Business: shared workspace transcripts and summaries, seat admin; no Slack/Notion integrations found",
+     "ar": "باقة الأعمال: مساحة مشتركة للنصوص والملخصات وإدارة المقاعد؛ لم نجد تكاملات مع Slack/Notion"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "yes",
+     "en": "SOC 2 Type 2, HIPAA, GDPR, ISO 27001; regions US/EU/Japan; Business picks region (vendor, documented mainly for the API)",
+     "ar": "SOC 2 Type 2 وHIPAA وGDPR وISO 27001؛ مناطق أمريكا وأوروبا واليابان؛ باقة الأعمال تختار المنطقة (حسب المورّد، موثّق أساسًا للواجهة البرمجية)"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "yes",
+     "en": "Free plan with weekly credits; Pro $19.99/mo or $120/yr; Business from $25/user/mo billed annually",
+     "ar": "باقة مجانية برصيد أسبوعي؛ Pro بـ19.99$ شهريًا أو 120$ سنويًا؛ الأعمال من 25$ للمستخدم شهريًا بفوترة سنوية"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "partial",
+     "en": "Current app launched May 2025, relaunched Nov 2025, Business Dec 2025; accuracy only from vendor benchmarks, few independent reviews",
+     "ar": "التطبيق الحالي أُطلق مايو 2025 وأُعيد إطلاقه نوفمبر 2025 وباقة الأعمال ديسمبر 2025؛ الدقة بمقاييس المورّد فقط ومراجعات مستقلة قليلة"
+    }
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "JotMe",
+   "category_en": "Bot-free desktop meeting notes and live translation app, with mobile apps (cloud)",
+   "category_ar": "تطبيق سطح مكتب لتدوين الاجتماعات والترجمة الفورية دون روبوت، مع تطبيقات جوال (سحابي)",
+   "best_at_en": "Multilingual meetings: live translation plus notes in many languages, with no bot joining the call",
+   "best_at_ar": "الاجتماعات متعددة اللغات: ترجمة فورية وملاحظات بلغات كثيرة، دون روبوت ينضم إلى المكالمة",
+   "sources": [
+    "https://www.jotme.io/tool/ai-meeting-notes/arabic",
+    "https://translate.jotme.io/audio-to-text/arabic",
+    "https://www.jotme.io/google-meet/transcript/arabic-maghrebi",
+    "https://www.jotme.io/tools/speaker-diarization",
+    "https://www.jotme.io/blog/jotme-pricing-and-plan-explained",
+    "https://docs.jotme.io/pricing/teams",
+    "https://www.jotme.io/policy",
+    "https://docs.jotme.io/product/privacy-and-data",
+    "https://www.jotme.io/blog/best-ai-interpreter-apps",
+    "https://www.jotme.io/blog/best-ai-notetaker",
+    "https://www.capterra.com/p/10032541/JotMe/",
+    "https://www.getapp.com/all-software/a/jotme/",
+    "https://www.g2.com/products/jotme"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "yes",
+     "en": "Arabic minutes from live or uploaded meetings (vendor claim; dialect-to-MSA conversion not verified)",
+     "ar": "محاضر عربية من الاجتماعات المباشرة أو المسجّلة (حسب المورّد؛ لم يُتحقق من تحويل اللهجة إلى الفصحى)"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "unknown",
+     "en": "Vendor claims MSA, regional dialects and mixed Arabic-English; no independent accuracy data",
+     "ar": "يدّعي المورّد دعم الفصحى واللهجات والعربية-الإنجليزية المختلطة؛ لا بيانات دقة مستقلة"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "yes",
+     "en": "Many languages and mixed Arabic-English meetings (vendor counts vary: 45+, 107, 200+)",
+     "ar": "لغات كثيرة واجتماعات عربية-إنجليزية مختلطة (أعداد المورّد متضاربة: 45+ و107 و200+)"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "Per-meeting diarization with generic labels (Speaker 0, 1), renamable afterwards; no cross-meeting voice profiles documented",
+     "ar": "فصل المتحدثين داخل الاجتماع بتسميات عامة (متحدث 0، 1) قابلة لإعادة التسمية؛ لا توثيق لبصمات صوتية عبر الاجتماعات"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "partial",
+     "en": "Desktop app has an In-person mode with numbered speaker labels (vendor)",
+     "ar": "تطبيق سطح المكتب فيه وضع للاجتماعات الحضورية بتسميات مرقّمة للمتحدثين (حسب المورّد)"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "no",
+     "en": "Cloud processing (privacy policy names AWS and OpenAI as sub-processors); no offline mode found",
+     "ar": "معالجة سحابية (سياسة الخصوصية تذكر AWS وOpenAI كمعالجين فرعيين)؛ لم يُعثر على وضع دون اتصال"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "yes",
+     "en": "Zoom, Teams, Meet and other calls via system audio, no bot (vendor)",
+     "ar": "زوم وتيمز وميت ومكالمات أخرى عبر صوت الجهاز دون روبوت (حسب المورّد)"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "yes",
+     "en": "Windows, macOS, Chrome extension; iOS/Android apps focus mainly on translation, not meeting notes (vendor)",
+     "ar": "ويندوز وماك وإضافة كروم؛ تطبيقات iOS وأندرويد تركز أساساً على الترجمة لا على المحاضر (حسب المورّد)"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "partial",
+     "en": "Teams plan with seats and pooled minutes; few documented workspace integrations",
+     "ar": "خطة فرق بمقاعد ودقائق مشتركة؛ تكاملات قليلة موثّقة مع أدوات العمل"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "partial",
+     "en": "Policy lists GDPR rights and says data is not used for training; relies on AWS/OpenAI certifications; no JotMe SOC 2 report or data-residency option found",
+     "ar": "السياسة تذكر حقوق GDPR وعدم استخدام البيانات للتدريب؛ تعتمد على شهادات AWS وOpenAI؛ لم يُعثر على تقرير SOC 2 خاص بالشركة ولا خيار لموقع البيانات"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "yes",
+     "en": "Free plan (about 20 live-translation minutes per cycle); Pro $20/user/month or $10 annual; Teams from $60/month; third-party figures differ",
+     "ar": "خطة مجانية (نحو 20 دقيقة ترجمة فورية لكل دورة)؛ Pro بـ20 دولاراً للمستخدم شهرياً أو 10 سنوياً؛ الفرق من 60 دولاراً شهرياً؛ أرقام المواقع الأخرى مختلفة"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "partial",
+     "en": "Shipping product listed on G2, Capterra, GetApp; no published Arabic accuracy benchmarks",
+     "ar": "منتج متاح ومُدرج في G2 وCapterra وGetApp؛ لا معايير دقة عربية منشورة"
+    }
+   ],
+   "group": "arabic"
+  },
+  {
+   "name": "MunsitAI (Munsit by CNTXT AI)",
+   "category_en": "Arabic-first speech-to-text platform (app, API, on-prem, on-device SDK)",
+   "category_ar": "منصة عربية أولاً لتحويل الكلام إلى نص (تطبيق وواجهة برمجية ونشر محلي وحزمة على الجهاز)",
+   "best_at_en": "Arabic dialect transcription (MSA + 25+ dialects, vendor claim) with sovereign on-prem and on-device options",
+   "best_at_ar": "تفريغ اللهجات العربية (الفصحى وأكثر من 25 لهجة حسب المورّد) مع خيارات سيادية للنشر المحلي وعلى الجهاز",
+   "sources": [
+    "https://munsit.cntxt.tech",
+    "https://communicateonline.me/news/cntxt-ai-unveils-munsit-the-worlds-most-accurate-arabic-speech-recognition-model/",
+    "https://meatechwatch.com/2025/05/01/cntxt-ai-unveils-munsit-the-most-accurate-arabic-speech-recognition-model/",
+    "https://meatechwatch.com/2026/05/13/cntxt-ai-introduces-munsit-edge-bringing-private-real-time-arabic-speech-ai-to-phones-cars-and-smart-devices/",
+    "https://mena.entrepreneur.com/business-news/uae-based-cntxt-ai-launches-on-device-arabic-speech-to-text-system-munsit-edge",
+    "https://mena.entrepreneur.com/news-and-trends/cntxt-ai-launches-munsit-the-worlds-most-accurate-arabic/504008",
+    "https://www.gccbusinessnews.com/cntxt-ai-munsit-arabic-voice-ai-platform/",
+    "https://apps.apple.com/us/app/munsitai/id6749622996",
+    "https://sourceforge.net/app/munsitai/android/",
+    "https://munsit.cntxt.tech/munsit-app",
+    "https://munsit.cntxt.tech/category/plans",
+    "https://en.sharikatmubasher.com/media-hub/news/21556618/cntxt-ai-secures-60mn-series-a-to-scale-sovereign-ai-infrastructure",
+    "https://www.wamda.com/2026/06/cntxt-ai-closes-60-million-series-deploy-secure-ai-infrastructure-worldwide-arabic",
+    "https://yespress.io/cntxt-ai"
+   ],
+   "cells": [
+    {
+     "dimension_id": "arabic_minutes",
+     "rating": "partial",
+     "en": "Arabic meeting transcription and note-taking marketed; formal minutes generation undocumented",
+     "ar": "يروّج لتفريغ الاجتماعات بالعربية وتدوين الملاحظات؛ لا توثيق لإنشاء محاضر رسمية"
+    },
+    {
+     "dimension_id": "arabic_asr",
+     "rating": "yes",
+     "en": "MSA + 25+ dialects; claims 26.68% avg WER, ahead of Whisper/GPT-4o (vendor)",
+     "ar": "الفصحى وأكثر من 25 لهجة؛ يدّعي متوسط خطأ 26.68% متفوقاً على Whisper وGPT-4o (حسب المورّد)"
+    },
+    {
+     "dimension_id": "multilingual",
+     "rating": "partial",
+     "en": "Arabic-focused; Arabic-English code-switching claimed (vendor)",
+     "ar": "يركّز على العربية؛ يدّعي دعم المزج العربي-الإنجليزي (حسب المورّد)"
+    },
+    {
+     "dimension_id": "voice_memory",
+     "rating": "unknown",
+     "en": "No evidence of speaker diarization or cross-meeting voice recognition",
+     "ar": "لا دليل على فصل المتحدثين أو التعرّف عليهم بالصوت عبر الاجتماعات"
+    },
+    {
+     "dimension_id": "inroom",
+     "rating": "partial",
+     "en": "Mobile app records up to 30 minutes per session (vendor)",
+     "ar": "التطبيق يسجّل حتى 30 دقيقة في الجلسة الواحدة (حسب المورّد)"
+    },
+    {
+     "dimension_id": "offline",
+     "rating": "partial",
+     "en": "Munsit Edge developer SDK on-device, ~24% WER (vendor); consumer app is cloud-based",
+     "ar": "حزمة Munsit Edge للمطورين تعمل على الجهاز بخطأ نحو 24% (حسب المورّد)؛ تطبيق المستخدمين سحابي"
+    },
+    {
+     "dimension_id": "online_capture",
+     "rating": "unknown",
+     "en": "Only a garbled vendor plans page mentions Zoom/Meet/Teams; not confirmed",
+     "ar": "لا يذكر Zoom وMeet وTeams إلا صفحة باقات مشوّهة للمورّد؛ غير مؤكَّد"
+    },
+    {
+     "dimension_id": "platforms",
+     "rating": "yes",
+     "en": "iOS app, web workspace, API; Edge SDKs for Android, macOS, Windows, Linux",
+     "ar": "تطبيق iOS ومساحة عمل ويب وواجهة برمجية؛ حزم Edge لأندرويد وmacOS وويندوز ولينكس"
+    },
+    {
+     "dimension_id": "collaboration",
+     "rating": "unknown",
+     "en": "Slack/Zapier/CRM appear only on a garbled plans page; not confirmed",
+     "ar": "Slack وZapier وCRM لا تظهر إلا في صفحة باقات مشوّهة؛ غير مؤكَّد"
+    },
+    {
+     "dimension_id": "compliance",
+     "rating": "partial",
+     "en": "Cloud, private or on-prem deployment for sovereignty; no certifications found",
+     "ar": "نشر سحابي أو خاص أو محلي للسيادة؛ لم نجد شهادات امتثال"
+    },
+    {
+     "dimension_id": "price",
+     "rating": "yes",
+     "en": "Free app; Creator $2.99/week, $6.99/month, $39.99/year; enterprise unpublished",
+     "ar": "تطبيق مجاني؛ Creator بـ2.99 دولار أسبوعياً و6.99 شهرياً و39.99 سنوياً؛ أسعار المؤسسات غير معلنة"
+    },
+    {
+     "dimension_id": "maturity",
+     "rating": "partial",
+     "en": "Launched 2025; 250+ orgs, 150k users, 1M+ minutes (vendor); no independent benchmarks",
+     "ar": "أُطلق 2025؛ أكثر من 250 جهة و150 ألف مستخدم ومليون دقيقة (حسب المورّد)؛ لا مقارنات مستقلة"
+    }
+   ],
+   "group": "arabic"
   }
  ],
  "katib_cells": [
@@ -958,7 +1533,7 @@
    "title_ar": "Whisper على الجهاز ضعيف في اللهجات العربية",
    "detail_en": "Whisper large-v3 reportedly averages 36.86% WER on the Open Universal Arabic ASR Leaderboard, and roughly 46–72% on Gulf, Levantine and North African speech. Turbo and int8 builds are somewhat worse. Medium and small models are worse again. Whisper also hallucinates text on silence and long audio.",
    "detail_ar": "تشير التقارير إلى أن Whisper large-v3 يسجل متوسط خطأ 36.86% في لوحة Open Universal Arabic ASR، ونحو 46–72% في لهجات الخليج والشام وشمال أفريقيا. نسختا turbo وint8 أضعف قليلًا، والنموذجان medium وsmall أضعف من ذلك، كما يختلق Whisper نصوصًا في فترات الصمت والتسجيلات الطويلة.",
-   "who_does_better": "Arabic specialist models report lower WER: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87%, Munsit 26.68% (all vendor-reported). Speechmatics, ElevenLabs Scribe and MAI-Transcribe also score better in third-party tests.",
+   "who_does_better": "Arabic specialist models report lower WER: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87%, Munsit 26.68% (all vendor-reported). Speechmatics, ElevenLabs Scribe and MAI-Transcribe also score better in third-party tests. Munsit also ships an on-device Arabic SDK (Munsit Edge).",
    "severity": "high",
    "mitigation_en": "Evaluate Arabic-tuned open models for on-device use. Offer an Arabic-specialist cloud engine option. Add voice-activity detection to cut silence hallucinations. Ship custom vocabulary (planned).",
    "mitigation_ar": "تقييم نماذج مفتوحة مضبوطة للعربية لتعمل على الجهاز، وإتاحة محرك سحابي متخصص بالعربية خيارًا إضافيًا، وإضافة كشف النشاط الصوتي للحد من الاختلاق في فترات الصمت، وإطلاق المفردات المخصصة المخطط لها."
@@ -1062,6 +1637,16 @@
    "severity": "low",
    "mitigation_en": "Run pilot programs with published case studies and a public changelog, and register the Insato trademark in target markets before launch.",
    "mitigation_ar": "تنفيذ برامج تجريبية مع نشر دراسات حالة وسجل تغييرات علني، وتسجيل علامة «إنصاتو» التجارية في الأسواق المستهدفة قبل الإطلاق."
+  },
+  {
+   "title_en": "Arabic specialists are already shipping",
+   "title_ar": "المتخصصون بالعربية يعملون في السوق فعلاً",
+   "detail_en": "Munsit, Soniox, Taqriry, JotMe, Faris AI and Mudawin are live today. Munsit trains its own Arabic model on MSA and 25+ dialects and offers an on-device SDK (Munsit Edge). Soniox ships apps on every platform with SOC 2 and ISO 27001. Insato has no users yet.",
+   "detail_ar": "منصت وSoniox وتقريري وJotMe وفارس ومدوّن تعمل في السوق اليوم. يدرّب منصت نموذجه العربي الخاص على الفصحى وأكثر من 25 لهجة ويقدّم حزمة تعمل على الجهاز (Munsit Edge)، وتطرح Soniox تطبيقات لكل المنصات مع شهادتي SOC 2 وISO 27001. أما إنصاتو فلا مستخدمين له بعد.",
+   "who_does_better": "Munsit (Arabic ASR, on-device SDK, government deployments, vendor claims 250+ customers), Soniox (multi-platform apps, certifications), Faris AI and Mudawin (Saudi enterprise hosting and task integration).",
+   "severity": "high",
+   "mitigation_en": "Compete on what they do not document: formal Arabic minutes with quorum and votes, voice recognition that persists across meetings, fully on-device mode, and any-language input. Evaluate Munsit Edge or another Arabic-specialist engine as an optional on-device ASR backend to close the dialect gap.",
+   "mitigation_ar": "المنافسة فيما لا يوثّقونه: المحضر العربي الرسمي بالنصاب والتصويت، والتعرّف على الأصوات عبر الاجتماعات، والعمل الكامل على الجهاز، وقبول أي لغة. وتقييم Munsit Edge أو محرك عربي متخصص آخر كخيار للتفريغ على الجهاز لسد فجوة اللهجات."
   }
  ],
  "katib_strengths": [
@@ -1309,6 +1894,311 @@
    "label": "Kateb (RDI) App Store listing",
    "url": "https://apps.apple.com/eg/app/kateb/id6450555712",
    "date": "seen 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: AI meeting minutes system (vendor page, via search snippet; fetch blocked)",
+   "url": "https://masterteam.sa/resources/ai-meeting-minutes-system",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: What is Faris AI (vendor)",
+   "url": "https://masterteam.sa/resources/what-is-faris-ai",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: The best AI agent for Saudi companies (vendor)",
+   "url": "https://www.masterteam.sa/resources/the-best-ai-agent-for-saudi-companies",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: Local AI in Saudi Arabia 2026 (vendor)",
+   "url": "https://www.masterteam.sa/resources/saudi-local-ai-2026",
+   "date": "2026; accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: Faris AI use cases in Saudi organizations (vendor)",
+   "url": "https://www.masterteam.sa/resources/faris-ai-use-cases-in-saudi-organizations",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam: Saudi Projects platform covers Faris AI launch (vendor repost)",
+   "url": "https://masterteam.sa/resources/tgty-aalmy-mshryaa-lsaawdy-trsd-tlq-frs-ai-mn-mstr-tym-fy",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "MasterTeam homepage: 'Faris OS is live' (vendor, via search snippet)",
+   "url": "https://masterteam.sa",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Anar Voice product page: Gulf dialect, Levantine, MSA real-time transcription for call centres (via search summary; direct fetch blocked)",
+   "url": "https://anar-website.pages.dev/products/voice",
+   "date": "2026-11-19 (accessed)"
+  },
+  {
+   "label": "Anar About page: sovereign AI for Gulf government entities, Abu Dhabi HQ (via search summary)",
+   "url": "https://anar-website.pages.dev/about",
+   "date": "2026-11-19 (accessed)"
+  },
+  {
+   "label": "Anar homepage: 14-product claim, '0 AI Products' counter, immutable logs (via search summary)",
+   "url": "https://anar-website.pages.dev/",
+   "date": "2026-11-19 (accessed)"
+  },
+  {
+   "label": "Anar Minutes product page (could not be fetched or surfaced in search; content unverified)",
+   "url": "https://anar-website.pages.dev/products/minutes",
+   "date": "2026-11-19 (accessed)"
+  },
+  {
+   "label": "Product Hunt launch: Taqriry.ai (vendor description; first Arabic and English AI meeting assistant)",
+   "url": "https://www.producthunt.com/posts/taqriry-ai",
+   "date": "2025-05-31"
+  },
+  {
+   "label": "Product Hunt launches page (custom dialect ASR; Zoom, Meet and Teams; Slack, Notion and CRM follow-ups; Riyadh founders)",
+   "url": "https://www.producthunt.com/products/taqriry-ai/launches",
+   "date": "accessed 2026-11-19 via search"
+  },
+  {
+   "label": "Product Hunt reviews page (no independent user reviews found)",
+   "url": "https://www.producthunt.com/products/taqriry-ai/reviews",
+   "date": "accessed 2026-11-19 via search"
+  },
+  {
+   "label": "SaaSBrowser listing (third-party, may be AI-generated; $0–20/mo; dialects; Zoom, Teams and Meet)",
+   "url": "https://saasbrowser.com/en/saas/991512/taqriry",
+   "date": "accessed 2026-11-19 via search"
+  },
+  {
+   "label": "Soniox App – Arabic meeting transcription (vendor)",
+   "url": "https://soniox.com/soniox-app/use-cases/arabic-meeting-transcription",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox App – Arabic meeting transcription FAQ, dialects (vendor)",
+   "url": "https://soniox.com/soniox-app/use-cases/meeting-transcription/arabic",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox App – Arabic meeting minutes for compliance officers (vendor)",
+   "url": "https://soniox.com/soniox-app/for/compliance-officers-meeting-minutes-in-arabic",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox vs OpenAI – Arabic WER comparison (vendor)",
+   "url": "https://soniox.com/compare-stt/soniox-vs-openai/arabic",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox App Pricing",
+   "url": "https://soniox.com/soniox-app/pricing",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox Help Center – Plans",
+   "url": "https://app.soniox.com/help-center/pricing/plans",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox App – Meeting transcription (no bot)",
+   "url": "https://soniox.com/soniox-app/use-cases/meeting-transcription",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox App Business page",
+   "url": "https://soniox.com/soniox-app/business",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox blog – Soniox App Business launch",
+   "url": "https://soniox.com/blog/2025-12-09-soniox-app-business",
+   "date": "2025-12-09"
+  },
+  {
+   "label": "Soniox blog – Introducing Soniox App (iOS/Android)",
+   "url": "https://soniox.com/blog/2025-05-06-introducing-soniox-app",
+   "date": "2025-05-06"
+  },
+  {
+   "label": "Soniox blog – New Soniox App (offline recording, sync)",
+   "url": "https://soniox.com/blog/2025-11-05-soniox-app",
+   "date": "2025-11-05"
+  },
+  {
+   "label": "Soniox blog – Everything you do with voice (desktop apps)",
+   "url": "https://soniox.com/blog/2026-01-15-everything-you-do-with-voice",
+   "date": "2026-01-15"
+  },
+  {
+   "label": "Soniox Help Center – Desktop app install",
+   "url": "https://app.soniox.com/help-center/desktop-app/install",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox docs – Security and privacy",
+   "url": "https://soniox.com/docs/stt/security-and-privacy",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox docs – Data residency",
+   "url": "https://soniox.com/docs/stt/data-residency",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox – Europe / EU region",
+   "url": "https://soniox.com/europe",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Soniox docs – Identify speakers (API)",
+   "url": "https://soniox.com/docs/how-to-guides/identify-speakers",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Apple App Store – Soniox",
+   "url": "https://apps.apple.com/us/app/soniox/id1560199731",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Capterra – Soniox listing (lists $22/user, conflicts with vendor)",
+   "url": "https://www.capterra.com/p/10034186/Soniox/",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Arabic AI meeting notes page (vendor; fetch blocked, used via search snippet)",
+   "url": "https://www.jotme.io/tool/ai-meeting-notes/arabic",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Arabic audio-to-text page (vendor; speaker labels, dialect caveats)",
+   "url": "https://translate.jotme.io/audio-to-text/arabic",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Arabic Maghrebi transcript page (vendor)",
+   "url": "https://www.jotme.io/google-meet/transcript/arabic-maghrebi",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Speaker diarization page (Online and In-person modes, generic labels)",
+   "url": "https://www.jotme.io/tools/speaker-diarization",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Pricing and plans explained (vendor blog; via search snippet)",
+   "url": "https://www.jotme.io/blog/jotme-pricing-and-plan-explained",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe docs – Teams pricing (5-user example at $75/month)",
+   "url": "https://docs.jotme.io/pricing/teams",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Privacy policy (GDPR rights; AWS and OpenAI sub-processors)",
+   "url": "https://www.jotme.io/policy",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe docs – Privacy and your data (no training on customer data)",
+   "url": "https://docs.jotme.io/product/privacy-and-data",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Best AI interpreter apps blog (iOS/Android/desktop claims)",
+   "url": "https://www.jotme.io/blog/best-ai-interpreter-apps",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "JotMe – Best AI notetaker blog (bot-free claim)",
+   "url": "https://www.jotme.io/blog/best-ai-notetaker",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Capterra – JotMe listing",
+   "url": "https://www.capterra.com/p/10032541/JotMe/",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "GetApp – JotMe listing",
+   "url": "https://www.getapp.com/all-software/a/jotme/",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "G2 – JotMe listing",
+   "url": "https://www.g2.com/products/jotme",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Munsit homepage (Munsit-1 avg WER 26.68%) - vendor",
+   "url": "https://munsit.cntxt.tech",
+   "date": "accessed 2026-11-19 via search snippet"
+  },
+  {
+   "label": "Communicate Online: CNTXT AI unveils Munsit ASR model",
+   "url": "https://communicateonline.me/news/cntxt-ai-unveils-munsit-the-worlds-most-accurate-arabic-speech-recognition-model/",
+   "date": "2025-05"
+  },
+  {
+   "label": "MEA Tech Watch: Munsit launch (beats Whisper/GPT-4o/Azure claims)",
+   "url": "https://meatechwatch.com/2025/05/01/cntxt-ai-unveils-munsit-the-most-accurate-arabic-speech-recognition-model/",
+   "date": "2025-05-01"
+  },
+  {
+   "label": "MEA Tech Watch: Munsit Edge on-device (~24% WER, ~150ms, code-switching)",
+   "url": "https://meatechwatch.com/2026/05/13/cntxt-ai-introduces-munsit-edge-bringing-private-real-time-arabic-speech-ai-to-phones-cars-and-smart-devices/",
+   "date": "2026-05-13"
+  },
+  {
+   "label": "Entrepreneur ME: Munsit Edge SDKs (iOS, Android, macOS, Windows, Linux)",
+   "url": "https://mena.entrepreneur.com/business-news/uae-based-cntxt-ai-launches-on-device-arabic-speech-to-text-system-munsit-edge",
+   "date": "2026-05"
+  },
+  {
+   "label": "Entrepreneur ME: Munsit relaunch (250+ orgs, 150k app users in two months, 1M+ minutes)",
+   "url": "https://mena.entrepreneur.com/news-and-trends/cntxt-ai-launches-munsit-the-worlds-most-accurate-arabic/504008",
+   "date": "2026-04"
+  },
+  {
+   "label": "GCC Business News: Munsit platform upgrade with Faseeh TTS",
+   "url": "https://www.gccbusinessnews.com/cntxt-ai-munsit-arabic-voice-ai-platform/",
+   "date": "2026-04"
+  },
+  {
+   "label": "Apple App Store: MunsitAI listing (CNTXT - FZCO) and in-app prices",
+   "url": "https://apps.apple.com/us/app/munsitai/id6749622996",
+   "date": "accessed 2026-11-19 via search snippet"
+  },
+  {
+   "label": "SourceForge: MunsitAI Android app (third-party, low reliability)",
+   "url": "https://sourceforge.net/app/munsitai/android/",
+   "date": "accessed 2026-11-19"
+  },
+  {
+   "label": "Munsit app page (30 min/session, real-time) - vendor",
+   "url": "https://munsit.cntxt.tech/munsit-app",
+   "date": "accessed 2026-11-19 via search snippet"
+  },
+  {
+   "label": "Munsit plans page (Zoom/Meet/Teams, integrations) - vendor, garbled, unconfirmed",
+   "url": "https://munsit.cntxt.tech/category/plans",
+   "date": "accessed 2026-11-19 via search snippet"
+  },
+  {
+   "label": "Mubasher: CNTXT AI $60M Series A",
+   "url": "https://en.sharikatmubasher.com/media-hub/news/21556618/cntxt-ai-secures-60mn-series-a-to-scale-sovereign-ai-infrastructure",
+   "date": "2026-06-16"
+  },
+  {
+   "label": "Wamda: CNTXT AI $60M Series A (250+ enterprises, 150k users)",
+   "url": "https://www.wamda.com/2026/06/cntxt-ai-closes-60-million-series-deploy-secure-ai-infrastructure-worldwide-arabic",
+   "date": "2026-06"
+  },
+  {
+   "label": "YesPress: CNTXT AI profile (pricing not published)",
+   "url": "https://yespress.io/cntxt-ai",
+   "date": "accessed 2026-11-19"
   }
  ]
 }

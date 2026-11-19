@@ -465,19 +465,16 @@ class ClaudeClient {
       if (!abort.isCompleted) abort.complete();
     }
 
-    final request = http.AbortableRequest(
-      'POST',
-      endpoint,
-      abortTrigger: abort.future,
-    )
-      ..headers.addAll({
-        'content-type': 'application/json',
-        'accept': 'text/event-stream',
-        'x-api-key': _apiKey,
-        'anthropic-version': kAnthropicVersion,
-        'anthropic-beta': kAnthropicBetaFallback,
-      })
-      ..body = body;
+    final request =
+        http.AbortableRequest('POST', endpoint, abortTrigger: abort.future)
+          ..headers.addAll({
+            'content-type': 'application/json',
+            'accept': 'text/event-stream',
+            'x-api-key': _apiKey,
+            'anthropic-version': kAnthropicVersion,
+            'anthropic-beta': kAnthropicBetaFallback,
+          })
+          ..body = body;
 
     final sendFuture = _client.send(request);
     http.StreamedResponse response;

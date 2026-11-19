@@ -374,10 +374,12 @@ class _MoreMenu extends ConsumerWidget {
         }
       case _MenuAction.delete:
         if (!context.mounted) return;
+        // The deletion unmounts this menu (the page switches to "not
+        // found"), so capture the navigator and layout first.
+        final nav = Navigator.of(context);
+        final wide = isWideLayout(context);
         final deleted = await deleteMeetingFlow(context, ref, meeting);
-        if (deleted && context.mounted && !isWideLayout(context)) {
-          Navigator.of(context).maybePop();
-        }
+        if (deleted && !wide && nav.mounted) unawaited(nav.maybePop());
     }
   }
 }

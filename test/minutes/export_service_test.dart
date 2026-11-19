@@ -96,6 +96,62 @@ void main() {
       expect(md, contains('## ملحق: النص الكامل للاجتماع'));
       expect(md, contains('**[00:00:05] متحدث 2:** I will send the report'));
     });
+
+    test('escapes block markers without stray backslashes', () {
+      final base = sampleMinutes();
+      final m = Minutes(
+        title: base.title,
+        summary: [
+          '3.5 مليون دولار للميزانية',
+          '2026. عام التحول',
+          '1) البند الأول',
+          '  12. بند مزاح',
+          '7.',
+          '# ليس عنواناً',
+          '> ليس اقتباساً',
+          '| ليس جدولاً',
+          '- ليس بنداً',
+          '+ ليس بنداً',
+          '* ليس بنداً',
+          '*مهم* للغاية',
+          '-5 درجات',
+          '10% زيادة',
+        ].join('\n'),
+        attendees: base.attendees,
+        topics: base.topics,
+        decisions: base.decisions,
+        actionItems: base.actionItems,
+        openQuestions: base.openQuestions,
+        languagesDetected: base.languagesDetected,
+        generatedAt: base.generatedAt,
+        model: base.model,
+      );
+      final md = service.toMarkdown(meeting(), m, speakers);
+      final lines = md.split('\n');
+      for (final expected in [
+        // Not list markers: left untouched (no backslash before digits).
+        '3.5 مليون دولار للميزانية',
+        '*مهم* للغاية',
+        '-5 درجات',
+        '10% زيادة',
+        // Ordered-list markers: the delimiter is escaped, not the digits.
+        r'2026\. عام التحول',
+        r'1\) البند الأول',
+        r'  12\. بند مزاح',
+        r'7\.',
+        // Block characters.
+        r'\# ليس عنواناً',
+        r'\> ليس اقتباساً',
+        r'\| ليس جدولاً',
+        r'\- ليس بنداً',
+        r'\+ ليس بنداً',
+        r'\* ليس بنداً',
+      ]) {
+        expect(lines, contains(expected), reason: expected);
+      }
+      // A backslash is never followed by a digit (CommonMark would show it).
+      expect(md, isNot(matches(RegExp(r'\\\d'))));
+    });
   });
 
   test('toPlainText', () {

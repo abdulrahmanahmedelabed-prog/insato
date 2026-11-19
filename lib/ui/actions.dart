@@ -177,18 +177,31 @@ Future<bool> deleteMeetingFlow(
     destructive: true,
     icon: Icons.delete_outline_rounded,
   );
-  if (!ok) return false;
-  try {
-    await ref.read(postProcessorProvider).deleteMeeting(meeting.id);
-    if (ref.read(selectedMeetingProvider) == meeting.id) {
-      ref.read(selectedMeetingProvider.notifier).select(null);
+  if (!ok || !context.mounted) return false;
+  // Deleting the row re-emits the meeting streams, which can unmount the
+  // calling widget (the detail page shows "not found", the list drops the
+  // tile) before deleteMeeting returns. Capture everything that needs the
+  // widget now; never touch [ref] or [context] after the await.
+  final container = ProviderScope.containerOf(context, listen: false);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final scheme = Theme.of(context).colorScheme;
+  void snack(String message, {bool error = false}) {
+    if (messenger != null) {
+      showSnackOn(messenger, scheme, message, error: error);
     }
-    if (context.mounted) showSnack(context, S.meetingDeleted);
-    return true;
+  }
+
+  try {
+    await container.read(postProcessorProvider).deleteMeeting(meeting.id);
   } catch (e) {
-    if (context.mounted) showSnack(context, _messageOf(e), error: true);
+    snack(_messageOf(e), error: true);
     return false;
   }
+  if (container.read(selectedMeetingProvider) == meeting.id) {
+    container.read(selectedMeetingProvider.notifier).select(null);
+  }
+  snack(S.meetingDeleted);
+  return true;
 }
 
 /// Lets the user edit [meeting]'s title.

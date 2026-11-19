@@ -34,12 +34,15 @@ class SettingsScreen extends ConsumerWidget {
   /// Creates the screen.
   const SettingsScreen({super.key});
 
-  Future<void> _save(
+  /// Runs [write], showing the Arabic error on failure. Returns whether the
+  /// write succeeded, so callers only confirm a save that really happened.
+  Future<bool> _save(
     BuildContext context,
     Future<void> Function() write,
   ) async {
     try {
       await write();
+      return true;
     } catch (e) {
       if (context.mounted) {
         showSnack(
@@ -48,6 +51,7 @@ class SettingsScreen extends ConsumerWidget {
           error: true,
         );
       }
+      return false;
     }
   }
 
@@ -252,8 +256,15 @@ class SettingsScreen extends ConsumerWidget {
                           confirmLabel: S.confirm,
                         );
                         if (!ok || !context.mounted) return;
-                        await _save(context, store.resetToDefaults);
-                        if (context.mounted) {
+                        // SecureSettings.resetToDefaults clears only the
+                        // preference keys; API keys, meetings and the
+                        // per-meeting voiceprint ledgers kept in the same
+                        // table are not affected.
+                        final done = await _save(
+                          context,
+                          store.resetToDefaults,
+                        );
+                        if (done && context.mounted) {
                           showSnack(context, S.settingsReset);
                         }
                       },
@@ -363,6 +374,8 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
       widget.onChanged?.call();
       await _refresh();
       if (mounted) showSnack(context, S.keyCleared);
+    } catch (_) {
+      if (mounted) showSnack(context, S.unexpectedError, error: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -380,22 +393,31 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
       _busy = true;
       _result = null;
     });
-    var key = _c.text.trim();
-    if (key.isEmpty) key = (await widget.load()) ?? '';
-    final r = await test(key);
-    if (!mounted) return;
-    // A key that just passed the test is worth keeping.
-    if (r.ok && _c.text.trim().isNotEmpty) {
-      await widget.save(_c.text.trim());
-      widget.onChanged?.call();
-      _c.clear();
-      await _refresh();
+    ConnectionTestResult? r;
+    try {
+      var key = _c.text.trim();
+      if (key.isEmpty) key = (await widget.load()) ?? '';
+      r = await test(key);
+      if (!mounted) return;
+      // A key that just passed the test is worth keeping.
+      if (r.ok && _c.text.trim().isNotEmpty) {
+        await widget.save(_c.text.trim());
+        widget.onChanged?.call();
+        _c.clear();
+        await _refresh();
+      }
+    } catch (_) {
+      if (mounted) showSnack(context, S.unexpectedError, error: true);
+    } finally {
+      // Always re-enable the card; the test result stays visible even when
+      // saving the key afterwards failed.
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _result = r;
+        });
+      }
     }
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _result = r;
-    });
   }
 
   @override
@@ -507,8 +529,9 @@ class ClaudeModelField extends StatefulWidget {
   /// Current model id.
   final String value;
 
-  /// Persists a model id.
-  final Future<void> Function(String model) onSave;
+  /// Persists a model id; completes with false when the save failed (the
+  /// callee has already reported the error).
+  final Future<bool> Function(String model) onSave;
 
   @override
   State<ClaudeModelField> createState() => _ClaudeModelFieldState();
@@ -536,8 +559,14 @@ class _ClaudeModelFieldState extends State<ClaudeModelField> {
   Future<void> _submit() async {
     final v = _c.text.trim().isEmpty ? kDefaultClaudeModel : _c.text.trim();
     _c.text = v;
-    await widget.onSave(v);
-    if (mounted) showSnack(context, S.modelSaved);
+    final ok = await widget.onSave(v);
+    if (!mounted) return;
+    if (ok) {
+      showSnack(context, S.modelSaved);
+    } else {
+      // Show the model that is really in use again.
+      _c.text = widget.value;
+    }
   }
 
   @override
