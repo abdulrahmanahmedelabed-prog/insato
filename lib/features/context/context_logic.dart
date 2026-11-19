@@ -64,9 +64,10 @@ class MeetingSetup {
   /// duplicate attendees / terms removed.
   MeetingSetup normalized() {
     final ctx = normalizeMeetingContext(context);
-    final agenda = [
-      for (final a in ctx.agenda) collapseSpaces(a),
-    ].where((a) => a.isNotEmpty).take(kMaxAgendaItems).toList(growable: false);
+    final agenda = [for (final a in ctx.agenda) collapseSpaces(a)]
+        .where((a) => a.isNotEmpty)
+        .take(kMaxAgendaItems)
+        .toList(growable: false);
     final attendees = <String>[];
     for (final a in ctx.expectedAttendees) {
       addUniqueName(attendees, a);
@@ -93,16 +94,13 @@ class MeetingSetup {
   }
 }
 
-/// Moves the item at [oldIndex] to [newIndex] with the index convention of
-/// Flutter's `ReorderableListView.onReorder` (when moving down, [newIndex]
-/// counts the slot before the item was removed). Returns a new list; out of
-/// range indices leave the list unchanged.
+/// Moves the item at [oldIndex] so that it ends up at [newIndex] (the
+/// convention of Flutter's `ReorderableListView.onReorderItem`: the index in
+/// the resulting list). Returns a new list; an out of range [oldIndex]
+/// leaves it unchanged and [newIndex] is clamped.
 List<T> reorderItems<T>(List<T> items, int oldIndex, int newIndex) {
   if (oldIndex < 0 || oldIndex >= items.length) return List<T>.of(items);
-  var target = newIndex;
-  if (target > oldIndex) target -= 1;
-  if (target < 0) target = 0;
-  if (target >= items.length) target = items.length - 1;
+  final target = newIndex.clamp(0, items.length - 1);
   final out = List<T>.of(items);
   final item = out.removeAt(oldIndex);
   out.insert(target, item);

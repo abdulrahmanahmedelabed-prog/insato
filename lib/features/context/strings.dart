@@ -84,9 +84,6 @@ abstract final class CS {
       'سيُحذف «$term» من القاموس ولن يُستعمل في الاجتماعات القادمة. '
       'المحاضر المكتوبة سابقًا لا تتغير.';
 
-  /// Term actions menu tooltip.
-  static const String termActions = 'إجراءات المصطلح';
-
   /// Empty glossary title.
   static const String emptyTitle = 'القاموس فارغ';
 
@@ -114,6 +111,11 @@ abstract final class CS {
       ? 'التفريغ السحابي (Deepgram): يُرسَل $used مصطلحًا مع كل مقطع.'
       : 'التفريغ السحابي (Deepgram): يقبل $max مصطلحًا فقط لكل طلب، فيُرسَل '
             'أول $used من أصل $total (مصطلحات الاجتماع والحضور أولًا).';
+
+  /// Deepgram not in use.
+  static const String deepgramOff =
+      'التفريغ السحابي (Deepgram) غير مفعّل، فلا يُرسَل القاموس إليه. '
+      'التفريغ على الجهاز لا يستعمل القاموس.';
 
   /// Minutes-prompt usage line.
   static String minutesUsage(int total) =>
@@ -162,9 +164,8 @@ abstract final class CS {
   /// Generic glossary save failure.
   static const String saveFailed = 'تعذّر حفظ القاموس. حاول مرة أخرى.';
 
-  /// Semantics label of a term tile.
-  static String termSemantics(String term, String? ar, String category) =>
-      ar == null ? '$term، $category' : '$term، $ar، $category';
+  /// Glossary menu tooltip (import / export).
+  static const String glossaryMenu = 'خيارات القاموس';
 
   // ---------------------------------------------------------------------------
   // Categories

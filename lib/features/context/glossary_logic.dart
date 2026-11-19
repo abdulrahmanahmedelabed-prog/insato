@@ -355,7 +355,8 @@ class MeetingTermSyncPlan {
 
 /// Plans the synchronisation of a meeting's [existing] terms to [desired].
 /// A desired draft matches a stored term by id, otherwise by key; blank or
-/// invalid drafts are ignored and duplicates (by key) collapse to the last.
+/// invalid drafts are ignored and duplicates (by key) collapse to the last
+/// (keeping the stored id of an earlier duplicate).
 MeetingTermSyncPlan planMeetingTermSync(
   List<GlossaryTerm> existing,
   List<GlossaryDraft> desired,
@@ -364,8 +365,16 @@ MeetingTermSyncPlan planMeetingTermSync(
   for (final d in desired) {
     final n = d.normalized();
     if (validateGlossaryDraft(n) != null) continue;
-    wanted.remove(n.key);
-    wanted[n.key] = n;
+    final earlier = wanted.remove(n.key);
+    // The last duplicate wins, but keeps a stored id an earlier one had.
+    wanted[n.key] = n.id == null && earlier?.id != null
+        ? GlossaryDraft(
+            id: earlier!.id,
+            term: n.term,
+            arSpelling: n.arSpelling,
+            category: n.category,
+          )
+        : n;
   }
   final byId = {for (final e in existing) e.id: e};
   final byKey = {for (final e in existing) normalizedKey(e.term): e};
