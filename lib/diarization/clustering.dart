@@ -212,9 +212,9 @@ RefinementResult refineSpeakers({
     }
     ids.add(it.$1);
     vecs.add(l2Normalize(it.$2));
-    final d = math.max(0, it.$3);
-    durations.add(d);
-    weights.add(_segmentWeight(d, maxSegmentWeightSec));
+    final dur = math.max(0, it.$3);
+    durations.add(dur);
+    weights.add(_segmentWeight(dur, maxSegmentWeightSec));
   }
   if (ids.isEmpty) {
     return RefinementResult(
@@ -256,8 +256,7 @@ RefinementResult refineSpeakers({
   }
 
   // --- 4. Tiny clusters -----------------------------------------------------
-  clusters = _mergeTinyClusters(
-      clusters, vecs, weights, tinyClusterMaxMs, tinyMergeThreshold);
+  clusters = _mergeTinyClusters(clusters, tinyClusterMaxMs, tinyMergeThreshold);
 
   // --- 5. Linking -----------------------------------------------------------
   final speakerById = <String, Speaker>{for (final s in knownSpeakers) s.id: s};
@@ -771,8 +770,8 @@ class _Group {
   void recompute() => centroid = normalizeAccumulator(sum);
 }
 
-List<_Group> _mergeTinyClusters(List<_Group> clusters, List<Float32List> vecs,
-    List<double> weights, int tinyMaxMs, double mergeThreshold) {
+List<_Group> _mergeTinyClusters(
+    List<_Group> clusters, int tinyMaxMs, double mergeThreshold) {
   final result = [...clusters];
   bool isTiny(_Group g) => g.anchor == null && g.totalMs < tinyMaxMs;
   final tiny = result.where(isTiny).toList()
