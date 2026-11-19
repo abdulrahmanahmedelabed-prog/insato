@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/time_format.dart';
+import '../../session/meeting_session_controller.dart';
 import '../../session/providers.dart';
 import '../actions.dart';
 import '../navigation.dart';
