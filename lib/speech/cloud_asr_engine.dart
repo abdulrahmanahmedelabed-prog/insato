@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
-import 'sherpa_asr_engine.dart' show normalizeLanguageCode;
+import 'sherpa_asr_engine.dart' show normalizeLanguageCode, rmsDbfs;
 
 /// Supplies the Deepgram API key (e.g. from secure storage); null or empty
 /// when not configured.
@@ -34,6 +34,8 @@ class CloudAsrEngine implements AsrEngine {
     this.retryBaseDelay = const Duration(milliseconds: 800),
     this.requestTimeout = const Duration(seconds: 60),
     Future<void> Function(Duration)? sleep,
+    this.keyterms = const [],
+    this.minRmsDbfs = -60,
   })  : _client = client ?? http.Client(),
         _ownsClient = client == null,
         _sleep = sleep ?? Future<void>.delayed;
@@ -44,6 +46,15 @@ class CloudAsrEngine implements AsrEngine {
 
   /// Deepgram model name.
   final String model;
+
+  /// Custom vocabulary (F2, glossary terms and speaker names) sent as
+  /// repeated `keyterm` parameters (nova-3 keyterm prompting). At most
+  /// [kMaxDeepgramKeyterms] non-blank terms are used.
+  final List<String> keyterms;
+
+  /// Segments quieter than this (RMS dBFS) are reported as silence without
+  /// a request.
+  final double minRmsDbfs;
 
   /// Pre-recorded transcription endpoint.
   final String endpoint;
@@ -106,7 +117,12 @@ class CloudAsrEngine implements AsrEngine {
   /// Builds the request URI for an optional ISO-639-1 [language].
   Uri buildUri({String? language}) {
     final lang = normalizeLanguageCode(language);
+    final terms = <String>{
+      for (final t in keyterms)
+        if (t.trim().isNotEmpty) t.trim().replaceAll(RegExp(r'\s+'), ' '),
+    }.take(kMaxDeepgramKeyterms).toList();
     return Uri.parse(endpoint).replace(queryParameters: {
+      if (terms.isNotEmpty) 'keyterm': terms,
       'model': model,
       'language': lang ?? 'multi',
       'smart_format': 'true',
@@ -124,7 +140,9 @@ class CloudAsrEngine implements AsrEngine {
     if (_disposed) {
       throw const AsrException('محرك التفريغ السحابي مُغلق.');
     }
-    if (segment.samples.isEmpty) return const AsrResult(text: '');
+    if (segment.samples.isEmpty || rmsDbfs(segment.samples) < minRmsDbfs) {
+      return const AsrResult(text: '', rejection: AsrRejection.silence);
+    }
     final key = await _key();
     final body = encodeWav16(segment.samples);
     final hint = normalizeLanguageCode(languageHint);
@@ -276,6 +294,9 @@ Uint8List encodeWav16(Float32List samples, {int sampleRate = kSampleRate}) {
   return out;
 }
 
+/// Maximum `keyterm` parameters sent to Deepgram.
+const int kMaxDeepgramKeyterms = 50;
+
 /// Parses a Deepgram pre-recorded response body into an [AsrResult].
 ///
 /// Reads `results.channels[0].alternatives[0].transcript` / `.confidence`
@@ -289,7 +310,7 @@ AsrResult parseDeepgramResponse(String body, {String? fallbackLanguage}) {
   if (results is! Map) throw const FormatException('Deepgram: no results');
   final channels = results['channels'];
   if (channels is! List || channels.isEmpty) {
-    return const AsrResult(text: '');
+    return const AsrResult(text: '', rejection: AsrRejection.noText);
   }
   final ch = channels.first;
   if (ch is! Map) throw const FormatException('Deepgram: bad channel');
@@ -300,7 +321,9 @@ AsrResult parseDeepgramResponse(String body, {String? fallbackLanguage}) {
   final text = ((alt['transcript'] as String?) ?? '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
-  if (text.isEmpty) return const AsrResult(text: '');
+  if (text.isEmpty) {
+    return const AsrResult(text: '', rejection: AsrRejection.noText);
+  }
   final conf = alt['confidence'];
   String? lang = normalizeLanguageCode(ch['detected_language'] as String?);
   if (lang == null) {

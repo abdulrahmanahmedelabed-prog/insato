@@ -37,6 +37,7 @@ import '../data/repositories.dart';
 import '../data/secure_settings.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../speech/asr_outcome.dart';
 import '../speech/cloud_asr_engine.dart';
 import '../speech/model_catalog.dart';
 import '../speech/model_manager.dart';
@@ -488,13 +489,28 @@ List<String> requiredModelIds(
 class SherpaSessionEnginesFactory implements SessionEnginesFactory {
   /// Creates the factory. [modelManager] resolves the app's [ModelManager]
   /// (it is created asynchronously).
+  ///
+  /// `keyterms` (F2) yields the custom vocabulary sent to cloud ASR
+  /// (Deepgram `keyterm`); a failure there never prevents recording.
   SherpaSessionEnginesFactory({
     required this._modelManager,
     required SecureSettings secureSettings,
+    this._keyterms,
   }) : _secure = secureSettings;
 
   final Future<ModelManager> Function() _modelManager;
   final SecureSettings _secure;
+  final Future<List<String>> Function()? _keyterms;
+
+  Future<List<String>> _safeKeyterms() async {
+    final f = _keyterms;
+    if (f == null) return const [];
+    try {
+      return await f();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Future<void> ensureReady(SessionEngineRequest request) async {
@@ -542,7 +558,10 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     try {
       await segmenter.initialize();
       if (request.usesCloudAsr) {
-        cloud = CloudAsrEngine(apiKeyProvider: _secure.getDeepgramApiKey);
+        cloud = CloudAsrEngine(
+          apiKeyProvider: _secure.getDeepgramApiKey,
+          keyterms: await _safeKeyterms(),
+        );
         await cloud.initialize();
       }
       final processor = await IsolateSegmentProcessor.start(
@@ -766,8 +785,11 @@ class SessionPipeline {
         return;
       }
       final r = o.result!;
-      final text = r.asr.text.trim();
-      if (text.isEmpty) {
+      // F17: real speech without usable text is stored as unintelligible
+      // (never dropped); only silence is skipped.
+      final asrOutcome = classifyAsrOutcome(r.asr);
+      final kind = asrOutcome.kind;
+      if (kind == null) {
         _skipped++;
         return;
       }
@@ -785,10 +807,12 @@ class SessionPipeline {
         index: _nextIndex,
         startMs: r.startMs,
         endMs: math.max(r.startMs, r.endMs),
-        text: text,
+        text: asrOutcome.text,
         speakerId: speaker?.id,
         language: r.asr.language,
         embedding: r.embedding,
+        kind: kind,
+        asrConfidence: asrOutcome.confidence,
         speakerConfidence: speaker == null ? null : assignment.confidence,
       );
       TranscriptSegment stored;
@@ -838,6 +862,8 @@ class SessionPipeline {
         text: s.text,
         language: s.language,
         embedding: s.embedding,
+        kind: s.kind,
+        asrConfidence: s.asrConfidence,
       );
 
   Future<Speaker?> _resolveSpeaker(SpeakerAssignment a) async {
@@ -1449,7 +1475,16 @@ class MeetingSessionController extends Notifier<SessionState> {
   ///
   /// On failure nothing is left behind, the state becomes
   /// [SessionPhase.error] and the [InsatoException] is rethrown.
-  Future<String> start({String? title, bool consentGiven = false}) async {
+  ///
+  /// v1.1: [context] (F3: agenda, expected attendees, notes) is stored with
+  /// the meeting; [inputDevice] (F18) records the microphone used (the
+  /// capture itself is configured by the audio source).
+  Future<String> start({
+    String? title,
+    bool consentGiven = false,
+    MeetingContext context = MeetingContext.empty,
+    String? inputDevice,
+  }) async {
     if (state.isActive) {
       throw const InsatoException('يوجد تسجيل قيد التشغيل بالفعل.');
     }
@@ -1499,6 +1534,8 @@ class MeetingSessionController extends Notifier<SessionState> {
       meeting = await meetings.create(
         title: (t == null || t.isEmpty) ? defaultSessionTitle(now) : t,
         createdAt: now,
+        context: context,
+        inputDevice: inputDevice,
       );
       String? archivePath;
       if (settings.keepAudio) {

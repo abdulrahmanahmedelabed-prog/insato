@@ -10,6 +10,7 @@
 //                   {'type': 'ready', 'dimension'}
 //                   {'type': 'initError', ...error}
 //                   {'type': 'result', 'id', 'text', 'language', 'confidence',
+//                    'rejection' (AsrRejection.wire or null),
 //                    'embedding': TransferableTypedData?, 'embeddingError'}
 //                   {'type': 'error', 'id', ...error}
 //                   {'type': 'disposed'}
@@ -306,6 +307,7 @@ class ProcessingIsolate {
         text: (msg['text'] as String?) ?? '',
         language: msg['language'] as String?,
         confidence: (msg['confidence'] as num?)?.toDouble(),
+        rejection: AsrRejection.tryParse(msg['rejection']),
       ),
       embedding: emb is TransferableTypedData
           ? emb.materialize().asFloat32List()
@@ -562,6 +564,7 @@ Future<Map<String, Object?>> _processOne(
       'text': asr.text,
       'language': asr.language,
       'confidence': asr.confidence,
+      'rejection': asr.rejection?.wire,
       'embedding': embedding == null
           ? null
           : TransferableTypedData.fromList([

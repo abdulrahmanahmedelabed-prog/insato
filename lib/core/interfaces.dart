@@ -58,11 +58,17 @@ abstract class SpeechSegmenter {
 /// Generates Arabic minutes from a transcript.
 abstract class MinutesEngine {
   /// [onProgress] receives a rough 0..1 progress and an Arabic status line.
+  ///
+  /// [inputs] (v1.1) carries the glossary (F2/F3) and the open tasks of
+  /// earlier meetings (F9); the meeting context (agenda, expected attendees,
+  /// notes) comes with [meeting] and the speaker-notes opt-in (F16) with
+  /// [speakersById].
   Future<Minutes> generate({
     required Meeting meeting,
     required List<TranscriptSegment> segments,
     required Map<String, Speaker> speakersById,
     void Function(double progress, String status)? onProgress,
+    MinutesInputs inputs = MinutesInputs.none,
   });
 }
 

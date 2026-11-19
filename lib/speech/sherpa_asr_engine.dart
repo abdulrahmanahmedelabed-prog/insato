@@ -135,7 +135,7 @@ class SherpaAsrEngine implements AsrEngine {
     }
     final samples = segment.samples;
     if (samples.isEmpty || rmsDbfs(samples) < minRmsDbfs) {
-      return const AsrResult(text: '');
+      return const AsrResult(text: '', rejection: AsrRejection.silence);
     }
     final hint = normalizeLanguageCode(languageHint) ??
         normalizeLanguageCode(defaultLanguage);
@@ -148,7 +148,17 @@ class SherpaAsrEngine implements AsrEngine {
       _recognizer!.decode(stream);
       final result = _recognizer!.getResult(stream);
       final text = WhisperOutputFilter.clean(result.text);
-      if (text.isEmpty) return const AsrResult(text: '');
+      if (text.isEmpty) {
+        // Voiced audio without usable text (F17): kept as unintelligible
+        // speech by the pipeline, never dropped.
+        return AsrResult(
+          text: '',
+          language: normalizeWhisperLanguage(result.lang),
+          rejection: result.text.trim().isEmpty
+              ? AsrRejection.noText
+              : AsrRejection.filtered,
+        );
+      }
       return AsrResult(
         text: text,
         language: normalizeWhisperLanguage(result.lang) ?? hint,

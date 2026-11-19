@@ -65,6 +65,10 @@ class SecureSettings {
   /// Secure-storage key of the Deepgram API key.
   static const String deepgramApiKeyKey = 'insato.deepgram_api_key';
 
+  /// Secure-storage key of the Google Gemini API key (free from Google AI
+  /// Studio, aistudio.google.com/apikey).
+  static const String geminiApiKeyKey = 'insato.gemini_api_key';
+
   /// Marker written once [migrateAccessibility] has rewritten the keys.
   static const String accessibilityMigratedKey =
       'insato.keychain_accessibility_v1';
@@ -99,7 +103,7 @@ class SecureSettings {
   Future<void> migrateAccessibility() async {
     try {
       if (await _storage.read(key: accessibilityMigratedKey) != null) return;
-      for (final k in [anthropicApiKeyKey, deepgramApiKeyKey]) {
+      for (final k in [anthropicApiKeyKey, deepgramApiKeyKey, geminiApiKeyKey]) {
         final v = await _storage.read(key: k);
         if (v != null && v.trim().isNotEmpty) {
           await _storage.write(key: k, value: v);
@@ -139,6 +143,15 @@ class SecureSettings {
 
   /// Removes the Deepgram API key.
   Future<void> clearDeepgramApiKey() => _write(deepgramApiKeyKey, null);
+
+  /// The Google Gemini API key, or null when not configured.
+  Future<String?> getGeminiApiKey() => _read(geminiApiKeyKey);
+
+  /// Stores the Gemini API key (trimmed). A blank value clears it.
+  Future<void> setGeminiApiKey(String key) => _write(geminiApiKeyKey, key);
+
+  /// Removes the Gemini API key.
+  Future<void> clearGeminiApiKey() => _write(geminiApiKeyKey, null);
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +170,16 @@ class AppSettingsData {
     this.consentAcknowledged = false,
     this.minutesDetail = detailDetailed,
     this.claudeModel = defaultClaudeModel,
+    this.minutesEngine = engineGemini,
+    this.geminiModel = defaultGeminiModel,
+    this.geminiPrivacyAcknowledged = false,
+    this.localLlmModelId,
+    this.serverUrl = defaultServerUrl,
+    this.serverModel,
+    this.audioSource = audioSourceBoth,
+    this.inputDeviceId,
+    this.farFieldMode = false,
+    this.profilesFeatureAcknowledged = false,
   });
 
   /// [asrEngine] value for on-device recognition (sherpa-onnx Whisper).
@@ -177,6 +200,42 @@ class AppSettingsData {
   /// Allowed [minutesDetail] values.
   static const List<String> minutesDetails = [detailDetailed, detailConcise];
 
+  /// [minutesEngine] value: Google Gemini API (free tier by default).
+  static const String engineGemini = 'gemini';
+
+  /// [minutesEngine] value: Anthropic Claude API.
+  static const String engineClaude = 'claude';
+
+  /// [minutesEngine] value: on-device GGUF model (F14).
+  static const String engineLocal = 'local';
+
+  /// [minutesEngine] value: local network server, Ollama / LM Studio (F14).
+  static const String engineServer = 'server';
+
+  /// Allowed [minutesEngine] values.
+  static const List<String> minutesEngines = [
+    engineGemini,
+    engineClaude,
+    engineLocal,
+    engineServer,
+  ];
+
+  /// [audioSource] value: microphone only.
+  static const String audioSourceMic = 'mic';
+
+  /// [audioSource] value: system audio (WASAPI loopback) only.
+  static const String audioSourceSystem = 'system';
+
+  /// [audioSource] value: microphone mixed with system audio.
+  static const String audioSourceBoth = 'both';
+
+  /// Allowed [audioSource] values.
+  static const List<String> audioSources = [
+    audioSourceMic,
+    audioSourceSystem,
+    audioSourceBoth,
+  ];
+
   /// Default on-device Whisper model id.
   static const String defaultWhisperModelId = 'whisper-turbo';
 
@@ -185,6 +244,14 @@ class AppSettingsData {
 
   /// Default Claude model used for minutes.
   static const String defaultClaudeModel = 'claude-opus-5-5';
+
+  /// Default Gemini model: Google's alias of the newest stable Flash-Lite model
+  /// (available on the free tier). When an account lacks it, the engine
+  /// discovers a Flash model through `models.list` (see `gemini_client.dart`).
+  static const String defaultGeminiModel = 'gemini-flash-lite-latest';
+
+  /// Default local-server endpoint (Ollama's default port on this machine).
+  static const String defaultServerUrl = 'http://127.0.0.1:11434';
 
   /// All defaults.
   static const AppSettingsData defaults = AppSettingsData();
@@ -210,8 +277,46 @@ class AppSettingsData {
   /// `'detailed'` or `'concise'`.
   final String minutesDetail;
 
-  /// Claude model id used to generate minutes.
+  /// Claude model id used to generate minutes (engine `claude`).
   final String claudeModel;
+
+  /// Minutes engine (F14): [engineGemini] (default), [engineClaude],
+  /// [engineLocal] or [engineServer]. Also used by "Ask your meetings" (F8).
+  final String minutesEngine;
+
+  /// Gemini model id (engine `gemini`), e.g. `gemini-flash-lite-latest`.
+  final String geminiModel;
+
+  /// The user read and accepted the Gemini free-tier data notice (Google
+  /// may use free-tier prompts and responses to improve its products, and
+  /// human reviewers may read them). Nothing is sent to Gemini before this.
+  final bool geminiPrivacyAcknowledged;
+
+  /// Catalog id of the on-device GGUF model (engine `local`); null = the
+  /// catalog's recommended model.
+  final String? localLlmModelId;
+
+  /// Base URL of the local-network server (engine `server`).
+  final String serverUrl;
+
+  /// Model name on the local server (engine `server`); null = not chosen.
+  final String? serverModel;
+
+  /// Windows only (F13): what to record — [audioSourceMic],
+  /// [audioSourceSystem] or [audioSourceBoth] (default). Ignored on
+  /// Android / iOS, which always record the microphone.
+  final String audioSource;
+
+  /// Input device id chosen by the user (F18); null = system default.
+  final String? inputDeviceId;
+
+  /// Far-field "meeting room" profile (F18): automatic gain and noise
+  /// suppression where supported, VAD tuned for distant speech.
+  final bool farFieldMode;
+
+  /// The user read the speaker-profiles notice (F16; profiles are still
+  /// opt-in per speaker).
+  final bool profilesFeatureAcknowledged;
 
   /// True when on-device ASR is selected.
   bool get usesLocalAsr => asrEngine == asrLocal;
@@ -219,8 +324,13 @@ class AppSettingsData {
   /// True when concise minutes are selected.
   bool get conciseMinutes => minutesDetail == detailConcise;
 
-  /// Returns a copy with the given fields replaced. Pass
-  /// [clearLanguageHint] to switch back to auto-detect.
+  /// True when the selected minutes engine sends the transcript off the
+  /// device to a cloud provider (Gemini or Claude).
+  bool get minutesEngineIsCloud =>
+      minutesEngine == engineGemini || minutesEngine == engineClaude;
+
+  /// Returns a copy with the given fields replaced. The `clear*` flags
+  /// reset nullable fields to null ([clearLanguageHint] = auto-detect).
   AppSettingsData copyWith({
     String? asrEngine,
     String? whisperModelId,
@@ -231,6 +341,19 @@ class AppSettingsData {
     bool? consentAcknowledged,
     String? minutesDetail,
     String? claudeModel,
+    String? minutesEngine,
+    String? geminiModel,
+    bool? geminiPrivacyAcknowledged,
+    String? localLlmModelId,
+    bool clearLocalLlmModelId = false,
+    String? serverUrl,
+    String? serverModel,
+    bool clearServerModel = false,
+    String? audioSource,
+    String? inputDeviceId,
+    bool clearInputDeviceId = false,
+    bool? farFieldMode,
+    bool? profilesFeatureAcknowledged,
   }) {
     return AppSettingsData(
       asrEngine: asrEngine ?? this.asrEngine,
@@ -242,23 +365,25 @@ class AppSettingsData {
       consentAcknowledged: consentAcknowledged ?? this.consentAcknowledged,
       minutesDetail: minutesDetail ?? this.minutesDetail,
       claudeModel: claudeModel ?? this.claudeModel,
+      minutesEngine: minutesEngine ?? this.minutesEngine,
+      geminiModel: geminiModel ?? this.geminiModel,
+      geminiPrivacyAcknowledged:
+          geminiPrivacyAcknowledged ?? this.geminiPrivacyAcknowledged,
+      localLlmModelId: clearLocalLlmModelId
+          ? null
+          : (localLlmModelId ?? this.localLlmModelId),
+      serverUrl: serverUrl ?? this.serverUrl,
+      serverModel: clearServerModel ? null : (serverModel ?? this.serverModel),
+      audioSource: audioSource ?? this.audioSource,
+      inputDeviceId:
+          clearInputDeviceId ? null : (inputDeviceId ?? this.inputDeviceId),
+      farFieldMode: farFieldMode ?? this.farFieldMode,
+      profilesFeatureAcknowledged:
+          profilesFeatureAcknowledged ?? this.profilesFeatureAcknowledged,
     );
   }
 
-  @override
-  bool operator ==(Object other) =>
-      other is AppSettingsData &&
-      other.asrEngine == asrEngine &&
-      other.whisperModelId == whisperModelId &&
-      other.languageHint == languageHint &&
-      other.keepAudio == keepAudio &&
-      other.matchThreshold == matchThreshold &&
-      other.consentAcknowledged == consentAcknowledged &&
-      other.minutesDetail == minutesDetail &&
-      other.claudeModel == claudeModel;
-
-  @override
-  int get hashCode => Object.hash(
+  List<Object?> get _fields => [
         asrEngine,
         whisperModelId,
         languageHint,
@@ -267,14 +392,44 @@ class AppSettingsData {
         consentAcknowledged,
         minutesDetail,
         claudeModel,
-      );
+        minutesEngine,
+        geminiModel,
+        geminiPrivacyAcknowledged,
+        localLlmModelId,
+        serverUrl,
+        serverModel,
+        audioSource,
+        inputDeviceId,
+        farFieldMode,
+        profilesFeatureAcknowledged,
+      ];
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! AppSettingsData) return false;
+    final a = _fields;
+    final b = other._fields;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(_fields);
 
   @override
   String toString() => 'AppSettingsData(asrEngine: $asrEngine, '
       'whisperModelId: $whisperModelId, languageHint: $languageHint, '
       'keepAudio: $keepAudio, matchThreshold: $matchThreshold, '
       'consentAcknowledged: $consentAcknowledged, '
-      'minutesDetail: $minutesDetail, claudeModel: $claudeModel)';
+      'minutesDetail: $minutesDetail, claudeModel: $claudeModel, '
+      'minutesEngine: $minutesEngine, geminiModel: $geminiModel, '
+      'geminiPrivacyAcknowledged: $geminiPrivacyAcknowledged, '
+      'localLlmModelId: $localLlmModelId, serverUrl: $serverUrl, '
+      'serverModel: $serverModel, audioSource: $audioSource, '
+      'inputDeviceId: $inputDeviceId, farFieldMode: $farFieldMode, '
+      'profilesFeatureAcknowledged: $profilesFeatureAcknowledged)';
 
   /// Builds a snapshot from raw `settings` table values, falling back to the
   /// default for any missing or invalid entry.
@@ -289,6 +444,11 @@ class AppSettingsData {
       return (v == null || v.isEmpty) ? def : v;
     }
 
+    String? optional(String key) {
+      final v = m[key]?.trim();
+      return (v == null || v.isEmpty) ? null : v;
+    }
+
     bool flag(String key, bool def) => switch (m[key]?.trim()) {
           'true' || '1' => true,
           'false' || '0' => false,
@@ -296,6 +456,7 @@ class AppSettingsData {
         };
 
     final threshold = double.tryParse(m[AppSettings.kMatchThreshold] ?? '');
+    final server = normalizeServerUrl(m[AppSettings.kServerUrl]);
     return AppSettingsData(
       asrEngine: choice(AppSettings.kAsrEngine, asrEngines, asrLocal),
       whisperModelId:
@@ -309,11 +470,26 @@ class AppSettingsData {
       minutesDetail:
           choice(AppSettings.kMinutesDetail, minutesDetails, detailDetailed),
       claudeModel: nonEmpty(AppSettings.kClaudeModel, defaultClaudeModel),
+      minutesEngine:
+          choice(AppSettings.kMinutesEngine, minutesEngines, engineGemini),
+      geminiModel: normalizeGeminiModel(m[AppSettings.kGeminiModel]) ??
+          defaultGeminiModel,
+      geminiPrivacyAcknowledged:
+          flag(AppSettings.kGeminiPrivacyAcknowledged, false),
+      localLlmModelId: optional(AppSettings.kLocalLlmModelId),
+      serverUrl: server ?? defaultServerUrl,
+      serverModel: optional(AppSettings.kServerModel),
+      audioSource:
+          choice(AppSettings.kAudioSource, audioSources, audioSourceBoth),
+      inputDeviceId: optional(AppSettings.kInputDeviceId),
+      farFieldMode: flag(AppSettings.kFarFieldMode, false),
+      profilesFeatureAcknowledged:
+          flag(AppSettings.kProfilesFeatureAcknowledged, false),
     );
   }
 
-  /// Raw `settings` table values for this snapshot. A null [languageHint] is
-  /// omitted (absent row = auto-detect).
+  /// Raw `settings` table values for this snapshot. Null optional fields
+  /// are omitted (absent row = default).
   Map<String, String> toMap() => {
         AppSettings.kAsrEngine: asrEngine,
         AppSettings.kWhisperModelId: whisperModelId,
@@ -323,6 +499,18 @@ class AppSettingsData {
         AppSettings.kConsentAcknowledged: consentAcknowledged.toString(),
         AppSettings.kMinutesDetail: minutesDetail,
         AppSettings.kClaudeModel: claudeModel,
+        AppSettings.kMinutesEngine: minutesEngine,
+        AppSettings.kGeminiModel: geminiModel,
+        AppSettings.kGeminiPrivacyAcknowledged:
+            geminiPrivacyAcknowledged.toString(),
+        AppSettings.kLocalLlmModelId: ?localLlmModelId,
+        AppSettings.kServerUrl: serverUrl,
+        AppSettings.kServerModel: ?serverModel,
+        AppSettings.kAudioSource: audioSource,
+        AppSettings.kInputDeviceId: ?inputDeviceId,
+        AppSettings.kFarFieldMode: farFieldMode.toString(),
+        AppSettings.kProfilesFeatureAcknowledged:
+            profilesFeatureAcknowledged.toString(),
       };
 
   /// Normalises a language hint: trimmed lowercase ISO-639 code, or null for
@@ -330,6 +518,32 @@ class AppSettingsData {
   static String? normalizeLanguageHint(String? hint) {
     final t = hint?.trim().toLowerCase();
     if (t == null || t.isEmpty || t == 'auto') return null;
+    return t;
+  }
+
+  /// Normalises a Gemini model id: trimmed, a leading `models/` removed;
+  /// null when blank or not a plausible id (letters, digits, `.`, `-`,
+  /// `_`).
+  static String? normalizeGeminiModel(String? model) {
+    var t = model?.trim() ?? '';
+    if (t.startsWith('models/')) t = t.substring('models/'.length);
+    if (t.isEmpty || !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(t)) return null;
+    return t;
+  }
+
+  /// Normalises a local-server URL: trimmed, trailing slashes removed;
+  /// null unless it is an absolute `http`/`https` URL with a host.
+  static String? normalizeServerUrl(String? url) {
+    var t = url?.trim() ?? '';
+    while (t.endsWith('/')) {
+      t = t.substring(0, t.length - 1);
+    }
+    final u = Uri.tryParse(t);
+    if (u == null ||
+        !(u.scheme == 'http' || u.scheme == 'https') ||
+        u.host.isEmpty) {
+      return null;
+    }
     return t;
   }
 
@@ -368,6 +582,46 @@ class AppSettings {
   /// Settings-table key for [AppSettingsData.claudeModel].
   static const String kClaudeModel = 'claude_model';
 
+  /// Settings-table key for [AppSettingsData.minutesEngine].
+  static const String kMinutesEngine = 'minutes_engine';
+
+  /// Settings-table key for [AppSettingsData.geminiModel].
+  static const String kGeminiModel = 'gemini_model';
+
+  /// Settings-table key for [AppSettingsData.geminiPrivacyAcknowledged].
+  static const String kGeminiPrivacyAcknowledged =
+      'gemini_privacy_acknowledged';
+
+  /// Settings-table key for [AppSettingsData.localLlmModelId].
+  static const String kLocalLlmModelId = 'local_llm_model_id';
+
+  /// Settings-table key for [AppSettingsData.serverUrl].
+  static const String kServerUrl = 'server_url';
+
+  /// Settings-table key for [AppSettingsData.serverModel].
+  static const String kServerModel = 'server_model';
+
+  /// Settings-table key for [AppSettingsData.audioSource].
+  static const String kAudioSource = 'audio_source';
+
+  /// Settings-table key for [AppSettingsData.inputDeviceId].
+  static const String kInputDeviceId = 'input_device_id';
+
+  /// Settings-table key for [AppSettingsData.farFieldMode].
+  static const String kFarFieldMode = 'far_field_mode';
+
+  /// Settings-table key for [AppSettingsData.profilesFeatureAcknowledged].
+  static const String kProfilesFeatureAcknowledged =
+      'profiles_feature_acknowledged';
+
+  /// Keys whose absence means null (removed by [save] when null).
+  static const List<String> _optionalKeys = [
+    kLanguageHint,
+    kLocalLlmModelId,
+    kServerModel,
+    kInputDeviceId,
+  ];
+
   static AppSettingsData _fromRows(List<SettingRow> rows) =>
       AppSettingsData.fromMap({for (final r in rows) r.key: r.value});
 
@@ -385,7 +639,9 @@ class AppSettings {
         for (final e in map.entries) {
           await _put(e.key, e.value);
         }
-        if (!map.containsKey(kLanguageHint)) await _remove(kLanguageHint);
+        for (final k in _optionalKeys) {
+          if (!map.containsKey(k)) await _remove(k);
+        }
       });
 
   Future<void> _put(String key, String value) => _db
@@ -394,6 +650,11 @@ class AppSettings {
 
   Future<void> _remove(String key) =>
       (_db.delete(_db.settings)..where((s) => s.key.equals(key))).go();
+
+  Future<void> _putOptional(String key, String? value) {
+    final t = value?.trim();
+    return (t == null || t.isEmpty) ? _remove(key) : _put(key, t);
+  }
 
   /// Selected ASR engine (`'local'` or `'cloud'`).
   Future<String> get asrEngine async => (await load()).asrEngine;
@@ -474,6 +735,77 @@ class AppSettings {
     return _put(kClaudeModel, t);
   }
 
+  /// Selected minutes engine (see [AppSettingsData.minutesEngines]).
+  Future<String> get minutesEngine async => (await load()).minutesEngine;
+
+  /// Selects the minutes engine. Throws [ArgumentError] for unknown values.
+  Future<void> setMinutesEngine(String engine) {
+    if (!AppSettingsData.minutesEngines.contains(engine)) {
+      throw ArgumentError.value(
+          engine, 'engine', 'must be gemini, claude, local or server');
+    }
+    return _put(kMinutesEngine, engine);
+  }
+
+  /// Gemini model id.
+  Future<String> get geminiModel async => (await load()).geminiModel;
+
+  /// Sets the Gemini model id (a leading `models/` is removed). Throws
+  /// [ArgumentError] when blank or malformed.
+  Future<void> setGeminiModel(String model) {
+    final n = AppSettingsData.normalizeGeminiModel(model);
+    if (n == null) {
+      throw ArgumentError.value(model, 'model', 'not a Gemini model id');
+    }
+    return _put(kGeminiModel, n);
+  }
+
+  /// Whether the Gemini free-tier data notice was accepted.
+  Future<bool> get geminiPrivacyAcknowledged async =>
+      (await load()).geminiPrivacyAcknowledged;
+
+  /// Records whether the Gemini free-tier data notice was accepted.
+  Future<void> setGeminiPrivacyAcknowledged(bool v) =>
+      _put(kGeminiPrivacyAcknowledged, v.toString());
+
+  /// Sets the on-device GGUF model id (null / blank = recommended model).
+  Future<void> setLocalLlmModelId(String? id) =>
+      _putOptional(kLocalLlmModelId, id);
+
+  /// Sets the local-server URL. Throws [ArgumentError] unless it is an
+  /// absolute http(s) URL.
+  Future<void> setServerUrl(String url) {
+    final n = AppSettingsData.normalizeServerUrl(url);
+    if (n == null) {
+      throw ArgumentError.value(url, 'url', 'must be an http(s) URL');
+    }
+    return _put(kServerUrl, n);
+  }
+
+  /// Sets the local-server model (null / blank = not chosen).
+  Future<void> setServerModel(String? model) =>
+      _putOptional(kServerModel, model);
+
+  /// Sets the Windows audio source. Throws [ArgumentError] for unknown
+  /// values.
+  Future<void> setAudioSource(String source) {
+    if (!AppSettingsData.audioSources.contains(source)) {
+      throw ArgumentError.value(
+          source, 'source', 'must be mic, system or both');
+    }
+    return _put(kAudioSource, source);
+  }
+
+  /// Sets the input device (null / blank = system default).
+  Future<void> setInputDeviceId(String? id) => _putOptional(kInputDeviceId, id);
+
+  /// Enables or disables the far-field profile.
+  Future<void> setFarFieldMode(bool v) => _put(kFarFieldMode, v.toString());
+
+  /// Records whether the speaker-profiles notice was read.
+  Future<void> setProfilesFeatureAcknowledged(bool v) =>
+      _put(kProfilesFeatureAcknowledged, v.toString());
+
   /// Preference keys owned by this store. Other modules keep their own rows
   /// in the same table (e.g. the per-meeting voiceprint ledgers), which a
   /// reset must not touch.
@@ -486,6 +818,16 @@ class AppSettings {
     kConsentAcknowledged,
     kMinutesDetail,
     kClaudeModel,
+    kMinutesEngine,
+    kGeminiModel,
+    kGeminiPrivacyAcknowledged,
+    kLocalLlmModelId,
+    kServerUrl,
+    kServerModel,
+    kAudioSource,
+    kInputDeviceId,
+    kFarFieldMode,
+    kProfilesFeatureAcknowledged,
   ];
 
   /// Removes all stored preferences (back to defaults). Other data kept in

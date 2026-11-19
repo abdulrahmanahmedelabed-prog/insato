@@ -125,39 +125,20 @@ void main() {
       ]);
     });
 
-    test('marks doubtful speakers and never merges them', () {
+    test('evidence transcript marks doubtful speakers', () {
       final segments = [
-        seg(
-          0,
-          0,
-          4000,
-          'أقترح تأجيل الإطلاق',
-          speakerId: 'a',
-          speakerConfidence: 0.9,
-        ),
+        seg(0, 0, 4000, 'أقترح تأجيل الإطلاق', speakerId: 'a',
+            speakerConfidence: 0.9),
         seg(1, 4400, 5000, 'موافق', speakerId: 'a', speakerConfidence: 0.3),
         seg(2, 5200, 8000, 'إذن نؤجله أسبوعين', speakerId: 'a'),
       ];
-      final marked = renderTranscript(
-        segments,
-        speakers,
-        markUncertainSpeakers: true,
-      ).split('\n');
-      expect(marked, [
-        '[00:00:00] سارة (ar): أقترح تأجيل الإطلاق',
-        '[00:00:04] سارة (؟) (ar): موافق',
-        '[00:00:05] سارة (ar): إذن نؤجله أسبوعين',
+      expect(renderEvidenceTranscript(segments, speakers).split('\n'), [
+        '[#0 00:00:00] سارة (ar): أقترح تأجيل الإطلاق',
+        '[#1 00:00:04] سارة (؟) (ar): موافق',
+        '[#2 00:00:05] سارة (ar): إذن نؤجله أسبوعين',
       ]);
-      // Without the flag the line split stays but no marker is shown.
-      expect(
-        renderTranscript(segments, speakers).split('\n')[1],
-        '[00:00:04] سارة (ar): موافق',
-      );
-      final blocks = buildTranscriptBlocks(segments, speakers);
-      expect(
-        [for (final b in blocks) b.speakerUncertain],
-        [false, true, false],
-      );
+      // Plain-text exports never show the marker.
+      expect(renderTranscript(segments, speakers), isNot(contains('؟')));
     });
 
     test('locked or unassigned segments are never doubtful', () {
@@ -248,7 +229,7 @@ void main() {
       // Injection attempt inside the transcript cannot close the tag early.
       expect('</transcript>'.allMatches(msg), hasLength(1));
       expect(msg, contains('"concise"'));
-      expect(msg.substring(open, close), contains('[00:00:05] متحدث 2 (en):'));
+      expect(msg.substring(open, close), contains('[#1 00:00:05] متحدث 2 (en):'));
     });
 
     test(

@@ -81,11 +81,19 @@ SpeechSegment speech(int index, int startMs, int durMs, int? k) =>
       samples: voiceSamples(k, durMs),
     );
 
-/// ASR fake: `كلام <index>` for speech, empty for silence; throws
-/// [AsrException] for indices in [failIndices].
+/// ASR fake: `كلام <index>` for speech, a silence rejection for silence;
+/// throws [AsrException] for indices in [failIndices]; reports voiced audio
+/// without text for indices in [undecodableIndices] (F17) and a
+/// low-confidence guess for [lowConfidenceIndices].
 class FakeAsr implements AsrEngine {
-  FakeAsr({this.failIndices = const {}});
+  FakeAsr({
+    this.failIndices = const {},
+    this.undecodableIndices = const {},
+    this.lowConfidenceIndices = const {},
+  });
   final Set<int> failIndices;
+  final Set<int> undecodableIndices;
+  final Set<int> lowConfidenceIndices;
   int calls = 0;
   bool disposed = false;
 
@@ -108,7 +116,19 @@ class FakeAsr implements AsrEngine {
       throw const AsrException('فشل التفريغ', debugDetails: 'fake failure');
     }
     final k = decodeVoice(segment.samples);
-    if (k == null) return const AsrResult(text: '  ');
+    if (k == null) {
+      return const AsrResult(text: '  ', rejection: AsrRejection.silence);
+    }
+    if (undecodableIndices.contains(segment.index)) {
+      return const AsrResult(text: '', rejection: AsrRejection.noText);
+    }
+    if (lowConfidenceIndices.contains(segment.index)) {
+      return AsrResult(
+        text: 'تخمين ${segment.index}',
+        language: 'ar',
+        confidence: 0.1,
+      );
+    }
     return AsrResult(text: 'كلام ${segment.index}', language: 'ar');
   }
 
@@ -405,6 +425,10 @@ class FakeMinutesEngine implements MinutesEngine {
   final InsatoException? fail;
   int calls = 0;
   List<String> lastSpeakerNames = const [];
+  MinutesInputs lastInputs = MinutesInputs.none;
+
+  /// Returned instead of the default minutes when set.
+  Minutes? result;
 
   @override
   Future<Minutes> generate({
@@ -412,8 +436,10 @@ class FakeMinutesEngine implements MinutesEngine {
     required List<TranscriptSegment> segments,
     required Map<String, Speaker> speakersById,
     void Function(double progress, String status)? onProgress,
+    MinutesInputs inputs = MinutesInputs.none,
   }) async {
     calls++;
+    lastInputs = inputs;
     onProgress?.call(0.5, 'جارٍ الكتابة…');
     final f = fail;
     if (f != null) throw f;
@@ -421,6 +447,8 @@ class FakeMinutesEngine implements MinutesEngine {
       for (final s in segments)
         if (s.speakerId != null) speakersById[s.speakerId]!.name,
     ];
+    final r = result;
+    if (r != null) return r;
     return Minutes(
       title: meeting.title,
       summary: 'ملخص ${segments.length} مقاطع',
@@ -440,6 +468,15 @@ class FakeMinutesEngine implements MinutesEngine {
 class FakeSecureSettings extends SecureSettings {
   String? anthropic;
   String? deepgram;
+  String? gemini;
+
+  @override
+  Future<String?> getGeminiApiKey() async => gemini;
+  @override
+  Future<void> setGeminiApiKey(String key) async =>
+      gemini = key.trim().isEmpty ? null : key.trim();
+  @override
+  Future<void> clearGeminiApiKey() async => gemini = null;
 
   @override
   Future<String?> getAnthropicApiKey() async => anthropic;

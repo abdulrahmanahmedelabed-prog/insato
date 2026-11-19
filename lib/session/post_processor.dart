@@ -38,6 +38,7 @@ import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
 import '../data/database.dart';
+import '../data/minutes_artifacts.dart';
 import '../data/repositories.dart';
 import '../data/secure_settings.dart';
 import '../diarization/clustering.dart';
@@ -97,24 +98,75 @@ class MinutesEngineHandle {
   }
 }
 
-/// Creates a minutes engine, or returns null when no API key is configured.
+/// Creates the minutes engine selected in Settings, or returns null when
+/// its API key is not configured. May throw [MinutesEngineNotReadyException]
+/// when the engine cannot be used yet for another reason (privacy notice
+/// not accepted, local engine unavailable), and
+/// [SecureStorageUnavailableException] when the keystore is locked.
 typedef MinutesEngineFactory = Future<MinutesEngineHandle?> Function();
+
+/// Why the selected minutes engine cannot run yet.
+enum MinutesEngineNotReadyReason {
+  /// Its API key is not configured.
+  noApiKey,
+
+  /// The user has not accepted the engine's data notice yet (Gemini free
+  /// tier: Google may use the data to improve its products).
+  privacyNotAcknowledged,
+
+  /// The engine is not available on this device / build (e.g. a local
+  /// engine whose model is not downloaded).
+  unavailable,
+}
+
+/// The selected minutes engine cannot be used yet; [messageAr] says what
+/// to do in Settings. A [MissingApiKeyException], so the UI offers to open
+/// Settings.
+class MinutesEngineNotReadyException extends MissingApiKeyException {
+  /// Creates the exception.
+  const MinutesEngineNotReadyException(
+    super.messageAr, {
+    required this.reason,
+    super.debugDetails,
+  });
+
+  /// Why.
+  final MinutesEngineNotReadyReason reason;
+}
+
+/// Message used when the factory returns null (no key for the engine).
+const String kMinutesNoKeyMessageAr =
+    'مفتاح محرك المحضر غير مضبوط. أضِفه من الإعدادات لإنشاء المحضر.';
 
 /// Result of [PostProcessor.generateMinutesIfPossible].
 enum MinutesOutcome {
   /// Minutes were generated and saved.
   generated,
 
-  /// No Anthropic API key: the meeting is `ready` without minutes.
+  /// No API key for the selected engine, or the engine is not ready (see
+  /// [MinutesRun.noticeAr]): the meeting is `ready` without minutes.
   skippedNoApiKey,
 
   /// The meeting has no transcript: the meeting is `ready` without minutes.
   skippedEmpty,
 
-  /// The stored Anthropic key could not be read right now (the keystore is
+  /// The stored API key could not be read right now (the keystore is
   /// locked, e.g. iOS before the first unlock): the meeting is `ready`
   /// without minutes and the user can generate them later.
   postponedKeyUnavailable,
+}
+
+/// Outcome of [PostProcessor.runMinutesIfPossible] with the reason when the
+/// engine was not ready.
+class MinutesRun {
+  /// Creates a result.
+  const MinutesRun(this.outcome, {this.noticeAr});
+
+  /// What happened.
+  final MinutesOutcome outcome;
+
+  /// For [MinutesOutcome.skippedNoApiKey]: what the user must do (Arabic).
+  final String? noticeAr;
 }
 
 // ===========================================================================
@@ -548,6 +600,8 @@ TranscriptSegment _carryLock(
     language: n.language,
     embedding: n.embedding,
     speakerLocked: true,
+    kind: n.kind,
+    asrConfidence: n.asrConfidence,
   );
 }
 
@@ -999,10 +1053,15 @@ class PostProcessor {
   /// (status `ready`). While generating the status is `processing`.
   ///
   /// Throws [InsatoException] when the transcript is empty,
-  /// [MissingApiKeyException] without an Anthropic key, and the engine's
+  /// [MissingApiKeyException] (possibly a [MinutesEngineNotReadyException])
+  /// when the selected engine has no key or is not ready, and the engine's
   /// [MinutesGenerationException] on API failure — then the meeting keeps
   /// its previous minutes (status `ready`) or, without minutes, becomes
   /// `failed` with the Arabic error. The transcript is never touched.
+  ///
+  /// v1.1: the glossary and open tasks are passed to the engine, and the
+  /// tasks / pending task updates / speaker notes / code findings of the
+  /// minutes are stored with them ([MinutesArtifactsWriter]).
   Future<Minutes> regenerateMinutes(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
@@ -1017,27 +1076,36 @@ class PostProcessor {
     }
     final handle = await _minutesFactory?.call();
     if (handle == null) {
-      throw const MissingApiKeyException(
-        'مفتاح Claude غير مضبوط. أضِفه من الإعدادات لإنشاء المحضر.',
+      throw const MinutesEngineNotReadyException(
+        kMinutesNoKeyMessageAr,
+        reason: MinutesEngineNotReadyReason.noApiKey,
       );
     }
     return _generate(meeting, segs, handle, onProgress);
   }
 
   /// Automatic minutes after recording: generates them when there is a
-  /// transcript and an Anthropic key; otherwise marks the meeting `ready`
-  /// (it was `processing`) and reports why nothing was generated. API errors
-  /// propagate like [regenerateMinutes].
+  /// transcript and the selected engine is ready; otherwise marks the
+  /// meeting `ready` (it was `processing`) and reports why nothing was
+  /// generated. API errors propagate like [regenerateMinutes].
   Future<MinutesOutcome> generateMinutesIfPossible(
+    String meetingId, {
+    void Function(double progress, String statusAr)? onProgress,
+  }) async =>
+      (await runMinutesIfPossible(meetingId, onProgress: onProgress)).outcome;
+
+  /// Like [generateMinutesIfPossible], with the reason when the engine was
+  /// not ready ([MinutesRun.noticeAr]).
+  Future<MinutesRun> runMinutesIfPossible(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
   }) async {
     final meeting = await _meetings.get(meetingId);
     if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
     final segs = await _segments.getForMeeting(meetingId);
-    if (segs.isEmpty) {
+    if (!segs.any((s) => s.hasContent)) {
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.skippedEmpty;
+      return const MinutesRun(MinutesOutcome.skippedEmpty);
     }
     final MinutesEngineHandle? handle;
     try {
@@ -1045,14 +1113,49 @@ class PostProcessor {
     } on SecureStorageUnavailableException {
       // The key may well exist: postpone instead of reporting "no key".
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.postponedKeyUnavailable;
+      return const MinutesRun(MinutesOutcome.postponedKeyUnavailable);
+    } on MinutesEngineNotReadyException catch (e) {
+      await _markReadyIfProcessing(meetingId);
+      return MinutesRun(MinutesOutcome.skippedNoApiKey, noticeAr: e.messageAr);
     }
     if (handle == null) {
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.skippedNoApiKey;
+      return const MinutesRun(
+        MinutesOutcome.skippedNoApiKey,
+        noticeAr: kMinutesNoKeyMessageAr,
+      );
     }
     await _generate(meeting, segs, handle, onProgress);
-    return MinutesOutcome.generated;
+    return const MinutesRun(MinutesOutcome.generated);
+  }
+
+  /// Maximum open tasks of earlier meetings given to the minutes engine
+  /// (newest first), to keep the prompt bounded.
+  static const int maxOpenTasksInPrompt = 60;
+
+  /// The v1.1 engine inputs of [meeting]: the effective glossary (global +
+  /// meeting terms + named speakers) and the open tasks of other meetings.
+  Future<MinutesInputs> minutesInputsFor(
+    Meeting meeting,
+    Map<String, Speaker> speakersById,
+  ) async {
+    final glossary = await GlossaryRepository(
+      _db,
+    ).getEffective(meeting.id, speakers: speakersById.values);
+    final open = (await TaskRepository(_db).getOpen())
+        .where((t) => t.sourceMeetingId != meeting.id)
+        .take(maxOpenTasksInPrompt)
+        .toList(growable: false);
+    final titles = <String, String>{};
+    for (final id in {for (final t in open) ?t.sourceMeetingId}) {
+      final m = await _meetings.get(id);
+      if (m != null) titles[id] = m.title;
+    }
+    return MinutesInputs(
+      glossary: glossary,
+      openTasks: open,
+      taskSourceTitles: titles,
+    );
   }
 
   Future<Minutes> _generate(
@@ -1063,13 +1166,24 @@ class PostProcessor {
   ) async {
     await _meetings.updateStatus(meeting.id, MeetingStatus.processing);
     try {
+      final speakersById = await _speakers.getAllById();
+      final inputs = await minutesInputsFor(meeting, speakersById);
       final minutes = await handle.engine.generate(
         meeting: meeting,
         segments: segs,
-        speakersById: await _speakers.getAllById(),
+        speakersById: speakersById,
         onProgress: onProgress,
+        inputs: inputs,
       );
-      await _meetings.saveMinutes(meeting.id, minutes);
+      await _db.transaction(() async {
+        await _meetings.saveMinutes(meeting.id, minutes);
+        await MinutesArtifactsWriter(_db).persist(
+          meetingId: meeting.id,
+          minutes: minutes,
+          speakersById: await _speakers.getAllById(),
+          openTaskIds: {for (final t in inputs.openTasks) t.id},
+        );
+      });
       return minutes;
     } catch (e) {
       final err = e is InsatoException
@@ -1332,6 +1446,8 @@ class PostProcessor {
         text: s.text,
         language: s.language,
         embedding: s.embedding,
+        kind: s.kind,
+        asrConfidence: s.asrConfidence,
       );
 
   /// Removes [oldSegments]' contributions from voiceprints and clears the
@@ -1611,25 +1727,24 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           noticeAr: 'تم إنشاء المحضر.',
         );
       }
-      final outcome = await post.generateMinutesIfPossible(
+      final run = await post.runMinutesIfPossible(
         meetingId,
         onProgress: progress,
       );
-      return switch (outcome) {
+      return switch (run.outcome) {
         MinutesOutcome.generated => const MeetingJobState(
           kind: MeetingJobKind.minutes,
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           noticeAr: 'تم إنشاء المحضر.',
         ),
-        MinutesOutcome.skippedNoApiKey => const MeetingJobState(
+        MinutesOutcome.skippedNoApiKey => MeetingJobState(
           kind: MeetingJobKind.minutes,
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           needsApiKey: true,
           noticeAr:
-              'لم يُنشأ المحضر لأن مفتاح Claude غير مضبوط. أضِفه من '
-              'الإعدادات ثم اضغط «إنشاء المحضر».',
+              'لم يُنشأ المحضر. ${run.noticeAr ?? kMinutesNoKeyMessageAr}',
         ),
         MinutesOutcome.skippedEmpty => const MeetingJobState(
           kind: MeetingJobKind.minutes,
@@ -1642,7 +1757,7 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           noticeAr:
-              'تعذّرت قراءة مفتاح Claude المحفوظ الآن لأن الجهاز مقفل، فأُجّل '
+              'تعذّرت قراءة مفتاح محرك المحضر المحفوظ الآن لأن الجهاز مقفل، فأُجّل '
               'المحضر. افتح قفل الجهاز ثم اضغط «إنشاء المحضر».',
         ),
       };

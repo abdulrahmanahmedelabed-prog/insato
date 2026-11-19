@@ -30,8 +30,10 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
                                    Offline refinement: agglomerative re-clustering
                                    of all segment embeddings → relabel → update voiceprints
                                                                ▼
-                                   MinutesGenerator (Claude API, structured JSON,
-                                   Arabic) → Minutes → DB → PDF / Markdown / share
+                                   StructuredMinutesEngine → MinutesBackend
+                                   (Gemini by default / Claude / local, structured
+                                   JSON, Arabic) → Minutes (+ tasks, codes, notes)
+                                   → DB → PDF / Markdown / share
 ```
 
 ## Key decisions
@@ -47,7 +49,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Cloud ASR (optional) | Deepgram `nova-3`, `language=multi` | Highest accuracy where privacy policy allows |
 | Diarization | VAD segments → embeddings → online cosine assignment + offline agglomerative refinement | Real-time labels during the meeting, corrected labels after |
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
-| Minutes | Claude API `claude-opus-5-5`, adaptive thinking, `effort: high`, streaming, `output_config.format` JSON schema, server-side fallback | Faithful, structured Arabic minutes from multilingual transcript |
+| Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Markdown, plain-text share | Official, printable minutes |
 
 ## Module layout (`lib/`)
@@ -133,16 +135,29 @@ parsing) are covered by unit tests in `test/`.
 
 ## Minutes generation
 
-* Transcript is rendered as lines `[hh:mm:ss] <speaker name> (<lang>): text`.
+* Transcript is rendered one line per segment with its id,
+  `[#42 hh:mm:ss] <speaker name> (<lang>): text`; unintelligible segments
+  (F17) appear as `[غير مفهوم — مقطع #n، m ث]`. Evidence arrays in the answer
+  cite these ids (see docs/V11-CONTRACTS.md).
 * System prompt (Arabic + English rules): faithful, no invention, Modern
   Standard Arabic, preserve names/numbers/terms (original in parentheses when
   useful), attribute statements to speakers, mark uncertainty.
 * Output is constrained by a JSON schema (see `minutes_prompt.dart`) → `Minutes`.
-* Request: `model: claude-opus-5-5`, `max_tokens: 64000`, `stream: true`,
-  `thinking: {type: adaptive}`, `output_config: {effort: high, format: …}`,
-  `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`,
-  `anthropic-version: 2026-10-21`. `stop_reason` is checked (`refusal`,
-  `max_tokens`) before parsing.
+* Gemini (default): `POST …/v1beta/models/{model}:streamGenerateContent?alt=sse`
+  with `x-goog-api-key`, `systemInstruction`, `generationConfig.responseMimeType
+  = application/json` and `responseJsonSchema` (fallback `responseSchema`, then
+  plain JSON mode + tolerant repair). `finishReason` / `promptFeedback` are
+  checked; 429s are waited out once when short and never hammered
+  (`GeminiRateGate`). A missing model triggers `models.list` discovery.
+* Claude (optional): `model: claude-opus-5-5`, `max_tokens: 64000`,
+  `stream: true`, `thinking: {type: adaptive}`, `output_config: {effort: high,
+  format: …}`, `fallbacks: "default"` with `anthropic-beta:
+  server-side-fallback-2026-07-01`, `anthropic-version: 2026-10-21`.
+  `stop_reason` is checked (`refusal`, `max_tokens`) before parsing.
+* The answer is validated (`sanitizeMinutes`: evidence ids, agenda order,
+  known task ids, opted-in speakers only) and its tasks / pending task
+  updates / speaker notes / code findings are stored with the minutes
+  (`MinutesArtifactsWriter`).
 * The user can regenerate minutes after renaming speakers.
 
 ## Privacy
@@ -156,8 +171,11 @@ parsing) are covered by unit tests in `test/`.
   file name; readers resolve it with `AppPaths.resolveRecording`, and
   `MeetingRepository.delete` removes the file from the current recordings
   directory (`recordingsDirProvider`) as well as a legacy absolute path.
-* With on-device ASR only the *text transcript* is sent to Claude to write the
-  minutes. With cloud ASR, audio segments go to Deepgram; every request sets
+* With on-device ASR only the *text transcript* is sent to the selected
+  minutes engine (Google Gemini by default — on its free tier Google may use
+  the content to improve its products, which Settings states and the user
+  accepts before the first request — or Anthropic Claude; nothing with a local
+  engine). With cloud ASR, audio segments go to Deepgram; every request sets
   `mip_opt_out=true` (no use for model training), but retention is governed
   by Deepgram's data policy. Both are explained in Settings and in the
   consent reminder.

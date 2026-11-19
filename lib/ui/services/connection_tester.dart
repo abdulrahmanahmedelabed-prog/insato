@@ -1,12 +1,15 @@
-// "Test connection" of the Settings screen: one tiny structured request to
-// the Claude Messages API with the key the user typed, mapped to an Arabic
-// verdict.
+// "Test connection" of the Settings screen, mapped to an Arabic verdict:
+// * Claude: one tiny structured request to the Messages API;
+// * Gemini: `models.list` with the key — it validates the key without using
+//   any of the (very small) free generation quota, and checks that the
+//   configured model exists (otherwise suggests the newest Flash model).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/errors.dart';
 import '../../minutes/claude_client.dart';
+import '../../minutes/gemini_client.dart';
 
 /// Outcome of [ClaudeConnectionTester.test].
 class ConnectionTestResult {
@@ -119,4 +122,79 @@ class ClaudeConnectionTester {
 /// The connection tester used by the Settings screen.
 final claudeConnectionTesterProvider = Provider<ClaudeConnectionTester>(
   (ref) => ClaudeConnectionTester(),
+);
+
+/// Checks a Gemini API key by listing the models it can use.
+class GeminiConnectionTester {
+  /// Creates a tester. [client] / [baseUri] are injectable for tests.
+  GeminiConnectionTester({this.client, this.baseUri});
+
+  /// HTTP client (tests).
+  final http.Client? client;
+
+  /// API base override (tests).
+  final Uri? baseUri;
+
+  /// Lists the models of [apiKey] and checks that [model] is one of them.
+  ///
+  /// Never throws. When [model] is missing but another Flash model is
+  /// available, the result is ok and its `model` is that suggestion (the
+  /// caller may save it).
+  Future<ConnectionTestResult> test(
+    String apiKey, {
+    String model = kDefaultGeminiModel,
+  }) async {
+    final key = apiKey.trim();
+    if (key.isEmpty) {
+      return const ConnectionTestResult(
+        ok: false,
+        messageAr: 'أدخل مفتاح Gemini API أولًا.',
+      );
+    }
+    final wanted = model.trim().isEmpty ? kDefaultGeminiModel : model.trim();
+    final c = GeminiClient(
+      apiKey: key,
+      client: client,
+      model: wanted,
+      baseUri: baseUri,
+    );
+    try {
+      final models = await c.listModels();
+      if (models.any((m) => m.id == wanted && m.canGenerate)) {
+        return ConnectionTestResult(
+          ok: true,
+          messageAr: 'الاتصال ناجح والمفتاح صالح.',
+          model: wanted,
+        );
+      }
+      final pick = pickPreferredGeminiModel(models);
+      if (pick == null) {
+        return const ConnectionTestResult(
+          ok: false,
+          messageAr:
+              'المفتاح صالح، لكن لا يتوفر له أي نموذج Gemini Flash لكتابة '
+              'المحاضر.',
+        );
+      }
+      return ConnectionTestResult(
+        ok: true,
+        messageAr: 'المفتاح صالح؛ النموذج $wanted غير متاح فسيُستخدم $pick.',
+        model: pick,
+      );
+    } on InsatoException catch (e) {
+      return ConnectionTestResult(ok: false, messageAr: e.messageAr);
+    } catch (_) {
+      return const ConnectionTestResult(
+        ok: false,
+        messageAr: 'تعذّر الاتصال بخدمة Gemini. تحقّق من اتصالك بالإنترنت.',
+      );
+    } finally {
+      c.close();
+    }
+  }
+}
+
+/// The Gemini connection tester used by the Settings screen.
+final geminiConnectionTesterProvider = Provider<GeminiConnectionTester>(
+  (ref) => GeminiConnectionTester(),
 );

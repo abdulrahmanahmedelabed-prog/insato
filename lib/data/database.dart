@@ -2,8 +2,11 @@
 //
 // The database stores meetings, their transcript segments, the global speaker
 // voiceprints shared across meetings, and a small key/value settings table.
-// Domain conversion lives in `repositories.dart`; this file only defines the
-// schema, the connection and the migration strategy.
+// Schema v2 (Insato v1.1) adds meeting context, segment kinds, speaker
+// profile flags and the glossary / task / profile / code-finding tables.
+// Domain conversion lives in `repositories.dart` and `repositories_v11.dart`;
+// this file only defines the schema, the connection and the migration
+// strategy ([AppDatabase.migration], tested from a v1 fixture).
 
 import 'dart:typed_data';
 
@@ -55,6 +58,17 @@ class Speakers extends Table {
   /// Number of embeddings averaged into [centroid].
   IntColumn get embeddingCount => integer().withDefault(const Constant(0))();
 
+  /// v2 (F16): the user opted this speaker in to profiles.
+  BoolColumn get profileEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// v2 (F18): input device the voiceprint was learned on.
+  TextColumn get voiceDevice => text().nullable()();
+
+  /// v2 (F15): heard only briefly; voiceprint not used for matching yet.
+  BoolColumn get lowConfidence =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -85,6 +99,23 @@ class Meetings extends Table {
 
   /// Arabic, user-facing error message when [status] is `failed`.
   TextColumn get errorMessage => text().nullable()();
+
+  /// v2 (F3): ordered agenda items as a JSON list of strings.
+  TextColumn get agendaJson =>
+      text().named('agenda').withDefault(const Constant('[]'))();
+
+  /// v2 (F3): expected attendee names as a JSON list of strings.
+  TextColumn get expectedAttendeesJson =>
+      text().named('expected_attendees').withDefault(const Constant('[]'))();
+
+  /// v2 (F3): free-text context notes.
+  TextColumn get contextNotes => text().nullable()();
+
+  /// v2 (F3, reserved for v1.2): minutes template id.
+  TextColumn get template => text().nullable()();
+
+  /// v2 (F18): input device used for the recording.
+  TextColumn get inputDevice => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -129,12 +160,187 @@ class Segments extends Table {
   BoolColumn get speakerLocked =>
       boolean().withDefault(const Constant(false))();
 
+  /// v2 (F17): `SegmentKind.wire` — `speech` or `unintelligible`.
+  TextColumn get kind => text().withDefault(const Constant('speech'))();
+
+  /// v2: recogniser confidence 0..1 when reported.
+  RealColumn get asrConfidence => real().nullable()();
+
   /// Confidence (0..1) of the automatic speaker assignment; null when
-  /// unknown (rows from schema 1).
+  /// unknown (rows from schema 1 and 2).
   RealColumn get speakerConfidence => real().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// v2 (F2): custom vocabulary (canonical spellings).
+@DataClassName('GlossaryTermRow')
+@TableIndex(name: 'glossary_terms_meeting', columns: {#meetingId})
+class GlossaryTerms extends Table {
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// The term as it should be spelled.
+  TextColumn get term => text()();
+
+  /// Optional Arabic spelling / translation.
+  TextColumn get arSpelling => text().nullable()();
+
+  /// `GlossaryCategory.wire`.
+  TextColumn get category => text().withDefault(const Constant('other'))();
+
+  /// Meeting for a meeting-only term (F3); null for a global term.
+  TextColumn get meetingId => text()
+      .nullable()
+      .references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+}
+
+/// v2 (F9): action items tracked across meetings.
+@DataClassName('TaskRow')
+@TableIndex(name: 'tasks_status', columns: {#status})
+@TableIndex(name: 'tasks_source_meeting', columns: {#sourceMeetingId})
+class Tasks extends Table {
+  /// Auto-increment primary key (the `task_id` shown to the minutes engine).
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Task description.
+  TextColumn get task => text()();
+
+  /// Owner speaker, set to null when the speaker is deleted.
+  TextColumn get ownerSpeakerId => text()
+      .nullable()
+      .references(Speakers, #id, onDelete: KeyAction.setNull)();
+
+  /// Owner as free text.
+  TextColumn get ownerText => text().nullable()();
+
+  /// Deadline as stated.
+  TextColumn get dueText => text().nullable()();
+
+  /// `TaskStatus.wire` — open / done / cancelled.
+  TextColumn get status => text().withDefault(const Constant('open'))();
+
+  /// Meeting whose minutes created the task; null when deleted / manual.
+  TextColumn get sourceMeetingId => text()
+      .nullable()
+      .references(Meetings, #id, onDelete: KeyAction.setNull)();
+
+  /// Evidence segment indices (JSON list of integers).
+  TextColumn get evidenceSegmentIds =>
+      text().withDefault(const Constant('[]'))();
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+
+  /// Last update (UTC epoch milliseconds in SQL).
+  IntColumn get updatedAt => integer().map(const EpochMillisConverter())();
+}
+
+/// v2 (F9): task status changes proposed by minutes, awaiting confirmation.
+@DataClassName('PendingTaskUpdateRow')
+@TableIndex(name: 'task_updates_pending_meeting', columns: {#meetingId})
+@TableIndex(name: 'task_updates_pending_task', columns: {#taskId})
+class TaskUpdatesPending extends Table {
+  @override
+  String get tableName => 'task_updates_pending';
+
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Task concerned; deleted with the task.
+  IntColumn get taskId =>
+      integer().references(Tasks, #id, onDelete: KeyAction.cascade)();
+
+  /// Meeting whose minutes proposed it; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// Proposed `TaskStatus.wire`.
+  TextColumn get newStatus => text()();
+
+  /// Arabic note.
+  TextColumn get note => text().nullable()();
+
+  /// Evidence segment indices (JSON list of integers).
+  TextColumn get evidenceJson =>
+      text().named('evidence').withDefault(const Constant('[]'))();
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+}
+
+/// v2 (F16): aggregated speaker profiles (opt-in speakers only).
+@DataClassName('SpeakerProfileRow')
+class SpeakerProfiles extends Table {
+  /// Speaker; the profile is deleted with the speaker.
+  TextColumn get speakerId =>
+      text().references(Speakers, #id, onDelete: KeyAction.cascade)();
+
+  /// Profile JSON (shape owned by lib/features/profiles).
+  TextColumn get profileJson => text()();
+
+  /// Cited evidence as a JSON list of `{meeting_id, segment}`.
+  TextColumn get evidenceJson =>
+      text().named('evidence').withDefault(const Constant('[]'))();
+
+  /// Last update (UTC epoch milliseconds in SQL).
+  IntColumn get updatedAt => integer().map(const EpochMillisConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {speakerId};
+}
+
+/// v2 (F16): per-meeting notes of opted-in speakers.
+@DataClassName('SpeakerMeetingNoteRow')
+@TableIndex(name: 'speaker_meeting_notes_meeting', columns: {#meetingId})
+class SpeakerMeetingNotes extends Table {
+  /// Speaker; deleted with the speaker.
+  TextColumn get speakerId =>
+      text().references(Speakers, #id, onDelete: KeyAction.cascade)();
+
+  /// Meeting; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// `MinutesSpeakerNote.toJson()`.
+  TextColumn get notesJson => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {speakerId, meetingId};
+}
+
+/// v2 (F17): codes, jargon, spoken code, implied speech, references.
+@DataClassName('CodeFindingRow')
+@TableIndex(name: 'code_findings_meeting', columns: {#meetingId})
+class CodeFindings extends Table {
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Meeting; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// `CodeFindingKind.wire`.
+  TextColumn get kind => text()();
+
+  /// Speaker who said it; null when unresolved or deleted.
+  TextColumn get speakerId => text()
+      .nullable()
+      .references(Speakers, #id, onDelete: KeyAction.setNull)();
+
+  /// Evidence segment indices (JSON list of integers).
+  TextColumn get segmentIdsJson =>
+      text().named('segment_ids').withDefault(const Constant('[]'))();
+
+  /// Finding JSON.
+  TextColumn get payloadJson => text()();
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
 }
 
 /// Simple key/value application settings.
@@ -151,7 +357,18 @@ class Settings extends Table {
 }
 
 /// The Insato SQLite database.
-@DriftDatabase(tables: [Speakers, Meetings, Segments, Settings])
+@DriftDatabase(tables: [
+  Speakers,
+  Meetings,
+  Segments,
+  Settings,
+  GlossaryTerms,
+  Tasks,
+  TaskUpdatesPending,
+  SpeakerProfiles,
+  SpeakerMeetingNotes,
+  CodeFindings,
+])
 class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database file `insato.sqlite` in the application
   /// documents directory on a background isolate. Used on Android and iOS;
@@ -178,14 +395,18 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()` in tests.
   AppDatabase.forExecutor(super.executor);
 
+  /// Current schema version (v1.1 = 2, speaker confidence = 3).
+  static const int currentSchemaVersion = 3;
+
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => currentSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
-          if (from < 2) {
+          if (from < 2) await _migrateV1ToV2(m);
+          if (from < 3 && to >= 3) {
             await m.addColumn(segments, segments.speakerConfidence);
           }
         },
@@ -193,6 +414,40 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  /// v1 → v2 (Insato v1.1): new nullable / defaulted columns on existing
+  /// tables (existing rows get the defaults: no context, `speech` segments,
+  /// profiles off) and the new tables with their indexes. Runs inside the
+  /// migration transaction; v1 data is never rewritten.
+  Future<void> _migrateV1ToV2(Migrator m) async {
+    await m.addColumn(speakers, speakers.profileEnabled);
+    await m.addColumn(speakers, speakers.voiceDevice);
+    await m.addColumn(speakers, speakers.lowConfidence);
+    await m.addColumn(meetings, meetings.agendaJson);
+    await m.addColumn(meetings, meetings.expectedAttendeesJson);
+    await m.addColumn(meetings, meetings.contextNotes);
+    await m.addColumn(meetings, meetings.template);
+    await m.addColumn(meetings, meetings.inputDevice);
+    await m.addColumn(segments, segments.kind);
+    await m.addColumn(segments, segments.asrConfidence);
+    await m.createTable(glossaryTerms);
+    await m.createTable(tasks);
+    await m.createTable(taskUpdatesPending);
+    await m.createTable(speakerProfiles);
+    await m.createTable(speakerMeetingNotes);
+    await m.createTable(codeFindings);
+    for (final index in [
+      glossaryTermsMeeting,
+      tasksStatus,
+      tasksSourceMeeting,
+      taskUpdatesPendingMeeting,
+      taskUpdatesPendingTask,
+      speakerMeetingNotesMeeting,
+      codeFindingsMeeting,
+    ]) {
+      await m.createIndex(index);
+    }
+  }
 }
 
 /// Encodes a float vector as little-endian Float32 bytes for BLOB storage.
