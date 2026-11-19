@@ -8,6 +8,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show IOException;
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
@@ -456,7 +457,19 @@ class ClaudeClient {
     void Function(int)? onDelta,
     void Function(ClaudeStreamPhase) phase,
   ) async {
-    final request = http.Request('POST', endpoint)
+    // Abortable so an abandoned attempt (header timeout, or a stream that
+    // ends early) really closes its connection instead of lingering on the
+    // server while the retry runs.
+    final abort = Completer<void>();
+    void abortRequest() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    final request = http.AbortableRequest(
+      'POST',
+      endpoint,
+      abortTrigger: abort.future,
+    )
       ..headers.addAll({
         'content-type': 'application/json',
         'accept': 'text/event-stream',
@@ -466,19 +479,41 @@ class ClaudeClient {
       })
       ..body = body;
 
+    final sendFuture = _client.send(request);
     http.StreamedResponse response;
     try {
-      response = await _client.send(request).timeout(idleTimeout);
+      response = await sendFuture.timeout(idleTimeout);
     } on TimeoutException catch (e) {
+      abortRequest();
+      // If the headers arrive anyway (the abort is ignored once a response
+      // exists), drain-cancel the unread body so the socket is released.
+      unawaited(
+        sendFuture.then(
+          (r) => r.stream.listen(null).cancel(),
+          onError: (Object _) {},
+        ),
+      );
       throw _RetryableFailure('timeout waiting for response headers', cause: e);
     } on http.ClientException catch (e) {
       throw _RetryableFailure('network error: ${e.message}', cause: e);
+    } on IOException catch (e) {
+      // TLS/handshake failures and raw socket errors are not wrapped by
+      // IOClient; they are transient transport failures too.
+      throw _RetryableFailure(
+        'network/TLS error (${e.runtimeType}): $e',
+        cause: e,
+      );
     }
 
-    if (response.statusCode != 200) {
-      await _handleHttpError(response);
+    try {
+      if (response.statusCode != 200) {
+        await _handleHttpError(response);
+      }
+      return await _consumeStream(response, onDelta, phase);
+    } finally {
+      // No-op after a complete response; otherwise closes the connection.
+      abortRequest();
     }
-    return _consumeStream(response, onDelta, phase);
   }
 
   Future<Never> _handleHttpError(http.StreamedResponse response) async {
@@ -658,6 +693,11 @@ class ClaudeClient {
     } on http.ClientException catch (e) {
       throw _RetryableFailure(
         'network error mid-stream: ${e.message}',
+        cause: e,
+      );
+    } on IOException catch (e) {
+      throw _RetryableFailure(
+        'network/TLS error mid-stream (${e.runtimeType}): $e',
         cause: e,
       );
     } on FormatException catch (e) {

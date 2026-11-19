@@ -118,15 +118,32 @@ class ExportService {
 
   /// Escapes characters that would start Markdown block constructs at the
   /// beginning of a line (headings, quotes, lists, tables).
-  static String _mdText(String s) => s
-      .split('\n')
-      .map(
-        (line) => line.replaceFirstMapped(
-          RegExp(r'^(\s*)([#>|+\-*]|\d+[.)])'),
-          (m) => '${m.group(1)}\\${m.group(2)}',
-        ),
+  ///
+  /// CommonMark only honours a backslash before ASCII punctuation, so an
+  /// ordered-list marker is neutralised by escaping its delimiter (`1.` ->
+  /// `1\.`), never the digits, and only when it could actually start a list
+  /// (followed by whitespace or end of line; `3.5` is left alone). Bullet
+  /// markers are likewise escaped only when followed by whitespace, so
+  /// emphasis such as `*مهم*` at the start of a line keeps working.
+  static String _mdText(String s) =>
+      s.split('\n').map(_mdEscapeLine).join('\n');
+
+  static final RegExp _mdOrderedMarker = RegExp(
+    r'^(\s*)(\d{1,9})([.)])(?=\s|$)',
+  );
+  static final RegExp _mdBlockChar = RegExp(r'^(\s*)([#>|])');
+  static final RegExp _mdBulletMarker = RegExp(r'^(\s*)([+\-*])(?=\s|$)');
+
+  static String _mdEscapeLine(String line) => line
+      .replaceFirstMapped(
+        _mdOrderedMarker,
+        (m) => '${m.group(1)}${m.group(2)}\\${m.group(3)}',
       )
-      .join('\n');
+      .replaceFirstMapped(_mdBlockChar, (m) => '${m.group(1)}\\${m.group(2)}')
+      .replaceFirstMapped(
+        _mdBulletMarker,
+        (m) => '${m.group(1)}\\${m.group(2)}',
+      );
 
   // -------------------------------------------------------------------------
   // Markdown
