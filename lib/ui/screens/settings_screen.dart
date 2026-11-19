@@ -24,7 +24,7 @@ import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 
 /// App version shown in "about" (keep in sync with pubspec.yaml).
-const String kAppVersion = '1.0.0';
+const String kAppVersion = '1.1.0-beta.1';
 
 /// Minimum of the speaker-matching sensitivity slider.
 const double kMinMatchThreshold = 0.45;
