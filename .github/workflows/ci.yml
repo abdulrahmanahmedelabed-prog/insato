@@ -48,12 +48,20 @@ jobs:
         run: flutter pub get
 
       - name: Check generated code is up to date
-        # drift's *.g.dart files are committed; regenerate and fail if they
-        # differ, so schema changes are never shipped without codegen.
+        # drift's *.g.dart files are committed and the release workflow
+        # (build.yml) builds from the committed files only. Regenerate and
+        # fail if any generated file is modified OR untracked (a new part
+        # file someone forgot to `git add`): `git diff` alone only sees
+        # tracked files, `git status --porcelain` reports both.
+        shell: bash
         run: |
+          set -euo pipefail
           dart run build_runner build --delete-conflicting-outputs
-          if ! git diff --exit-code -- '*.g.dart'; then
-            echo "::error::Generated files are stale. Run 'dart run build_runner build --delete-conflicting-outputs' and commit the result."
+          changed="$(git status --porcelain --untracked-files=all -- '*.g.dart')"
+          if [[ -n "${changed}" ]]; then
+            echo "${changed}"
+            git --no-pager diff -- '*.g.dart'
+            echo "::error::Generated files are stale or uncommitted. Run 'dart run build_runner build --delete-conflicting-outputs' and commit the result."
             exit 1
           fi
 

@@ -48,11 +48,17 @@ bool isWideLayout(BuildContext context) =>
 /// Opens the meeting [meetingId]: on wide layouts it is selected in the
 /// detail pane (returning to the shell); on phones its page is pushed, or
 /// replaces the current page when [replace] is set.
+///
+/// [replaceRoute] names the page to replace (the caller's own route): any
+/// dialog open above it is closed first, so the meeting page replaces that
+/// page and not the dialog (which a plain pushReplacement would replace,
+/// leaving the caller's page underneath).
 Future<void> openMeeting(
   BuildContext context,
   WidgetRef ref,
   String meetingId, {
   bool replace = false,
+  Route<dynamic>? replaceRoute,
 }) async {
   ref.read(selectedMeetingProvider.notifier).select(meetingId);
   ref.read(shellTabProvider.notifier).show(0);
@@ -64,7 +70,15 @@ Future<void> openMeeting(
   final route = MaterialPageRoute<void>(
     builder: (_) => MeetingDetailScreen(meetingId: meetingId),
   );
-  if (replace) {
+  if (replaceRoute != null) {
+    if (replaceRoute.isActive) {
+      // Closed dialogs complete with null (read as "cancelled").
+      nav.popUntil((r) => r == replaceRoute);
+      await nav.pushReplacement(route);
+    } else {
+      await nav.push(route);
+    }
+  } else if (replace) {
     await nav.pushReplacement(route);
   } else {
     await nav.push(route);

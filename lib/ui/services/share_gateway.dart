@@ -1,11 +1,13 @@
 // Platform sharing / printing / clipboard behind one seam, so screens stay
 // testable without the share_plus and printing plugins.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -31,9 +33,10 @@ abstract class ShareGateway {
   /// Shares plain [text] through the system share sheet.
   Future<ShareOutcome> shareText(String text, {String? subject, Rect? origin});
 
-  /// Saves [bytes] as [fileName] in the exports folder and offers it through
-  /// the share sheet. When sharing is unavailable the saved path is still
-  /// returned.
+  /// Offers [bytes] as [fileName] through the share sheet. On desktop a copy
+  /// is saved in the exports folder and its path returned (also when sharing
+  /// is unavailable); on mobile the file is temporary and removed after the
+  /// share.
   Future<ShareOutcome> shareFile({
     required Uint8List bytes,
     required String fileName,
@@ -58,14 +61,70 @@ abstract class ShareGateway {
 }
 
 /// Production [ShareGateway] over share_plus, printing and the clipboard.
+///
+/// Where exported files go:
+/// * desktop: [exportsDir], and the user is told the saved path (a copy the
+///   user chose to keep);
+/// * Android / iOS: a short-lived file in [shareTempDir], deleted as soon as
+///   the share sheet returns (share_plus copies the file into its own cache
+///   on Android; on iOS the call completes when the sheet is dismissed).
+///   Nothing stays behind after the meeting is deleted.
 class DefaultShareGateway implements ShareGateway {
-  /// Creates the gateway; exported files go to [exportsDir].
-  DefaultShareGateway({required this.exportsDir});
+  /// Creates the gateway. [shareTempDir] defaults to `<temporary>/share`,
+  /// [isMobile] to the current platform and [share] to share_plus.
+  DefaultShareGateway({
+    required this.exportsDir,
+    Future<String> Function()? shareTempDir,
+    bool? isMobile,
+    Future<void> Function(ShareParams params)? share,
+  }) : _shareTempDir = shareTempDir ?? _defaultShareTempDir,
+       _isMobile = isMobile ?? (Platform.isAndroid || Platform.isIOS),
+       _share = share ?? _sharePlus;
 
-  /// Resolves the exports directory.
+  /// Resolves the exports directory (desktop copies).
   final Future<String> Function() exportsDir;
 
-  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+  final Future<String> Function() _shareTempDir;
+  final bool _isMobile;
+  final Future<void> Function(ShareParams params) _share;
+  Future<void>? _purge;
+
+  static Future<void> _sharePlus(ShareParams params) async {
+    await SharePlus.instance.share(params);
+  }
+
+  static Future<String> _defaultShareTempDir() async {
+    final dir = Directory(
+      p.join((await getTemporaryDirectory()).path, 'share'),
+    );
+    await dir.create(recursive: true);
+    return dir.path;
+  }
+
+  /// Best-effort removal of share files left behind (an interrupted share,
+  /// or `<data root>/exports` copies written by older builds on mobile).
+  /// Desktop exports are user-visible saved copies and are kept.
+  /// Runs once; [shareFile] waits for it, so it never races a new file.
+  Future<void> purgeStale() => _purge ??= _purgeStale();
+
+  Future<void> _purgeStale() async {
+    if (!_isMobile) return;
+    for (final dir in [_shareTempDir, exportsDir]) {
+      try {
+        await for (final e in Directory(await dir()).list()) {
+          if (e is File) {
+            try {
+              await e.delete();
+            } catch (_) {
+              // Best effort.
+            }
+          }
+        }
+      } catch (_) {
+        // Best effort.
+      }
+    }
+  }
 
   @override
   Future<void> copyText(String text) =>
@@ -78,7 +137,7 @@ class DefaultShareGateway implements ShareGateway {
     Rect? origin,
   }) async {
     try {
-      await SharePlus.instance.share(
+      await _share(
         ShareParams(text: text, subject: subject, sharePositionOrigin: origin),
       );
       return const ShareOutcome(shared: true);
@@ -98,11 +157,12 @@ class DefaultShareGateway implements ShareGateway {
     String? subject,
     Rect? origin,
   }) async {
-    final dir = await exportsDir();
+    await purgeStale();
+    final dir = _isMobile ? await _shareTempDir() : await exportsDir();
     final path = p.join(dir, fileName);
     await File(path).writeAsBytes(bytes, flush: true);
     try {
-      await SharePlus.instance.share(
+      await _share(
         ShareParams(
           files: [XFile(path, mimeType: mimeType, name: fileName)],
           subject: subject,
@@ -111,7 +171,16 @@ class DefaultShareGateway implements ShareGateway {
       );
       return ShareOutcome(shared: true, savedPath: _isMobile ? null : path);
     } catch (_) {
-      return ShareOutcome(shared: false, savedPath: path);
+      // A hidden app-private path means nothing to a mobile user.
+      return ShareOutcome(shared: false, savedPath: _isMobile ? null : path);
+    } finally {
+      if (_isMobile) {
+        try {
+          await File(path).delete();
+        } catch (_) {
+          // Best effort; purged on the next share.
+        }
+      }
     }
   }
 
@@ -157,5 +226,8 @@ class DefaultShareGateway implements ShareGateway {
 /// The share gateway (overridden in widget tests).
 final shareGatewayProvider = Provider<ShareGateway>((ref) {
   final paths = ref.watch(appPathsProvider);
-  return DefaultShareGateway(exportsDir: paths.exportsDir);
+  final gateway = DefaultShareGateway(exportsDir: paths.exportsDir);
+  // Clear share files an earlier run left behind.
+  unawaited(gateway.purgeStale());
+  return gateway;
 });

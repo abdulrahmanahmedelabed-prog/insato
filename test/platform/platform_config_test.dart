@@ -24,6 +24,54 @@ String? _plistValue(String plist, String key) {
   return match?.group(1);
 }
 
+/// Returns the text of the workflow step named [name] (from its `- name:`
+/// line up to the next step or job), or null.
+String? _workflowStep(String workflow, String name) {
+  final lines = workflow.split('\n');
+  final start = lines.indexWhere(
+    (l) => RegExp('^(\\s*)- name: ${RegExp.escape(name)}\\s*\$').hasMatch(l),
+  );
+  if (start < 0) return null;
+  final indent = lines[start].indexOf('-');
+  final out = <String>[lines[start]];
+  for (final line in lines.skip(start + 1)) {
+    final trimmed = line.trimLeft();
+    final lineIndent = line.length - trimmed.length;
+    if (trimmed.isNotEmpty && lineIndent <= indent) break;
+    out.add(line);
+  }
+  return out.join('\n');
+}
+
+/// Returns the dedented body of the `run: |` block of a workflow [step].
+String? _runScript(String step) {
+  final lines = step.split('\n');
+  final start = lines.indexWhere((l) => RegExp(r'^\s*run: \|\s*$').hasMatch(l));
+  if (start < 0) return null;
+  final keyIndent = lines[start].indexOf('run:');
+  final body = <String>[];
+  for (final line in lines.skip(start + 1)) {
+    final trimmed = line.trimLeft();
+    if (trimmed.isNotEmpty && line.length - trimmed.length <= keyIndent) break;
+    body.add(line);
+  }
+  final indent = body
+      .where((l) => l.trim().isNotEmpty)
+      .map((l) => l.length - l.trimLeft().length)
+      .fold<int?>(null, (a, b) => a == null || b < a ? b : a);
+  return body
+      .map(
+        (l) => l.length >= (indent ?? 0) ? l.substring(indent ?? 0) : l.trim(),
+      )
+      .join('\n');
+}
+
+ProcessResult _git(Directory dir, List<String> args) {
+  final result = Process.runSync('git', args, workingDirectory: dir.path);
+  expect(result.exitCode, 0, reason: 'git ${args.join(' ')}: ${result.stderr}');
+  return result;
+}
+
 void main() {
   group('Android manifest', () {
     late String manifest;
@@ -88,6 +136,140 @@ void main() {
       expect(gradle, contains('signingConfigs.getByName("debug")'));
       expect(gradle, contains('key.properties'));
     });
+
+    test('release signing values can come verbatim from the environment', () {
+      // Secrets written into key.properties are mangled by Properties.load
+      // (backslash escapes, line continuations, leading whitespace,
+      // ISO-8859-1), so CI passes them as environment variables instead.
+      final gradle = _read('android/app/build.gradle.kts');
+      for (final env in const [
+        'ANDROID_KEYSTORE_PATH',
+        'ANDROID_KEYSTORE_PASSWORD',
+        'ANDROID_KEY_ALIAS',
+        'ANDROID_KEY_PASSWORD',
+      ]) {
+        expect(gradle, contains('"$env"'), reason: '$env is not read');
+      }
+      expect(gradle, contains('providers.environmentVariable('));
+      // Env takes precedence over key.properties.
+      final helper = RegExp(
+        r'fun releaseProperty\([^)]*\)[^=]*=\s*([\s\S]*?)\n\n',
+      ).firstMatch(gradle)?.group(1);
+      expect(helper, isNotNull);
+      expect(
+        helper!.indexOf('releaseEnv(name)'),
+        lessThan(helper.indexOf('keystoreProperties.getProperty(name)')),
+      );
+      expect(
+        RegExp(r'hasReleaseKeystore\s*=.*releaseEnv\("storeFile"\)')
+            .hasMatch(gradle),
+        isTrue,
+        reason: 'an env-provided keystore must enable release signing',
+      );
+      // Local key.properties files are decoded as UTF-8, not ISO-8859-1.
+      expect(gradle, contains('reader(Charsets.UTF_8)'));
+      expect(gradle, isNot(contains('inputStream().use { keystoreProperties')));
+    });
+  });
+
+  group('GitHub workflows', () {
+    test('release workflow never writes signing secrets to key.properties', () {
+      final build = _read('.github/workflows/build.yml');
+      final signing = _workflowStep(
+        build,
+        'Configure release signing (optional)',
+      );
+      expect(signing, isNotNull);
+      for (final key in const ['storePassword=', 'keyPassword=', 'keyAlias=']) {
+        expect(build, isNot(contains(key)), reason: '$key written to a file');
+      }
+      expect(signing, isNot(contains('key.properties')));
+      expect(signing, isNot(contains('secrets.ANDROID_KEYSTORE_PASSWORD')));
+      expect(signing, isNot(contains('secrets.ANDROID_KEY_PASSWORD')));
+      expect(signing, contains('ANDROID_KEYSTORE_PATH='));
+      expect(signing, contains(r'>> "$GITHUB_ENV"'));
+      for (final stepName in const ['Build split APKs', 'Build app bundle']) {
+        final step = _workflowStep(build, stepName);
+        expect(step, isNotNull, reason: stepName);
+        for (final secret in const [
+          'ANDROID_KEYSTORE_PASSWORD',
+          'ANDROID_KEY_ALIAS',
+          'ANDROID_KEY_PASSWORD',
+        ]) {
+          expect(
+            step,
+            contains('$secret: \${{ secrets.$secret }}'),
+            reason: '$stepName must pass $secret',
+          );
+        }
+      }
+      // Passwords must never be exported job-wide via GITHUB_ENV.
+      expect(
+        RegExp(r'(PASSWORD|ALIAS)[^\n]*>>\s*"\$GITHUB_ENV"').hasMatch(build),
+        isFalse,
+      );
+    });
+
+    group('stale-codegen check', () {
+      late String script;
+      late Directory repo;
+
+      setUpAll(() {
+        final ci = _read('.github/workflows/ci.yml');
+        final step = _workflowStep(ci, 'Check generated code is up to date');
+        expect(step, isNotNull);
+        final run = _runScript(step!);
+        expect(run, isNotNull);
+        expect(run, contains('dart run build_runner build'));
+        script = run!;
+      });
+
+      setUp(() {
+        repo = Directory.systemTemp.createTempSync('codegen_check_');
+        _git(repo, ['init', '-q']);
+        _git(repo, ['config', 'user.email', 'ci@example.invalid']);
+        _git(repo, ['config', 'user.name', 'ci']);
+        Directory('${repo.path}/lib/data').createSync(recursive: true);
+        File('${repo.path}/lib/data/database.g.dart')
+            .writeAsStringSync('// generated v1\n');
+        _git(repo, ['add', '.']);
+        _git(repo, ['commit', '-q', '-m', 'init']);
+      });
+
+      tearDown(() => repo.deleteSync(recursive: true));
+
+      /// Runs the CI step with build_runner replaced by [codegen].
+      int runCheck(String codegen) {
+        final patched = script.replaceAll(
+          RegExp(r'^dart run build_runner build.*$', multiLine: true),
+          codegen,
+        );
+        final result = Process.runSync('bash', [
+          '-c',
+          patched,
+        ], workingDirectory: repo.path);
+        return result.exitCode;
+      }
+
+      test('passes when generated files are committed and current', () {
+        expect(runCheck('true'), 0);
+      });
+
+      test('fails when a tracked generated file is stale', () {
+        expect(
+          runCheck("echo '// generated v2' > lib/data/database.g.dart"),
+          isNot(0),
+        );
+      });
+
+      test('fails when a new generated file was never committed', () {
+        expect(runCheck("echo '// new' > lib/data/foo.g.dart"), isNot(0));
+      });
+
+      test('ignores unrelated untracked files', () {
+        expect(runCheck('echo x > lib/data/notes.txt'), 0);
+      });
+    }, skip: Platform.isWindows ? 'needs bash and git' : false);
   });
 
   group('iOS Info.plist', () {

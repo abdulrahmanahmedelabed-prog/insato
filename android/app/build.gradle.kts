@@ -9,30 +9,52 @@ plugins {
 // ---------------------------------------------------------------------------
 // Release signing
 //
-// When android/key.properties exists (see docs/SETUP.md, created by the
-// release workflow from repository secrets), release builds are signed with
-// that upload key. Otherwise they fall back to the debug key so that
+// Release builds are signed with an upload key when one is configured, either
+//   * through environment variables (used by the release workflow, so secrets
+//     are passed verbatim and never parsed by java.util.Properties):
+//       ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD,
+//       ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+//   * or through android/key.properties (local builds, see docs/SETUP.md):
+//       storeFile=/absolute/or/relative-to-android-app/path/upload-keystore.jks
+//       storePassword=...
+//       keyAlias=upload
+//       keyPassword=...
+//     Note: key.properties uses Java properties syntax, so a backslash in a
+//     value must be written as \\. Non-ASCII values are read as UTF-8.
+// A non-empty environment variable takes precedence over key.properties.
+// Otherwise builds fall back to the debug key so that
 // `flutter build apk --release` still works locally and in CI forks without
 // secrets. Debug-signed artifacts are for testing only and cannot be uploaded
 // to Google Play.
-//
-// key.properties format:
-//   storeFile=/absolute/or/relative-to-android-app/path/upload-keystore.jks
-//   storePassword=...
-//   keyAlias=upload
-//   keyPassword=...
 // ---------------------------------------------------------------------------
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
-val hasReleaseKeystore = keystorePropertiesFile.isFile
-if (hasReleaseKeystore) {
-    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+if (keystorePropertiesFile.isFile) {
+    keystorePropertiesFile.reader(Charsets.UTF_8).use { keystoreProperties.load(it) }
 }
 
-/** Reads a required key.properties entry, failing the build with a clear message. */
+/** Environment variable overriding each signing value. */
+val releaseSigningEnv =
+    mapOf(
+        "storeFile" to "ANDROID_KEYSTORE_PATH",
+        "storePassword" to "ANDROID_KEYSTORE_PASSWORD",
+        "keyAlias" to "ANDROID_KEY_ALIAS",
+        "keyPassword" to "ANDROID_KEY_PASSWORD",
+    )
+
+fun releaseEnv(name: String): String? =
+    providers.environmentVariable(releaseSigningEnv.getValue(name)).orNull?.takeIf { it.isNotEmpty() }
+
+val hasReleaseKeystore = keystorePropertiesFile.isFile || releaseEnv("storeFile") != null
+
+/** Reads a required signing value (env first, then key.properties), failing the build with a clear message. */
 fun releaseProperty(name: String): String =
-    keystoreProperties.getProperty(name)?.takeIf { it.isNotBlank() }
-        ?: throw GradleException("android/key.properties is missing '$name'")
+    releaseEnv(name)
+        ?: keystoreProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Release signing value '$name' is missing " +
+                "(set ${releaseSigningEnv.getValue(name)} or add it to android/key.properties)",
+        )
 
 android {
     namespace = "app.insato.insato"

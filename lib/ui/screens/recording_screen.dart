@@ -4,6 +4,7 @@
 // Keyboard: Space toggles pause / resume on desktop.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,8 +98,24 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       initialValue: current,
       label: S.meetingTitleLabel,
     );
-    if (title == null) return;
-    await ref.read(meetingRepositoryProvider).updateTitle(meetingId, title);
+    if (title == null || title.trim().isEmpty || title.trim() == current) {
+      return;
+    }
+    try {
+      // The recording bar and this app bar follow the meeting row, so they
+      // show the new title at once.
+      await ref
+          .read(meetingRepositoryProvider)
+          .updateTitle(meetingId, title.trim());
+    } catch (e) {
+      if (mounted) {
+        showSnack(
+          context,
+          e is InsatoException ? e.messageAr : S.unexpectedError,
+          error: true,
+        );
+      }
+    }
   }
 
   void _onSession(SessionState? prev, SessionState next) {
@@ -111,11 +128,23 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     if (finished) {
       _navigated = true;
       final warning = next.warningAr;
-      unawaited(openMeeting(context, ref, next.lastMeetingId!, replace: true));
+      // Show the warning before navigating, while this context is current;
+      // the snack lives in the root messenger and survives the page swap.
       if (warning != null) {
         showSnack(context, warning);
         _controller.dismissMessage();
       }
+      // Replace this screen's own route: the take can end on its own while
+      // a confirm / title dialog is open on top of it.
+      unawaited(
+        openMeeting(
+          context,
+          ref,
+          next.lastMeetingId!,
+          replace: true,
+          replaceRoute: ModalRoute.of(context),
+        ),
+      );
     }
   }
 
@@ -161,24 +190,36 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       _ => _buildActive(context, s, meetingId),
     };
 
-    return CallbackShortcuts(
-      bindings: {const SingleActivator(LogicalKeyboardKey.space): _togglePause},
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(title, overflow: TextOverflow.ellipsis),
-            actions: [
-              if (meetingId != null && s.isCapturing)
-                IconButton(
-                  tooltip: S.editTitle,
-                  icon: const Icon(Icons.edit_rounded),
-                  onPressed: () => _editTitle(meetingId, title),
-                ),
-            ],
-          ),
-          body: SafeArea(child: body),
+    // Space toggles pause / resume only while the screen itself has focus:
+    // when a button is focused, Space must activate that button (the
+    // app-level ActivateIntent), so the key event is left to bubble on.
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.space &&
+            node.hasPrimaryFocus) {
+          final phase = ref.read(meetingSessionControllerProvider).phase;
+          if (phase == SessionPhase.recording || phase == SessionPhase.paused) {
+            unawaited(_togglePause());
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(title, overflow: TextOverflow.ellipsis),
+          actions: [
+            if (meetingId != null && s.isCapturing)
+              IconButton(
+                tooltip: S.editTitle,
+                icon: const Icon(Icons.edit_rounded),
+                onPressed: () => _editTitle(meetingId, title),
+              ),
+          ],
         ),
+        body: SafeArea(child: body),
       ),
     );
   }
@@ -217,28 +258,53 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       currentSpeaker: s.currentSpeakerId == null
           ? null
           : speakersById[s.currentSpeakerId],
+      onDismissWarning: _controller.dismissMessage,
+    );
+    // Pause / Stop / Discard stay pinned below the (scrollable) panel so
+    // they can never be pushed off-screen.
+    final actions = _ActionButtons(
+      state: s,
       onTogglePause: _togglePause,
       onStop: _stop,
       onDiscard: _discard,
-      onDismissWarning: _controller.dismissMessage,
     );
 
     final content = LayoutBuilder(
       builder: (context, c) {
-        if (c.maxWidth >= InsatoTheme.wideBreakpoint) {
+        // Wide screens and short landscape phones: panel beside the
+        // transcript.
+        final sideBySide =
+            c.maxWidth >= InsatoTheme.wideBreakpoint ||
+            (c.maxWidth > c.maxHeight && c.maxHeight < 560);
+        if (sideBySide) {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: 420, child: SingleChildScrollView(child: panel)),
+              SizedBox(
+                width: math.min(420, c.maxWidth * 0.5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: SingleChildScrollView(child: panel)),
+                    actions,
+                  ],
+                ),
+              ),
               const VerticalDivider(width: 1),
               Expanded(child: _TranscriptPane(child: transcript)),
             ],
           );
         }
+        // Capped (not Flexible, which would halve the transcript's space
+        // even when the panel is small) and scrollable when it is taller.
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            panel,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: c.maxHeight * 0.5),
+              child: SingleChildScrollView(child: panel),
+            ),
+            actions,
             const Divider(height: 1),
             Expanded(child: _TranscriptPane(child: transcript)),
           ],
@@ -286,21 +352,17 @@ class _TranscriptPane extends StatelessWidget {
   }
 }
 
+/// Status part of the controls: warning, state, timer, meter, current
+/// speaker, backlog and engine.
 class _ControlPanel extends StatelessWidget {
   const _ControlPanel({
     required this.state,
     required this.currentSpeaker,
-    required this.onTogglePause,
-    required this.onStop,
-    required this.onDiscard,
     required this.onDismissWarning,
   });
 
   final SessionState state;
   final Speaker? currentSpeaker;
-  final VoidCallback onTogglePause;
-  final VoidCallback onStop;
-  final VoidCallback onDiscard;
   final VoidCallback onDismissWarning;
 
   @override
@@ -309,10 +371,9 @@ class _ControlPanel extends StatelessWidget {
     final scheme = theme.colorScheme;
     final s = state;
     final paused = s.phase == SessionPhase.paused;
-    final capturing = s.isCapturing;
     final elapsed = formatDuration(s.elapsed.inMilliseconds, alwaysHours: true);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -378,57 +439,6 @@ class _ControlPanel extends StatelessWidget {
             const SizedBox(height: 10),
             _Backlog(state: s),
           ],
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: capturing ? onDiscard : null,
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text(S.discardRecording),
-                  style: TextButton.styleFrom(
-                    foregroundColor: scheme.error,
-                    minimumSize: const Size(0, 52),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Semantics(
-                button: true,
-                label: paused ? S.resume : S.pause,
-                excludeSemantics: true,
-                onTap: capturing ? onTogglePause : null,
-                child: SizedBox.square(
-                  dimension: 76,
-                  child: FilledButton.tonal(
-                    onPressed: capturing ? onTogglePause : null,
-                    style: FilledButton.styleFrom(
-                      shape: const CircleBorder(),
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: Icon(
-                      paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: capturing ? onStop : null,
-                  icon: const Icon(Icons.stop_rounded),
-                  label: const Text(S.stop),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: scheme.error,
-                    foregroundColor: scheme.onError,
-                    minimumSize: const Size(0, 52),
-                  ),
-                ),
-              ),
-            ],
-          ),
           if (s.engineDescription != null) ...[
             const SizedBox(height: 8),
             Center(
@@ -440,6 +450,81 @@ class _ControlPanel extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Discard, pause / resume and stop, kept outside the scrollable panel.
+class _ActionButtons extends StatelessWidget {
+  const _ActionButtons({
+    required this.state,
+    required this.onTogglePause,
+    required this.onStop,
+    required this.onDiscard,
+  });
+
+  final SessionState state;
+  final VoidCallback onTogglePause;
+  final VoidCallback onStop;
+  final VoidCallback onDiscard;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final paused = state.phase == SessionPhase.paused;
+    final capturing = state.isCapturing;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: TextButton.icon(
+              onPressed: capturing ? onDiscard : null,
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text(S.discardRecording),
+              style: TextButton.styleFrom(
+                foregroundColor: scheme.error,
+                minimumSize: const Size(0, 52),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Semantics(
+            button: true,
+            label: paused ? S.resume : S.pause,
+            excludeSemantics: true,
+            onTap: capturing ? onTogglePause : null,
+            child: SizedBox.square(
+              dimension: 76,
+              child: FilledButton.tonal(
+                onPressed: capturing ? onTogglePause : null,
+                style: FilledButton.styleFrom(
+                  shape: const CircleBorder(),
+                  padding: EdgeInsets.zero,
+                ),
+                child: Icon(
+                  paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  size: 40,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: capturing ? onStop : null,
+              icon: const Icon(Icons.stop_rounded),
+              label: const Text(S.stop),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.error,
+                foregroundColor: scheme.onError,
+                minimumSize: const Size(0, 52),
+              ),
+            ),
+          ),
         ],
       ),
     );

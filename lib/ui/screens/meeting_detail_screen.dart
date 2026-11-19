@@ -427,7 +427,12 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
             fileName: ExportService.suggestedFileName(data.meeting, 'pdf'),
             origin: origin,
           );
-          if (r.savedPath != null) message = S.savedTo(r.savedPath!);
+          if (r.savedPath != null) {
+            message = S.savedTo(r.savedPath!);
+          } else if (!r.shared) {
+            isError = true;
+            message = S.exportFailed;
+          }
         case 'print':
           await gateway.printPdf(build: pdf, name: data.meeting.title);
         case 'md':
@@ -445,7 +450,12 @@ class _ExportSheetState extends ConsumerState<ExportSheet> {
             subject: data.meeting.title,
             origin: origin,
           );
-          if (r.savedPath != null) message = S.savedTo(r.savedPath!);
+          if (r.savedPath != null) {
+            message = S.savedTo(r.savedPath!);
+          } else if (!r.shared) {
+            isError = true;
+            message = S.exportFailed;
+          }
       }
     } catch (e) {
       isError = true;

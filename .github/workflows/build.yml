@@ -91,12 +91,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # The keystore passwords and alias are NOT written to key.properties:
+      # java.util.Properties.load would interpret backslashes as escapes or
+      # line continuations, drop leading whitespace and decode as ISO-8859-1,
+      # corrupting valid secrets. Instead the build steps pass them verbatim
+      # as environment variables, which android/app/build.gradle.kts reads
+      # before falling back to key.properties. Only the keystore *path* (not
+      # a secret) goes into GITHUB_ENV.
       - name: Configure release signing (optional)
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -105,21 +109,24 @@ jobs:
             exit 0
           fi
           keystore="${RUNNER_TEMP}/upload-keystore.jks"
-          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore}"
-          {
-            echo "storeFile=${keystore}"
-            echo "storePassword=${ANDROID_KEYSTORE_PASSWORD}"
-            echo "keyAlias=${ANDROID_KEY_ALIAS}"
-            echo "keyPassword=${ANDROID_KEY_PASSWORD}"
-          } > android/key.properties
+          printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "${keystore}"
+          echo "ANDROID_KEYSTORE_PATH=${keystore}" >> "$GITHUB_ENV"
           echo "Release signing configured."
 
       - name: Build split APKs
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: >-
           flutter build apk --release --split-per-abi
           --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER"
 
       - name: Build app bundle
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: >-
           flutter build appbundle --release
           --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER"

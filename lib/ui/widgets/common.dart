@@ -424,12 +424,7 @@ class ReadableWidth extends StatelessWidget {
 void showSnack(BuildContext context, String message, {bool error = false}) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  showSnackOn(
-    messenger,
-    Theme.of(context).colorScheme,
-    message,
-    error: error,
-  );
+  showSnackOn(messenger, Theme.of(context).colorScheme, message, error: error);
 }
 
 /// Like [showSnack], for callers that captured the [messenger] and [scheme]

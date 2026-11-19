@@ -219,11 +219,17 @@ class _RecordingBar extends ConsumerWidget {
                     style: TextStyle(color: scheme.onErrorContainer),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    S.backToRecording,
-                    style: TextStyle(
-                      color: scheme.onErrorContainer,
-                      fontWeight: FontWeight.w700,
+                  // Shrinks (ellipsis) on narrow phones instead of
+                  // overflowing the bar.
+                  Flexible(
+                    child: Text(
+                      S.backToRecording,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onErrorContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
