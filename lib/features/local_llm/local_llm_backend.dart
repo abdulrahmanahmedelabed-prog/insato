@@ -80,6 +80,7 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     required Future<LlmTextGenerator> Function() open,
     this.openPhase = MinutesBackendPhase.loadingModel,
     this.budget = const LocalLlmBudget(),
+  // ignore: prefer_initializing_formals
   }) : _open = open;
 
   @override

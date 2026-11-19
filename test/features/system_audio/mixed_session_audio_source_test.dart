@@ -14,6 +14,7 @@ Float32List _filled(int n, double v) => Float32List(n)..fillRange(0, n, v);
 
 class _Env {
   _Env({String? setting = 'both', this.platform = CapturePlatform.windows})
+    // ignore: prefer_initializing_formals
     : _setting = setting {
     source = MixedSessionAudioSource(
       mic: mic,

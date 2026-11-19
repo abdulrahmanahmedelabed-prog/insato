@@ -278,7 +278,7 @@ class LocalModelCard extends ConsumerWidget {
                                   style: theme.textTheme.titleSmall,
                                 ),
                                 if (model.recommended)
-                                  _Badge(text: LS.recommended),
+                                  const _Badge(text: LS.recommended),
                               ],
                             ),
                             const SizedBox(height: 4),
