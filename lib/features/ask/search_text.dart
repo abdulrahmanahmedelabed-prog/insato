@@ -27,8 +27,9 @@ final RegExp _hasArabic = RegExp(r'[\u0600-\u06FF]', unicode: true);
 /// Normalises [text] for matching: Western digits, lower-case Latin, no
 /// diacritics / tatweel / invisible marks, unified alef (أإآٱ → ا), ya
 /// (ى، ی → ي), ta marbuta (ة → ه), hamza seats (ؤ، ئ → ء) and Persian
-/// kaf (ک → ك).
-String normalizeSearchText(String text) {
+/// kaf (ک → ك). With [foldYa] false, alef maqsura (ى) is kept distinct (so
+/// that the preposition «على» can be told from the name «علي»).
+String normalizeSearchText(String text, {bool foldYa = true}) {
   final buffer = StringBuffer();
   for (final rune in text.runes) {
     if (rune >= 0x0660 && rune <= 0x0669) {
@@ -38,7 +39,8 @@ String normalizeSearchText(String text) {
     } else {
       buffer.writeCharCode(switch (rune) {
         0x0623 || 0x0625 || 0x0622 || 0x0671 => 0x0627, // أ إ آ ٱ → ا
-        0x0649 || 0x06CC || 0x064A => 0x064A, // ى ی → ي
+        0x0649 => foldYa ? 0x064A : 0x0649, // ى → ي
+        0x06CC => 0x064A, // ی → ي
         0x0629 => 0x0647, // ة → ه
         0x0624 || 0x0626 => 0x0621, // ؤ ئ → ء (مسؤول = مسئول)
         0x06A9 => 0x0643, // ک → ك
@@ -85,9 +87,19 @@ const Set<String> _englishStopWords = {
   'again', 'tell', 'please', 'say', 'said',
 };
 
+/// Words that are stop words only when spelt with alef maqsura: with ya
+/// they are common names (على "on" vs. علي "Ali").
+const Set<String> _yaNames = {'علي'};
+
+/// Stop words with ى kept distinct (checked before folding ى → ي).
+final Set<String> _arabicStopWordsMaqsura = {
+  for (final w in _arabicStopWordsRaw) normalizeSearchText(w, foldYa: false),
+};
+
+/// Stop words after folding ى → ي, except names such as «علي».
 final Set<String> _arabicStopWords = {
   for (final w in _arabicStopWordsRaw) normalizeSearchText(w),
-};
+}..removeAll(_yaNames);
 
 /// Prefixes removed by [stemArabic] (normalised forms, longest first), after
 /// an optional leading conjunction و.
@@ -170,13 +182,16 @@ Iterable<String> _rawTokens(String normalized) =>
 /// dropped; numbers are kept.
 List<String> analyzeSearchText(String text) {
   final out = <String>[];
-  for (final token in _rawTokens(normalizeSearchText(text))) {
-    if (_hasArabic.hasMatch(token)) {
+  for (final raw in _rawTokens(normalizeSearchText(text, foldYa: false))) {
+    if (_hasArabic.hasMatch(raw)) {
+      if (_arabicStopWordsMaqsura.contains(raw)) continue;
+      final token = raw.replaceAll('ى', 'ي');
       if (_arabicStopWords.contains(token)) continue;
       final stem = stemArabic(token);
       if (stem.isEmpty || _arabicStopWords.contains(stem)) continue;
       out.add(stem);
     } else {
+      final token = raw;
       if (_englishStopWords.contains(token)) continue;
       if (token.length == 1 && !_isDigit(token.codeUnitAt(0))) continue;
       out.add(stemEnglish(token));

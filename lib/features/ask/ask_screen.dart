@@ -473,8 +473,10 @@ class _CitationMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
+      container: true,
       button: true,
       label: AS.citationSemantics(citation.number, citation.label),
+      onTap: onTap,
       excludeSemantics: true,
       child: Tooltip(
         message: citation.label,
@@ -522,6 +524,7 @@ class _SourceTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final ts = citation.timestamp;
     return Semantics(
+      container: true,
       button: true,
       hint: AS.openSourceHint,
       child: InkWell(

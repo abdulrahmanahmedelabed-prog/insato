@@ -234,8 +234,7 @@ abstract final class TS {
       'يُطبَّق أي تغيير على حالة مهمة قبل أن تؤكّده.';
 
   /// Proposed status change.
-  static String proposedStatus(TaskStatus s) =>
-      'التغيير المقترح: ${status(s)}';
+  static String proposedStatus(TaskStatus s) => 'التغيير المقترح: ${status(s)}';
 
   /// Progress note only (no status change).
   static const String progressOnly = 'ملاحظة تقدّم دون تغيير الحالة';

@@ -16,7 +16,7 @@ void main() {
     test('removes diacritics, tatweel and invisible marks', () {
       expect(normalizeSearchText('مُحَمَّدٌ'), 'محمد');
       expect(normalizeSearchText('اجتمـــاع'), 'اجتماع');
-      expect(normalizeSearchText('قرا‏ر\u2067ات\u2069'), 'قرارات');
+      expect(normalizeSearchText('قرا\u200Fر\u2067ات\u2069'), 'قرارات');
     });
 
     test('converts digits and lower-cases Latin', () {
@@ -97,5 +97,13 @@ void main() {
     test('mixed scripts', () {
       expect(analyzeSearchText('نشر Kubernetes غداً'), ['نشر', 'kubernet', 'غدا']);
     });
+  });
+
+  test('«على» is a stop word but the name «علي» is kept', () {
+    final withName = analyzeSearchText('وافق علي على الخطة');
+    expect(withName, hasLength(3));
+    expect(withName[1], stemArabic('علي'));
+    expect(analyzeSearchText('عَلَى الموعد'), analyzeSearchText('الموعد'));
+    expect(normalizeSearchText('على', foldYa: false), 'على');
   });
 }

@@ -34,7 +34,9 @@ String? taskOwnerLabel(TrackedTask task, Map<String, Speaker> speakersById) {
   final id = task.ownerSpeakerId;
   if (id != null) {
     final s = speakersById[id];
-    if (s != null && s.name.trim().isNotEmpty) return collapseTaskSpaces(s.name);
+    if (s != null && s.name.trim().isNotEmpty) {
+      return collapseTaskSpaces(s.name);
+    }
   }
   final t = task.ownerText;
   if (t == null) return null;
@@ -486,6 +488,19 @@ TrackedTask applyTaskDraft(TrackedTask task, TaskDraft draft) => task.copyWith(
   status: draft.status,
 );
 
+/// True when the user changed something in the edit dialog: [draft] (the
+/// normalised dialog result) differs from what the dialog was opened with
+/// ([TaskDraft.of]) and from the stored [task]. Opening and saving without
+/// edits is therefore never a change, even when the owner field showed the
+/// linked speaker's newer name.
+bool taskEditChanges(
+  TrackedTask task,
+  TaskDraft draft,
+  Map<String, Speaker> speakersById,
+) =>
+    draft != TaskDraft.of(task, speakersById).normalized(speakersById) &&
+    taskDraftChanges(task, draft);
+
 /// True when saving [draft] would change [task].
 bool taskDraftChanges(TrackedTask task, TaskDraft draft) =>
     task.task != draft.task ||
@@ -627,9 +642,10 @@ final RegExp _namePunctuation = RegExp(r'''[.,،;؛:!؟?()\[\]{}"'«»\-_/\\]'''
 /// The comparable tokens of a person's name: normalised, punctuation and
 /// honorifics removed, «عبد X» joined into one token.
 List<String> personNameTokens(String name) {
-  final raw = normalizeForSearch(
-    name.replaceAll(_namePunctuation, ' '),
-  ).split(' ').where((t) => t.isNotEmpty).toList();
+  final raw = normalizeForSearch(name.replaceAll(_namePunctuation, ' '))
+      .split(' ')
+      .where((t) => t.isNotEmpty)
+      .toList();
   final out = <String>[];
   for (var i = 0; i < raw.length; i++) {
     final t = raw[i];

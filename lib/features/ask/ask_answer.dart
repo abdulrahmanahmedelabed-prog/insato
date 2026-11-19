@@ -246,7 +246,20 @@ AskLinkedAnswer linkAskAnswer(String answer, Map<int, AskMeetingRef> refs) {
   model.write(text.substring(last));
   flush();
 
-  // Tidy spaces left where invalid references were removed.
+  // Merge text runs split by dropped references, then tidy the spaces left
+  // where references were removed or written after a space.
+  final merged = <AskAnswerPart>[];
+  for (final p in parts) {
+    final prev = merged.isEmpty ? null : merged.last;
+    if (p is AskTextPart && prev is AskTextPart) {
+      merged[merged.length - 1] = AskTextPart(prev.text + p.text);
+    } else {
+      merged.add(p);
+    }
+  }
+  parts
+    ..clear()
+    ..addAll(merged);
   final tidy = <AskAnswerPart>[];
   for (var i = 0; i < parts.length; i++) {
     final p = parts[i];
