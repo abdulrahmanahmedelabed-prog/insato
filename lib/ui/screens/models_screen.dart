@@ -300,8 +300,8 @@ class ModelCard extends ConsumerWidget {
                           runSpacing: 4,
                           children: [
                             _Pill(S.approxSize(spec.approxSizeMb)),
-                            if (spec.recommended) _Pill(S.recommended),
-                            if (inUse) _Pill(S.inUse, highlight: true),
+                            if (spec.recommended) const _Pill(S.recommended),
+                            if (inUse) const _Pill(S.inUse, highlight: true),
                           ],
                         ),
                       ],

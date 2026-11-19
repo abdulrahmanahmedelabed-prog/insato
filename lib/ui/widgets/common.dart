@@ -326,7 +326,7 @@ class ErrorBanner extends StatelessWidget {
                   alignment: WrapAlignment.end,
                   spacing: 4,
                   children: [
-                    if (extraAction != null) extraAction!,
+                    ?extraAction,
                     if (onDismiss != null)
                       TextButton(
                         onPressed: onDismiss,
