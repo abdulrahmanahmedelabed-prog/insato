@@ -76,7 +76,10 @@ class MinutesView extends StatelessWidget {
         else
           ActionItemsView(items: m.actionItems),
         if (m.openQuestions.isNotEmpty) ...[
-          const SectionHeader(S.openQuestions, icon: Icons.help_outline_rounded),
+          const SectionHeader(
+            S.openQuestions,
+            icon: Icons.help_outline_rounded,
+          ),
           for (final q in m.openQuestions) _Bullet(q),
         ],
         if (m.nextMeeting != null) ...[
@@ -213,9 +216,8 @@ class _Muted extends StatelessWidget {
     padding: const EdgeInsetsDirectional.only(start: 4),
     child: Text(
       text,
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      style: Theme.of(context).textTheme.bodyMedium
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
   );
 }
@@ -253,7 +255,11 @@ class _Bullet extends StatelessWidget {
 }
 
 class _NumberedItem extends StatelessWidget {
-  const _NumberedItem({required this.number, required this.text, this.footnote});
+  const _NumberedItem({
+    required this.number,
+    required this.text,
+    this.footnote,
+  });
 
   final int number;
   final String text;
@@ -421,8 +427,10 @@ class ActionItemsView extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.check_box_outline_blank_rounded,
-                        color: scheme.primary),
+                    Icon(
+                      Icons.check_box_outline_blank_rounded,
+                      color: scheme.primary,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -436,11 +444,13 @@ class ActionItemsView extends StatelessWidget {
                             children: [
                               _Labeled(
                                 icon: Icons.person_outline_rounded,
-                                text: '${S.owner}: ${a.owner ?? S.notSpecified}',
+                                text:
+                                    '${S.owner}: ${a.owner ?? S.notSpecified}',
                               ),
                               _Labeled(
                                 icon: Icons.schedule_rounded,
-                                text: '${S.due}: ${a.dueDate ?? S.notSpecified}',
+                                text:
+                                    '${S.due}: ${a.dueDate ?? S.notSpecified}',
                               ),
                             ],
                           ),

@@ -100,10 +100,8 @@ abstract final class KatibTheme {
 
 /// Text style for clock-like numbers (timers, timestamps): tabular figures
 /// so digits do not jitter while counting.
-TextStyle tabularFigures(TextStyle? base) =>
-    (base ?? const TextStyle()).copyWith(
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+TextStyle tabularFigures(TextStyle? base) => (base ?? const TextStyle())
+    .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 
 /// Foreground colour with sufficient contrast on [background] (black or
 /// white by relative luminance).

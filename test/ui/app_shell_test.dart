@@ -11,10 +11,13 @@ import 'package:katib/ui/widgets/dialogs.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../session/fakes.dart';
 import 'harness.dart';
 
 void main() {
-  testWidgets('phone shell is Arabic, RTL and shows the empty state', (t) async {
+  testWidgets('phone shell is Arabic, RTL and shows the empty state', (
+    t,
+  ) async {
     setScreenSize(t, kPhone);
     final env = UiTestEnv();
     await pumpApp(t, env);
@@ -173,7 +176,10 @@ void main() {
     await settle(t);
     expect(find.byType(MeetingDetailScreen), findsOneWidget);
     expect(find.text(S.tabMinutes), findsOneWidget);
-    expect(find.text('ناقش الفريق ميزانية التسويق للربع القادم.'), findsOneWidget);
+    expect(
+      find.text('ناقش الفريق ميزانية التسويق للربع القادم.'),
+      findsOneWidget,
+    );
     await env.dispose(t);
   });
 
@@ -219,6 +225,36 @@ void main() {
     expect(find.byType(ConsentDialog), findsOneWidget);
     await t.tap(find.text(S.cancel));
     await settle(t);
+    await env.dispose(t);
+  });
+
+  testWidgets('live transcript appears and stopping opens the meeting', (
+    t,
+  ) async {
+    setScreenSize(t, kPhone);
+    final env = UiTestEnv();
+    await env.run(t, () async {
+      await AppSettings(env.db).save(
+        const AppSettingsData(consentAcknowledged: true, keepAudio: false),
+      );
+    });
+    await pumpApp(t, env);
+    await t.tap(find.byType(FloatingActionButton));
+    await settle(t, rounds: 10);
+    expect(find.text(S.listeningHint), findsOneWidget);
+
+    env.audio.emit(voiceSamples(0, 2000));
+    await settle(t, rounds: 10);
+    expect(find.text('كلام 0'), findsOneWidget);
+    expect(find.textContaining('متحدث 1'), findsWidgets);
+
+    await t.tap(find.widgetWithText(FilledButton, S.stop));
+    await settle(t);
+    expect(find.text(S.confirmStopTitle), findsOneWidget);
+    await t.tap(find.widgetWithText(FilledButton, S.stop).last);
+    await settle(t, rounds: 20);
+    expect(find.byType(MeetingDetailScreen), findsOneWidget);
+    expect(env.audio.started, isFalse);
     await env.dispose(t);
   });
 }

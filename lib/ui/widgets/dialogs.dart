@@ -106,12 +106,12 @@ class _TextInputDialog extends StatefulWidget {
 }
 
 class _TextInputDialogState extends State<_TextInputDialog> {
-  late final TextEditingController _c = TextEditingController(
-    text: widget.initialValue,
-  )..selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: widget.initialValue.length,
-    );
+  late final TextEditingController _c =
+      TextEditingController(text: widget.initialValue)
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: widget.initialValue.length,
+        );
   String? _error;
 
   @override

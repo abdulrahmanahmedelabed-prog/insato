@@ -162,9 +162,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     };
 
     return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.space): _togglePause,
-      },
+      bindings: {const SingleActivator(LogicalKeyboardKey.space): _togglePause},
       child: Focus(
         autofocus: true,
         child: Scaffold(
@@ -231,10 +229,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: 420,
-                child: SingleChildScrollView(child: panel),
-              ),
+              SizedBox(width: 420, child: SingleChildScrollView(child: panel)),
               const VerticalDivider(width: 1),
               Expanded(child: _TranscriptPane(child: transcript)),
             ],

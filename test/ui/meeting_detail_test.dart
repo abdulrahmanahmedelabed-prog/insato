@@ -19,7 +19,10 @@ void main() {
     expect(find.byType(MinutesView), findsOneWidget);
     expect(find.text('محضر اجتماع الميزانية'), findsOneWidget);
     expect(find.text(S.summary), findsOneWidget);
-    expect(find.text('ناقش الفريق ميزانية التسويق للربع القادم.'), findsOneWidget);
+    expect(
+      find.text('ناقش الفريق ميزانية التسويق للربع القادم.'),
+      findsOneWidget,
+    );
     expect(find.text(S.decisions), findsOneWidget);
     expect(find.text('اعتماد ميزانية التسويق'), findsOneWidget);
     await t.scrollUntilVisible(
@@ -107,7 +110,10 @@ void main() {
     await t.tap(find.text(S.save));
     await settle(t, rounds: 10);
 
-    final sp = await env.run(t, () => SpeakerRepository(env.db).get(seeded.auto.id));
+    final sp = await env.run(
+      t,
+      () => SpeakerRepository(env.db).get(seeded.auto.id),
+    );
     expect(sp!.name, 'Omar');
     expect(sp.isNamedByUser, isTrue);
     await env.dispose(t);
@@ -121,9 +127,7 @@ void main() {
     await t.tap(find.text(S.tabTranscript));
     await settle(t);
 
-    await t.tap(
-      find.text('We should finalize the marketing budget this week'),
-    );
+    await t.tap(find.text('We should finalize the marketing budget this week'));
     await settle(t);
     expect(find.byType(SegmentSheet), findsOneWidget);
     await t.tap(find.widgetWithText(ChoiceChip, 'سارة'));

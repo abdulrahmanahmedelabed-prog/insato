@@ -119,8 +119,10 @@ void main() {
 
   testWidgets('LtrText forces left-to-right digits', (t) async {
     await pumpRtl(t, const LtrText('01:02:03'));
-    expect(t.widget<Text>(find.text('01:02:03')).textDirection,
-        TextDirection.ltr);
+    expect(
+      t.widget<Text>(find.text('01:02:03')).textDirection,
+      TextDirection.ltr,
+    );
   });
 
   testWidgets('TranscriptView groups turns and detects direction', (t) async {
@@ -208,7 +210,9 @@ void main() {
     );
     await pumpRtl(
       t,
-      SingleChildScrollView(child: MinutesView(meeting: m, minutes: minutes)),
+      SingleChildScrollView(
+        child: MinutesView(meeting: m, minutes: minutes),
+      ),
     );
     // Empty minutes title falls back to the meeting title.
     expect(find.text('اجتماع'), findsOneWidget);

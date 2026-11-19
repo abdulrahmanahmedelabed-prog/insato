@@ -158,7 +158,10 @@ void main() {
 
   group('search', () {
     test('normalizeForSearch unifies Arabic letter forms and digits', () {
-      expect(normalizeForSearch('إجتماعُ  الميزانيّة ٢٠٢٦'), 'اجتماع الميزانيه 2026');
+      expect(
+        normalizeForSearch('إجتماعُ  الميزانيّة ٢٠٢٦'),
+        'اجتماع الميزانيه 2026',
+      );
       expect(normalizeForSearch('مستشفى'), 'مستشفي');
       expect(normalizeForSearch('Budget'), 'budget');
     });
@@ -181,7 +184,10 @@ void main() {
         meeting('مراجعة', minutes: minutes),
       ];
       expect(filterMeetings(list, '').length, 2);
-      expect(filterMeetings(list, 'الميزانيه').single.title, 'اجتماع الميزانية');
+      expect(
+        filterMeetings(list, 'الميزانيه').single.title,
+        'اجتماع الميزانية',
+      );
       expect(filterMeetings(list, 'التسويق').single.title, 'مراجعة');
       expect(filterMeetings(list, 'omar العرض').single.title, 'مراجعة');
       expect(filterMeetings(list, 'غير موجود'), isEmpty);
@@ -213,10 +219,7 @@ void main() {
       expect(missingModelIds(s, const {'silero-vad': ready}), [
         'wespeaker-resnet34',
       ]);
-      expect(neededModelIds(s, const {}), [
-        'silero-vad',
-        'wespeaker-resnet34',
-      ]);
+      expect(neededModelIds(s, const {}), ['silero-vad', 'wespeaker-resnet34']);
     });
 
     test('an installed alternative speaker model satisfies the need', () {

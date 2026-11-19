@@ -25,9 +25,8 @@ void main() {
     final q = QueueClient([
       () => chunkedResponse(successStream('{"ok": true}', model: 'claude-x')),
     ]);
-    final r = await ClaudeConnectionTester(
-      client: q.client,
-    ).test(' sk-test ', model: 'claude-x');
+    final r = await ClaudeConnectionTester(client: q.client)
+        .test(' sk-test ', model: 'claude-x');
     expect(r.ok, isTrue);
     expect(r.model, 'claude-x');
     expect(q.requests.single.headers['x-api-key'], 'sk-test');
@@ -58,9 +57,8 @@ void main() {
     final q = QueueClient([
       () => jsonError(404, 'not_found_error', 'model: nope'),
     ]);
-    final r = await ClaudeConnectionTester(
-      client: q.client,
-    ).test('k', model: 'nope');
+    final r = await ClaudeConnectionTester(client: q.client)
+        .test('k', model: 'nope');
     expect(r.ok, isFalse);
     expect(r.messageAr, contains('nope'));
   });

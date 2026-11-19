@@ -37,7 +37,9 @@ class MeetingSpeakersTab extends ConsumerWidget {
         ),
       ),
       data: (list) {
-        final talk = {for (final t in computeTalkTimes(segments)) t.speakerId: t};
+        final talk = {
+          for (final t in computeTalkTimes(segments)) t.speakerId: t,
+        };
         final unassigned = talk[null];
         if (list.isEmpty && unassigned == null) {
           return const EmptyState(

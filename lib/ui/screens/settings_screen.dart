@@ -88,7 +88,8 @@ class SettingsScreen extends ConsumerWidget {
               ApiKeyCard(
                 label: S.anthropicKey,
                 helper: S.anthropicKeyHelper,
-                load: () => ref.read(secureSettingsProvider).getAnthropicApiKey(),
+                load: () =>
+                    ref.read(secureSettingsProvider).getAnthropicApiKey(),
                 save: (k) =>
                     ref.read(secureSettingsProvider).setAnthropicApiKey(k),
                 clear: () =>
@@ -160,7 +161,8 @@ class SettingsScreen extends ConsumerWidget {
                       ref.read(secureSettingsProvider).setDeepgramApiKey(k),
                   clear: () =>
                       ref.read(secureSettingsProvider).clearDeepgramApiKey(),
-                  onChanged: () => ref.invalidate(deepgramKeyConfiguredProvider),
+                  onChanged: () =>
+                      ref.invalidate(deepgramKeyConfiguredProvider),
                 )
               else
                 _WhisperChoice(
@@ -206,7 +208,10 @@ class SettingsScreen extends ConsumerWidget {
               ),
 
               // --------------------------------------------------- Privacy
-              const SectionHeader(S.sectionPrivacy, icon: Icons.shield_outlined),
+              const SectionHeader(
+                S.sectionPrivacy,
+                icon: Icons.shield_outlined,
+              ),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -493,7 +498,11 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
 /// Text field for the Claude model id.
 class ClaudeModelField extends StatefulWidget {
   /// Creates the field.
-  const ClaudeModelField({super.key, required this.value, required this.onSave});
+  const ClaudeModelField({
+    super.key,
+    required this.value,
+    required this.onSave,
+  });
 
   /// Current model id.
   final String value;
@@ -690,7 +699,10 @@ class _ThresholdSliderState extends State<ThresholdSlider> {
         Row(
           children: [
             Expanded(
-              child: Text(S.matchSensitivity, style: theme.textTheme.titleSmall),
+              child: Text(
+                S.matchSensitivity,
+                style: theme.textTheme.titleSmall,
+              ),
             ),
             LtrText(label, style: theme.textTheme.titleSmall),
           ],

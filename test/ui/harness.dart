@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Rect;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -208,7 +207,9 @@ Future<void> pumpScreen(WidgetTester t, UiTestEnv env, Widget child) async {
 /// executor completes on real async I/O boundaries).
 Future<void> settle(WidgetTester t, {int rounds = 6}) async {
   for (var i = 0; i < rounds; i++) {
-    await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+    await t.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
     await t.pump(const Duration(milliseconds: 16));
   }
   // Let route / dialog transitions finish.
@@ -274,7 +275,11 @@ Future<({Meeting meeting, Speaker sara, Speaker auto})> seedMeeting(
           MinutesDecision(text: 'اعتماد ميزانية التسويق', proposedBy: 'سارة'),
         ],
         actionItems: const [
-          ActionItem(task: 'إعداد تقرير الميزانية', owner: 'سارة', dueDate: 'الخميس'),
+          ActionItem(
+            task: 'إعداد تقرير الميزانية',
+            owner: 'سارة',
+            dueDate: 'الخميس',
+          ),
         ],
         openQuestions: const ['موعد الإطلاق'],
         languagesDetected: const ['العربية', 'الإنجليزية'],

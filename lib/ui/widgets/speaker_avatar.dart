@@ -24,9 +24,7 @@ class SpeakerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final s = speaker;
-    final bg = s == null
-        ? scheme.surfaceContainerHighest
-        : Color(s.colorValue);
+    final bg = s == null ? scheme.surfaceContainerHighest : Color(s.colorValue);
     final fg = s == null ? scheme.onSurfaceVariant : onColor(bg);
     return Semantics(
       label: s?.name ?? S.unknownSpeaker,
@@ -160,7 +158,9 @@ class SpeakerChip extends StatelessWidget {
     final name = s?.name ?? S.unknownSpeaker;
     final chip = Material(
       color: Color.alphaBlend(tint.withValues(alpha: 0.14), scheme.surface),
-      shape: StadiumBorder(side: BorderSide(color: tint.withValues(alpha: 0.5))),
+      shape: StadiumBorder(
+        side: BorderSide(color: tint.withValues(alpha: 0.5)),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

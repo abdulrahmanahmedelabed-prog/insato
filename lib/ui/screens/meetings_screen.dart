@@ -76,9 +76,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
       ),
       body: Column(
         children: [
-          const ModelsMissingBanner(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 8),
-          ),
+          const ModelsMissingBanner(padding: EdgeInsets.fromLTRB(16, 4, 16, 8)),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: SearchBar(
@@ -311,12 +309,12 @@ class MeetingTile extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.delete_outline_rounded, color: scheme.onErrorContainer),
-              const SizedBox(width: 8),
-              Text(
-                S.delete,
-                style: TextStyle(color: scheme.onErrorContainer),
+              Icon(
+                Icons.delete_outline_rounded,
+                color: scheme.onErrorContainer,
               ),
+              const SizedBox(width: 8),
+              Text(S.delete, style: TextStyle(color: scheme.onErrorContainer)),
             ],
           ),
         ),
@@ -336,7 +334,11 @@ class _IconText extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(icon, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      Icon(
+        icon,
+        size: 14,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       const SizedBox(width: 4),
       Flexible(child: child),
     ],

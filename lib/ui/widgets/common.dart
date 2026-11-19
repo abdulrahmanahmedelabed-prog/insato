@@ -86,10 +86,11 @@ class StatusChip extends StatelessWidget {
       ),
     };
     final label = meetingStatusLabel(status);
-    final textStyle = (dense
-            ? Theme.of(context).textTheme.labelSmall
-            : Theme.of(context).textTheme.labelMedium)
-        ?.copyWith(color: fg, fontWeight: FontWeight.w600);
+    final textStyle =
+        (dense
+                ? Theme.of(context).textTheme.labelSmall
+                : Theme.of(context).textTheme.labelMedium)
+            ?.copyWith(color: fg, fontWeight: FontWeight.w600);
     return Semantics(
       label: label,
       excludeSemantics: true,

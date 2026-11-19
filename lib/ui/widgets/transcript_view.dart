@@ -60,9 +60,7 @@ class TranscriptView extends StatelessWidget {
         return TranscriptTurnTile(
           key: ValueKey(turn.segments.first.id),
           turn: turn,
-          speaker: turn.speakerId == null
-              ? null
-              : speakersById[turn.speakerId],
+          speaker: turn.speakerId == null ? null : speakersById[turn.speakerId],
           onSegmentTap: onSegmentTap,
           onSpeakerTap: onSpeakerTap,
         );

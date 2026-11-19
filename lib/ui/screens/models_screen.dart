@@ -294,8 +294,10 @@ class ModelCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(spec.displayNameAr,
-                            style: theme.textTheme.titleMedium),
+                        Text(
+                          spec.displayNameAr,
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 4),
                         Wrap(
                           spacing: 6,
@@ -369,13 +371,17 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: highlight ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+        color: highlight
+            ? scheme.primaryContainer
+            : scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: highlight ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+          color: highlight
+              ? scheme.onPrimaryContainer
+              : scheme.onSurfaceVariant,
         ),
       ),
     );

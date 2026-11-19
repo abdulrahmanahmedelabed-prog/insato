@@ -22,9 +22,7 @@ class HomeShell extends ConsumerWidget {
   /// Creates the shell.
   const HomeShell({super.key});
 
-  static const List<
-    ({IconData icon, IconData selectedIcon, String label})
-  >
+  static const List<({IconData icon, IconData selectedIcon, String label})>
   _destinations = [
     (
       icon: Icons.event_note_outlined,
@@ -53,9 +51,7 @@ class HomeShell extends ConsumerWidget {
 
     Widget meetingsPane() {
       if (!wide) {
-        return MeetingsScreen(
-          onOpen: (id) => openMeeting(context, ref, id),
-        );
+        return MeetingsScreen(onOpen: (id) => openMeeting(context, ref, id));
       }
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -89,9 +89,7 @@ Future<void> openModelsScreen(BuildContext context, {bool replace = false}) {
 
 /// Opens the settings page (pushed above the current page).
 Future<void> openSettingsScreen(BuildContext context, {bool replace = false}) {
-  final route = MaterialPageRoute<void>(
-    builder: (_) => const SettingsScreen(),
-  );
+  final route = MaterialPageRoute<void>(builder: (_) => const SettingsScreen());
   final nav = Navigator.of(context);
   return replace ? nav.pushReplacement(route) : nav.push(route);
 }

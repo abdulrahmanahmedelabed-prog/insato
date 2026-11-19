@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -75,7 +76,7 @@ void main() {
     expect(pi.pendingCount, 20);
     final order = <int>[];
     for (final f in futures) {
-      f.then((r) => order.add(r.index));
+      unawaited(f.then((r) => order.add(r.index)));
     }
     final results = await Future.wait(futures);
     expect(order, List.generate(20, (i) => i));

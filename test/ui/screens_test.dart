@@ -64,10 +64,7 @@ void main() {
           const ConnectionTestResult(ok: false, messageAr: 'المفتاح غير صالح'),
         );
       await pumpScreen(t, env, const SettingsScreen());
-      await t.enterText(
-        find.widgetWithText(TextField, S.anthropicKey),
-        'bad',
-      );
+      await t.enterText(find.widgetWithText(TextField, S.anthropicKey), 'bad');
       await t.tap(find.text(S.testConnection));
       await settle(t, rounds: 10);
       expect(find.text('المفتاح غير صالح'), findsOneWidget);

@@ -451,8 +451,7 @@ abstract final class S {
   static const String addApiKey = 'إضافة المفتاح';
 
   /// Processing note.
-  static const String meetingProcessing =
-      'جارٍ معالجة الاجتماع وكتابة المحضر…';
+  static const String meetingProcessing = 'جارٍ معالجة الاجتماع وكتابة المحضر…';
 
   // ---------------------------------------------------------------------------
   // Transcript
@@ -462,8 +461,7 @@ abstract final class S {
   static const String noTranscriptTitle = 'لا يوجد نص';
 
   /// Empty transcript body.
-  static const String noTranscriptBody =
-      'لم يُلتقط أي كلام في هذا الاجتماع.';
+  static const String noTranscriptBody = 'لم يُلتقط أي كلام في هذا الاجتماع.';
 
   /// Unknown speaker.
   static const String unknownSpeaker = 'متحدث غير محدد';
@@ -594,7 +592,8 @@ abstract final class S {
       'سيظهر هنا كل من يتحدث في اجتماعاتك، مع بصمته الصوتية.';
 
   /// Speakers in meeting empty.
-  static const String noMeetingSpeakers = 'لم يُميَّز أي متحدث في هذا الاجتماع.';
+  static const String noMeetingSpeakers =
+      'لم يُميَّز أي متحدث في هذا الاجتماع.';
 
   /// Voiceprint present.
   static const String hasVoiceprint = 'بصمة صوتية محفوظة';

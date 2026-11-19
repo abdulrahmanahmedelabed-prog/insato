@@ -170,8 +170,9 @@ class _MeetingDetail extends ConsumerWidget {
                       ? BannerSeverity.error
                       : BannerSeverity.info,
                   message: job.errorAr ?? job.noticeAr!,
-                  onDismiss: () =>
-                      ref.read(meetingJobsProvider(meeting.id).notifier).clear(),
+                  onDismiss: () => ref
+                      .read(meetingJobsProvider(meeting.id).notifier)
+                      .clear(),
                 ),
               ),
             Expanded(
