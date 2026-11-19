@@ -24,7 +24,7 @@
 //   block lasts.
 // * `GET /v1beta/models` discovers the models of the key; when the
 //   configured model does not exist (404), [GeminiMinutesBackend] switches
-//   to the newest Flash model ([pickPreferredGeminiModel]) once.
+//   to the newest Flash-Lite model ([pickPreferredGeminiModel]) once.
 //
 // Privacy: on the free (unpaid) tier Google may use prompts and responses to
 // improve its products and human reviewers may read them; a key of a billed
@@ -42,8 +42,9 @@ import '../core/errors.dart';
 import 'claude_client.dart' show RetryDelay, SseParser, parseRetryAfter;
 import 'minutes_backend.dart';
 
-/// Default Gemini model: Google's alias of the newest Flash model.
-const String kDefaultGeminiModel = 'gemini-flash-latest';
+/// Default Gemini model: Google's alias of the newest Flash-Lite model
+/// (owner choice: fastest, cheapest and the most generous free-tier quota).
+const String kDefaultGeminiModel = 'gemini-flash-lite-latest';
 
 /// REST base of the Gemini API.
 final Uri kGeminiApiBase = Uri.parse(
@@ -217,7 +218,8 @@ const List<String> _excludedFlashParts = [
 /// Chooses the best text Flash model of [models] for minutes: supports
 /// `generateContent`, is a plain text Flash model (no image / audio / TTS /
 /// live variants), newest version first; at equal version a stable model
-/// beats a preview / experimental one and the full Flash beats Flash-Lite.
+/// beats a preview / experimental one and Flash-Lite beats the full Flash
+/// (owner choice: Flash-Lite has the most generous free-tier quota).
 /// Returns null when none qualifies.
 String? pickPreferredGeminiModel(Iterable<GeminiModelInfo> models) {
   ({double version, int stability, int lite, String id})? best;
@@ -233,7 +235,7 @@ String? pickPreferredGeminiModel(Iterable<GeminiModelInfo> models) {
         RegExp(r'-\d{2}-\d{2,4}').hasMatch(rest) ||
         RegExp(r'-\d{3}$').hasMatch(rest);
     final stability = preview ? 0 : (dated ? 1 : 2);
-    final lite = rest.contains('lite') ? 0 : 1;
+    final lite = rest.contains('lite') ? 1 : 0;
     final cand = (version: version, stability: stability, lite: lite, id: m.id);
     if (best == null ||
         cand.version > best.version ||

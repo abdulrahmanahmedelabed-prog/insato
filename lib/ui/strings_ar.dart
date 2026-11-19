@@ -695,8 +695,9 @@ abstract final class S {
 
   /// Gemini model helper.
   static const String geminiModelHelper =
-      'الافتراضي gemini-flash-latest (أحدث نموذج Flash المجاني). إن لم يكن '
-      'متاحاً لمفتاحك يُختار أحدث نموذج Flash تلقائياً.';
+      'الافتراضي gemini-flash-lite-latest (أحدث نموذج Flash-Lite المجاني، '
+      'الأسرع وصاحب أوسع حصة مجانية). إن لم يكن متاحاً لمفتاحك يُختار أحدث '
+      'نموذج Flash تلقائياً.';
 
   /// Gemini privacy notice title.
   static const String geminiPrivacyTitle = 'تنبيه خصوصية Gemini المجاني';
