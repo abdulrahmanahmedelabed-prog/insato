@@ -32,7 +32,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // sources in the system code page unless /utf-8 is passed, and with /WX a
   // non-representable character (C4819) would fail the build.
   constexpr wchar_t kWindowTitle[] =
-      L"0625064606350627062A0648 \u2014 "
+      L"\u0625\u0646\u0635\u0627\u062A\u0648 \u2014 "
       L"\u0645\u062D\u0627\u0636\u0631 "
       L"\u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639\u0627\u062A";
   if (!window.Create(kWindowTitle, origin, size)) {
