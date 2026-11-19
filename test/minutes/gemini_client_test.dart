@@ -693,7 +693,7 @@ void main() {
       expect(s.requests.first.headers['x-goog-api-key'], 'AIza-test');
     });
 
-    test('pickPreferredGeminiModel prefers the newest stable text Flash', () {
+    test('pickPreferredGeminiModel prefers the newest stable text Flash, Lite first', () {
       GeminiModelInfo m(String id, {bool gen = true}) => GeminiModelInfo(
         id: id,
         methods: gen ? const ['generateContent'] : const [],
@@ -717,7 +717,7 @@ void main() {
           m('gemini-3-flash'),
           m('gemini-3-flash-lite'),
         ]),
-        'gemini-3-flash',
+        'gemini-3-flash-lite',
       );
       expect(
         pickPreferredGeminiModel([

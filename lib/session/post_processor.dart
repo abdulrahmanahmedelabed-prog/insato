@@ -70,6 +70,12 @@ int maxToleratedReprocessFailures(int attempted) =>
 /// Default average-linkage similarity for offline re-clustering.
 const double kDefaultRefineClusterThreshold = 0.5;
 
+/// Shortest segment (ms) the offline refinement clusters. Shorter segments
+/// that still have an embedding (sub-second replies such as «نعم») are too
+/// noisy to shape clusters; they are attached afterwards by
+/// [scoreRefinedSegments].
+const int kMinClusterSegmentMs = 800;
+
 // ===========================================================================
 // Minutes engine seam
 // ===========================================================================
@@ -370,11 +376,15 @@ Map<String, String?> planClusterSpeakers({
 /// in [removableSpeakerIds] and no clustered segment keeps it — then they
 /// take the speaker of the nearest neighbouring segment, so the removable
 /// speaker can be deleted.
+///
+/// [extraClusterBySegment] adds cluster memberships decided outside the
+/// clustering (short segments attached by [scoreRefinedSegments]).
 Map<String, String> computeSegmentAssignments({
   required List<TranscriptSegment> segments,
   required RefinementResult result,
   required Map<String, String> speakerByCluster,
   required Set<String> removableSpeakerIds,
+  Map<String, String> extraClusterBySegment = const {},
 }) {
   final finalSpeaker = <String?>[];
   final anchored = <bool>[];
@@ -384,7 +394,7 @@ Map<String, String> computeSegmentAssignments({
       anchored.add(true);
       continue;
     }
-    final cid = result.clusterIdBySegment[s.id];
+    final cid = result.clusterIdBySegment[s.id] ?? extraClusterBySegment[s.id];
     final sid = cid == null ? null : speakerByCluster[cid];
     finalSpeaker.add(sid ?? s.speakerId);
     anchored.add(sid != null);
@@ -432,6 +442,92 @@ Map<String, String> computeSegmentAssignments({
           finalSpeaker[i] != segments[i].speakerId)
         segments[i].id: finalSpeaker[i]!,
   };
+}
+
+/// Output of [scoreRefinedSegments].
+typedef RefinedSegmentScores = ({
+  /// Unclustered segment id → cluster id it was attached to.
+  Map<String, String> attach,
+
+  /// Segment id → speaker confidence after refinement.
+  Map<String, double> confidence,
+});
+
+/// Scores every unlocked segment with a usable embedding against the
+/// refined cluster centroids of [result].
+///
+/// * A clustered segment keeps its cluster. Its confidence grows with its
+///   similarity to its own centroid (relative to [matchThreshold]) and with
+///   the margin over the closest other centroid (relative to
+///   [ambiguityMargin]); a segment that sounds like two people (overlap, or
+///   a turn change without a pause) gets a low confidence.
+/// * An unclustered segment (shorter than [kMinClusterSegmentMs], or skipped)
+///   is attached to the best centroid when it reaches [attachThreshold] and
+///   beats the runner-up by [attachMargin]; its confidence is scaled down
+///   because short embeddings are noisy. When no cluster wins it keeps its
+///   current speaker with a doubtful confidence ([doubtfulConfidence]).
+///
+/// Segments without a usable embedding are not scored (their live
+/// confidence stays).
+RefinedSegmentScores scoreRefinedSegments({
+  required List<TranscriptSegment> segments,
+  required RefinementResult result,
+  double matchThreshold = kDefaultRefineClusterThreshold,
+  double ambiguityMargin = 0.05,
+  double attachThreshold = 0.45,
+  double attachMargin = 0.08,
+  double doubtfulConfidence = 0.3,
+}) {
+  final attach = <String, String>{};
+  final confidence = <String, double>{};
+  final clusters = result.clusters;
+  if (clusters.isEmpty) return (attach: attach, confidence: confidence);
+  final dim = clusters.first.centroid.length;
+  double clamp01(double v) => v.isNaN ? 0 : v.clamp(0.0, 1.0);
+  double score(double sim, double margin) =>
+      clamp01(0.5 + (sim - matchThreshold) / 0.5) *
+      clamp01(0.5 + margin / math.max(1e-6, 4 * ambiguityMargin));
+
+  for (final s in segments) {
+    if (s.speakerLocked) continue;
+    final e = s.embedding;
+    if (!isUsableEmbedding(e, dimension: dim)) continue;
+    final ne = l2Normalize(e!);
+    final own = result.clusterIdBySegment[s.id];
+    var bestId = '';
+    var best = double.negativeInfinity;
+    var second = double.negativeInfinity;
+    var ownSim = double.negativeInfinity;
+    var otherBest = double.negativeInfinity;
+    for (final c in clusters) {
+      final sim = cosine(ne, c.centroid);
+      if (sim > best) {
+        second = best;
+        best = sim;
+        bestId = c.id;
+      } else if (sim > second) {
+        second = sim;
+      }
+      if (c.id == own) {
+        ownSim = sim;
+      } else if (sim > otherBest) {
+        otherBest = sim;
+      }
+    }
+    if (own != null) {
+      final margin = otherBest.isFinite ? ownSim - otherBest : 1.0;
+      confidence[s.id] = score(ownSim, margin);
+      continue;
+    }
+    final margin = second.isFinite ? best - second : 1.0;
+    if (best >= attachThreshold && margin >= attachMargin) {
+      attach[s.id] = bestId;
+      confidence[s.id] = 0.8 * score(best, margin);
+    } else {
+      confidence[s.id] = doubtfulConfidence;
+    }
+  }
+  return (attach: attach, confidence: confidence);
 }
 
 /// Removes [removed] embeddings from a voiceprint ([centroid] averaged over
@@ -591,7 +687,8 @@ class PostProcessor {
     final speakersById = await _speakers.getAllById();
     final items = <(String, Float32List, int)>[
       for (final s in segs)
-        if (isUsableEmbedding(s.embedding))
+        if (isUsableEmbedding(s.embedding) &&
+            s.endMs - s.startMs >= kMinClusterSegmentMs)
           (s.id, s.embedding!, math.max(0, s.endMs - s.startMs)),
     ];
     if (items.isEmpty) {
@@ -693,13 +790,16 @@ class PostProcessor {
       for (final id in reusable)
         if (!speakersById[id]!.isNamedByUser) id,
     };
+    final scores = scoreRefinedSegments(segments: segs, result: result);
     final changes = computeSegmentAssignments(
       segments: segs,
       result: result,
       speakerByCluster: resolved,
       removableSpeakerIds: removable,
+      extraClusterBySegment: scores.attach,
     );
     final relabeled = await _segments.bulkAssignSpeakers(changes);
+    await _segments.bulkSetSpeakerConfidence(scores.confidence);
 
     final counts = await _segmentCountsBySpeaker();
     final removed = <String>[];

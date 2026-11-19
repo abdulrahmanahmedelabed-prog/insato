@@ -1602,6 +1602,18 @@ class $SegmentsTable extends Segments
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _speakerConfidenceMeta = const VerificationMeta(
+    'speakerConfidence',
+  );
+  @override
+  late final GeneratedColumn<double> speakerConfidence =
+      GeneratedColumn<double>(
+        'speaker_confidence',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1616,6 +1628,7 @@ class $SegmentsTable extends Segments
     speakerLocked,
     kind,
     asrConfidence,
+    speakerConfidence,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1716,6 +1729,15 @@ class $SegmentsTable extends Segments
         ),
       );
     }
+    if (data.containsKey('speaker_confidence')) {
+      context.handle(
+        _speakerConfidenceMeta,
+        speakerConfidence.isAcceptableOrUnknown(
+          data['speaker_confidence']!,
+          _speakerConfidenceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1773,6 +1795,10 @@ class $SegmentsTable extends Segments
         DriftSqlType.double,
         data['${effectivePrefix}asr_confidence'],
       ),
+      speakerConfidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}speaker_confidence'],
+      ),
     );
   }
 
@@ -1818,6 +1844,10 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
 
   /// v2: recogniser confidence 0..1 when reported.
   final double? asrConfidence;
+
+  /// Confidence (0..1) of the automatic speaker assignment; null when
+  /// unknown (rows from schema 1 and 2).
+  final double? speakerConfidence;
   const SegmentRow({
     required this.id,
     required this.meetingId,
@@ -1831,6 +1861,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     required this.speakerLocked,
     required this.kind,
     this.asrConfidence,
+    this.speakerConfidence,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1854,6 +1885,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     map['kind'] = Variable<String>(kind);
     if (!nullToAbsent || asrConfidence != null) {
       map['asr_confidence'] = Variable<double>(asrConfidence);
+    }
+    if (!nullToAbsent || speakerConfidence != null) {
+      map['speaker_confidence'] = Variable<double>(speakerConfidence);
     }
     return map;
   }
@@ -1880,6 +1914,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       asrConfidence: asrConfidence == null && nullToAbsent
           ? const Value.absent()
           : Value(asrConfidence),
+      speakerConfidence: speakerConfidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(speakerConfidence),
     );
   }
 
@@ -1901,6 +1938,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       speakerLocked: serializer.fromJson<bool>(json['speakerLocked']),
       kind: serializer.fromJson<String>(json['kind']),
       asrConfidence: serializer.fromJson<double?>(json['asrConfidence']),
+      speakerConfidence: serializer.fromJson<double?>(
+        json['speakerConfidence'],
+      ),
     );
   }
   @override
@@ -1919,6 +1959,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       'speakerLocked': serializer.toJson<bool>(speakerLocked),
       'kind': serializer.toJson<String>(kind),
       'asrConfidence': serializer.toJson<double?>(asrConfidence),
+      'speakerConfidence': serializer.toJson<double?>(speakerConfidence),
     };
   }
 
@@ -1935,6 +1976,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     bool? speakerLocked,
     String? kind,
     Value<double?> asrConfidence = const Value.absent(),
+    Value<double?> speakerConfidence = const Value.absent(),
   }) => SegmentRow(
     id: id ?? this.id,
     meetingId: meetingId ?? this.meetingId,
@@ -1950,6 +1992,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     asrConfidence: asrConfidence.present
         ? asrConfidence.value
         : this.asrConfidence,
+    speakerConfidence: speakerConfidence.present
+        ? speakerConfidence.value
+        : this.speakerConfidence,
   );
   SegmentRow copyWithCompanion(SegmentsCompanion data) {
     return SegmentRow(
@@ -1969,6 +2014,9 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
       asrConfidence: data.asrConfidence.present
           ? data.asrConfidence.value
           : this.asrConfidence,
+      speakerConfidence: data.speakerConfidence.present
+          ? data.speakerConfidence.value
+          : this.speakerConfidence,
     );
   }
 
@@ -1986,7 +2034,8 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
           ..write('embedding: $embedding, ')
           ..write('speakerLocked: $speakerLocked, ')
           ..write('kind: $kind, ')
-          ..write('asrConfidence: $asrConfidence')
+          ..write('asrConfidence: $asrConfidence, ')
+          ..write('speakerConfidence: $speakerConfidence')
           ..write(')'))
         .toString();
   }
@@ -2005,6 +2054,7 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
     speakerLocked,
     kind,
     asrConfidence,
+    speakerConfidence,
   );
   @override
   bool operator ==(Object other) =>
@@ -2021,7 +2071,8 @@ class SegmentRow extends DataClass implements Insertable<SegmentRow> {
           $driftBlobEquality.equals(other.embedding, this.embedding) &&
           other.speakerLocked == this.speakerLocked &&
           other.kind == this.kind &&
-          other.asrConfidence == this.asrConfidence);
+          other.asrConfidence == this.asrConfidence &&
+          other.speakerConfidence == this.speakerConfidence);
 }
 
 class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
@@ -2037,6 +2088,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
   final Value<bool> speakerLocked;
   final Value<String> kind;
   final Value<double?> asrConfidence;
+  final Value<double?> speakerConfidence;
   final Value<int> rowid;
   const SegmentsCompanion({
     this.id = const Value.absent(),
@@ -2051,6 +2103,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     this.speakerLocked = const Value.absent(),
     this.kind = const Value.absent(),
     this.asrConfidence = const Value.absent(),
+    this.speakerConfidence = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SegmentsCompanion.insert({
@@ -2066,6 +2119,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     this.speakerLocked = const Value.absent(),
     this.kind = const Value.absent(),
     this.asrConfidence = const Value.absent(),
+    this.speakerConfidence = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        meetingId = Value(meetingId),
@@ -2086,6 +2140,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     Expression<bool>? speakerLocked,
     Expression<String>? kind,
     Expression<double>? asrConfidence,
+    Expression<double>? speakerConfidence,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2101,6 +2156,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
       if (speakerLocked != null) 'speaker_locked': speakerLocked,
       if (kind != null) 'kind': kind,
       if (asrConfidence != null) 'asr_confidence': asrConfidence,
+      if (speakerConfidence != null) 'speaker_confidence': speakerConfidence,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2118,6 +2174,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     Value<bool>? speakerLocked,
     Value<String>? kind,
     Value<double?>? asrConfidence,
+    Value<double?>? speakerConfidence,
     Value<int>? rowid,
   }) {
     return SegmentsCompanion(
@@ -2133,6 +2190,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
       speakerLocked: speakerLocked ?? this.speakerLocked,
       kind: kind ?? this.kind,
       asrConfidence: asrConfidence ?? this.asrConfidence,
+      speakerConfidence: speakerConfidence ?? this.speakerConfidence,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2176,6 +2234,9 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
     if (asrConfidence.present) {
       map['asr_confidence'] = Variable<double>(asrConfidence.value);
     }
+    if (speakerConfidence.present) {
+      map['speaker_confidence'] = Variable<double>(speakerConfidence.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2197,6 +2258,7 @@ class SegmentsCompanion extends UpdateCompanion<SegmentRow> {
           ..write('speakerLocked: $speakerLocked, ')
           ..write('kind: $kind, ')
           ..write('asrConfidence: $asrConfidence, ')
+          ..write('speakerConfidence: $speakerConfidence, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6971,6 +7033,7 @@ typedef $$SegmentsTableCreateCompanionBuilder = SegmentsCompanion Function({
   Value<bool> speakerLocked,
   Value<String> kind,
   Value<double?> asrConfidence,
+  Value<double?> speakerConfidence,
   Value<int> rowid,
 });
 typedef $$SegmentsTableUpdateCompanionBuilder = SegmentsCompanion Function({
@@ -6986,6 +7049,7 @@ typedef $$SegmentsTableUpdateCompanionBuilder = SegmentsCompanion Function({
   Value<bool> speakerLocked,
   Value<String> kind,
   Value<double?> asrConfidence,
+  Value<double?> speakerConfidence,
   Value<int> rowid,
 });
 
@@ -7084,6 +7148,11 @@ class $$SegmentsTableFilterComposer
 
   ColumnFilters<double> get asrConfidence => $composableBuilder(
     column: $table.asrConfidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7193,6 +7262,11 @@ class $$SegmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$MeetingsTableOrderingComposer get meetingId {
     final $$MeetingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -7283,6 +7357,11 @@ class $$SegmentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get speakerConfidence => $composableBuilder(
+    column: $table.speakerConfidence,
+    builder: (column) => column,
+  );
+
   $$MeetingsTableAnnotationComposer get meetingId {
     final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -7370,6 +7449,7 @@ class $$SegmentsTableTableManager
                 Value<bool> speakerLocked = const Value.absent(),
                 Value<String> kind = const Value.absent(),
                 Value<double?> asrConfidence = const Value.absent(),
+                Value<double?> speakerConfidence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SegmentsCompanion(
                 id: id,
@@ -7384,6 +7464,7 @@ class $$SegmentsTableTableManager
                 speakerLocked: speakerLocked,
                 kind: kind,
                 asrConfidence: asrConfidence,
+                speakerConfidence: speakerConfidence,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7400,6 +7481,7 @@ class $$SegmentsTableTableManager
                 Value<bool> speakerLocked = const Value.absent(),
                 Value<String> kind = const Value.absent(),
                 Value<double?> asrConfidence = const Value.absent(),
+                Value<double?> speakerConfidence = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SegmentsCompanion.insert(
                 id: id,
@@ -7414,6 +7496,7 @@ class $$SegmentsTableTableManager
                 speakerLocked: speakerLocked,
                 kind: kind,
                 asrConfidence: asrConfidence,
+                speakerConfidence: speakerConfidence,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

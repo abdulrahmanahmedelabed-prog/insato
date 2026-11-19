@@ -186,7 +186,9 @@ class _SegmentText extends StatelessWidget {
         : S.languageName(lang);
     return Semantics(
       button: onTap != null,
-      label: '$speakerName، ${formatTimestamp(segment.startMs)}: $shown',
+      label: '$speakerName'
+          '${segment.isSpeakerUncertain ? '، ${S.speakerUncertain}' : ''}، '
+          '${formatTimestamp(segment.startMs)}: $shown',
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -210,7 +212,9 @@ class _SegmentText extends StatelessWidget {
                         )
                       : theme.textTheme.bodyLarge,
                 ),
-                if (langName != null || segment.speakerLocked)
+                if (langName != null ||
+                    segment.speakerLocked ||
+                    segment.isSpeakerUncertain)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Wrap(
@@ -222,6 +226,27 @@ class _SegmentText extends StatelessWidget {
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
+                          ),
+                        if (segment.isSpeakerUncertain)
+                          Row(
+                            key: const ValueKey('speaker-uncertain'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.help_outline_rounded,
+                                size: 12,
+                                color: scheme.tertiary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                onTap == null
+                                    ? S.speakerUncertain
+                                    : S.speakerUncertainTapToFix,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.tertiary,
+                                ),
+                              ),
+                            ],
                           ),
                         if (segment.speakerLocked)
                           Row(

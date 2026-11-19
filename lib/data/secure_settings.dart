@@ -245,10 +245,10 @@ class AppSettingsData {
   /// Default Claude model used for minutes.
   static const String defaultClaudeModel = 'claude-opus-5-5';
 
-  /// Default Gemini model: Google's alias of the newest stable Flash model
+  /// Default Gemini model: Google's alias of the newest stable Flash-Lite model
   /// (available on the free tier). When an account lacks it, the engine
   /// discovers a Flash model through `models.list` (see `gemini_client.dart`).
-  static const String defaultGeminiModel = 'gemini-flash-latest';
+  static const String defaultGeminiModel = 'gemini-flash-lite-latest';
 
   /// Default local-server endpoint (Ollama's default port on this machine).
   static const String defaultServerUrl = 'http://127.0.0.1:11434';
@@ -284,7 +284,7 @@ class AppSettingsData {
   /// [engineLocal] or [engineServer]. Also used by "Ask your meetings" (F8).
   final String minutesEngine;
 
-  /// Gemini model id (engine `gemini`), e.g. `gemini-flash-latest`.
+  /// Gemini model id (engine `gemini`), e.g. `gemini-flash-lite-latest`.
   final String geminiModel;
 
   /// The user read and accepted the Gemini free-tier data notice (Google

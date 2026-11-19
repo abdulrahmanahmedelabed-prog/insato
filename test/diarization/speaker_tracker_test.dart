@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:insato/core/models.dart' show kUncertainSpeakerConfidence;
 import 'package:insato/diarization/speaker_tracker.dart';
 import 'package:insato/diarization/vector_math.dart';
 
@@ -284,6 +285,55 @@ void main() {
       expect(r4.isUnknown, isTrue);
       expect(tracker.clusters, hasLength(1));
       expect(tracker.cluster('local:1')!.count, 1);
+    });
+
+    group('short replies after a pause (turn taking)', () {
+      // cos 0.65 to basis(0) (local:1) and 0.57 to basis(1) (local:2).
+      final reply = Float32List(192)
+        ..[0] = 0.65
+        ..[1] = 0.57
+        ..[2] = 0.5026;
+
+      SpeakerTracker twoSpeakers() {
+        final t = SpeakerTracker(knownSpeakers: const []);
+        t.assign(segmentIndex: 0, startMs: 0, endMs: 3000, embedding: basis(0));
+        t.assign(
+            segmentIndex: 1, startMs: 3500, endMs: 6000, embedding: basis(1));
+        return t;
+      }
+
+      test('a modestly closer other voice wins after a pause', () {
+        final r = twoSpeakers().assign(
+            segmentIndex: 2, startMs: 6400, endMs: 7000, embedding: reply);
+        expect(r.decision, AssignmentDecision.weakMatch);
+        expect(r.clusterKey, 'local:1');
+      });
+
+      test('the same reply without a pause stays with the speaker', () {
+        final r = twoSpeakers().assign(
+            segmentIndex: 2, startMs: 6100, endMs: 6700, embedding: reply);
+        expect(r.decision, AssignmentDecision.inherited);
+        expect(r.clusterKey, 'local:2');
+      });
+
+      test('embedding-less reply after a pause is inherited as doubtful', () {
+        final r =
+            twoSpeakers().assign(segmentIndex: 2, startMs: 6400, endMs: 6800);
+        expect(r.decision, AssignmentDecision.inherited);
+        expect(r.clusterKey, 'local:2');
+        expect(r.confidence, lessThan(kUncertainSpeakerConfidence));
+        final glued =
+            twoSpeakers().assign(segmentIndex: 2, startMs: 6100, endMs: 6500);
+        expect(glued.confidence,
+            greaterThanOrEqualTo(kUncertainSpeakerConfidence));
+      });
+
+      test('a voice unlike everyone is inherited as doubtful', () {
+        final r = twoSpeakers().assign(
+            segmentIndex: 2, startMs: 6400, endMs: 7000, embedding: basis(5));
+        expect(r.decision, AssignmentDecision.inherited);
+        expect(r.confidence, lessThan(kUncertainSpeakerConfidence));
+      });
     });
 
     test('long segments without embeddings inherit or stay unknown', () {

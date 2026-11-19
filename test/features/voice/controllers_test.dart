@@ -69,6 +69,18 @@ class Env {
 
 Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 30));
 
+/// Polls [done] until it holds (5 s limit): the end of a test take writes and
+/// analyses a WAV file, whose duration varies on a busy CI runner.
+Future<void> waitUntil(bool Function() done) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!done()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('condition not reached within 5 s');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+}
+
 void main() {
   group('VoiceEnrollmentController', () {
     late Env env;
@@ -137,7 +149,7 @@ void main() {
     test('auto-stops at the target once enough speech was heard', () async {
       await ctrl().start();
       env.mics.recording!.emit(readingTake(segments: 6, speechMs: 2400));
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await waitUntil(() => st().phase == EnrollmentPhase.review);
       expect(st().phase, EnrollmentPhase.review);
     });
 
@@ -315,7 +327,7 @@ void main() {
       final mic = env.mics.recording!;
       expect(mic.archivePath, endsWith('insato_mic_test.wav'));
       mic.emit(join([noise(500), tone(4000), noise(600)]));
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await waitUntil(() => st().phase == MicTestPhase.recorded);
       expect(st().phase, MicTestPhase.recorded);
       expect(st().hasRecording, isTrue);
       expect(st().canPlay, isTrue);
@@ -343,14 +355,14 @@ void main() {
     test('a silent test says nothing was heard', () async {
       await ctrl().recordTest();
       env.mics.recording!.emit(noise(5200));
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await waitUntil(() => st().phase == MicTestPhase.recorded);
       expect(st().result!.has(AudioQualityIssueKind.noSpeech), isTrue);
     });
 
     test('playback failure is a warning', () async {
       await ctrl().recordTest();
       env.mics.recording!.emit(tone(5200));
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await waitUntil(() => st().phase == MicTestPhase.recorded);
       env.player.playError = StateError('codec');
       await ctrl().play();
       expect(st().phase, MicTestPhase.recorded);

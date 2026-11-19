@@ -159,7 +159,7 @@ features only **read** these tables:
 | Field | Key | Default | Setter |
 |---|---|---|---|
 | `minutesEngine` (`engineGemini` \| `engineClaude` \| `engineLocal` \| `engineServer`) | `minutes_engine` | `'gemini'` | `setMinutesEngine` |
-| `geminiModel` | `gemini_model` | `'gemini-flash-latest'` | `setGeminiModel` (strips `models/`) |
+| `geminiModel` | `gemini_model` | `'gemini-flash-lite-latest'` | `setGeminiModel` (strips `models/`) |
 | `geminiPrivacyAcknowledged` | `gemini_privacy_acknowledged` | `false` | `setGeminiPrivacyAcknowledged` |
 | `claudeModel` (existing) | `claude_model` | `'claude-opus-5-5'` | `setClaudeModel` |
 | `localLlmModelId` (null = recommended) | `local_llm_model_id` | `null` | `setLocalLlmModelId` |

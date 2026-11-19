@@ -9,6 +9,7 @@ import 'package:insato/core/models.dart';
 import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/diarization/clustering.dart';
 import 'package:insato/diarization/vector_math.dart';
 import 'package:insato/session/post_processor.dart';
 import 'package:insato/session/providers.dart';
@@ -16,6 +17,108 @@ import 'package:insato/session/providers.dart';
 import 'fakes.dart';
 
 void main() {
+  group('scoreRefinedSegments', () {
+    Float32List v(List<double> xs) {
+      final out = Float32List(8);
+      for (var i = 0; i < xs.length; i++) {
+        out[i] = xs[i];
+      }
+      return out;
+    }
+
+    TranscriptSegment s(
+      String id,
+      int start,
+      int end,
+      Float32List? e, {
+      bool locked = false,
+    }) => TranscriptSegment(
+      id: id,
+      meetingId: 'm',
+      index: 0,
+      startMs: start,
+      endMs: end,
+      text: 'x',
+      speakerId: 'sp',
+      embedding: e,
+      speakerLocked: locked,
+    );
+
+    final result = RefinementResult(
+      clusters: [
+        RefinedCluster(
+          id: 'cluster:1',
+          segmentIds: const ['a', 'mixed'],
+          centroid: v([1]),
+          totalMs: 8000,
+          linkReason: ClusterLinkReason.none,
+        ),
+        RefinedCluster(
+          id: 'cluster:2',
+          segmentIds: const ['b'],
+          centroid: v([0, 1]),
+          totalMs: 4000,
+          linkReason: ClusterLinkReason.none,
+        ),
+      ],
+      clusterIdBySegment: const {
+        'a': 'cluster:1',
+        'mixed': 'cluster:1',
+        'b': 'cluster:2',
+      },
+      skippedSegmentIds: const [],
+    );
+
+    test('clean segments are confident, mixed voices are doubtful', () {
+      final scores = scoreRefinedSegments(
+        segments: [
+          s('a', 0, 4000, v([0.95, 0.1, 0.3])),
+          s('mixed', 4000, 8000, v([0.58, 0.56, 0.59])),
+          s('b', 8000, 12000, v([0.1, 0.9, 0.4])),
+        ],
+        result: result,
+      );
+      expect(scores.attach, isEmpty);
+      expect(scores.confidence['a'], greaterThan(0.8));
+      expect(scores.confidence['b'], greaterThan(0.8));
+      expect(scores.confidence['mixed'], lessThan(kUncertainSpeakerConfidence));
+    });
+
+    test('short replies are attached to the clearly closest cluster', () {
+      final scores = scoreRefinedSegments(
+        segments: [
+          s('yes', 12000, 12600, v([0.15, 0.85, 0.5])),
+          s('unclear', 13000, 13600, v([0.3, 0.3, 0.9])),
+          s('locked', 14000, 14600, v([0.9]), locked: true),
+          s('none', 15000, 15300, null),
+        ],
+        result: result,
+      );
+      expect(scores.attach, {'yes': 'cluster:2'});
+      expect(scores.confidence['yes'], greaterThan(0));
+      expect(
+        scores.confidence['unclear'],
+        lessThan(kUncertainSpeakerConfidence),
+      );
+      expect(scores.confidence.containsKey('locked'), isFalse);
+      expect(scores.confidence.containsKey('none'), isFalse);
+    });
+
+    test('attached clusters feed computeSegmentAssignments', () {
+      final segs = [
+        s('yes', 12000, 12600, v([0.15, 0.85, 0.5])),
+      ];
+      final changes = computeSegmentAssignments(
+        segments: segs,
+        result: result,
+        speakerByCluster: const {'cluster:1': 'p1', 'cluster:2': 'p2'},
+        removableSpeakerIds: const {},
+        extraClusterBySegment: const {'yes': 'cluster:2'},
+      );
+      expect(changes, {'yes': 'p2'});
+    });
+  });
+
   late AppDatabase db;
   late MeetingRepository meetings;
   late SegmentRepository segments;
