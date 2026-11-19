@@ -124,7 +124,12 @@ void main() {
     });
 
     test('preferenceKeys covers every key written by save', () {
-      final full = AppSettingsData.defaults.copyWith(languageHint: 'ar');
+      final full = AppSettingsData.defaults.copyWith(
+        languageHint: 'ar',
+        localLlmModelId: 'qwen',
+        serverModel: 'llama',
+        inputDeviceId: 'usb-mic',
+      );
       expect(AppSettings.preferenceKeys.toSet(), full.toMap().keys.toSet());
     });
 

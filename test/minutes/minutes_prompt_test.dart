@@ -193,7 +193,7 @@ void main() {
       // Injection attempt inside the transcript cannot close the tag early.
       expect('</transcript>'.allMatches(msg), hasLength(1));
       expect(msg, contains('"concise"'));
-      expect(msg.substring(open, close), contains('[00:00:05] متحدث 2 (en):'));
+      expect(msg.substring(open, close), contains('[#1 00:00:05] متحدث 2 (en):'));
     });
 
     test(
