@@ -470,6 +470,108 @@ class MinutesSignatures extends Table {
   IntColumn get signedAt => integer().map(const EpochMillisConverter())();
 }
 
+/// v6 (Insato 1.2, D): findings of the contradiction & consistency checker
+/// for a meeting (its decisions / action items against earlier
+/// resolutions, decisions and tasks, or against each other). Both sides are
+/// stored as JSON snapshots so a finding stays readable after the earlier
+/// meeting changes or is deleted.
+@DataClassName('ConsistencyFindingRow')
+@TableIndex(name: 'consistency_findings_meeting', columns: {#meetingId})
+@TableIndex(name: 'consistency_findings_prior', columns: {#priorMeetingId})
+class ConsistencyFindings extends Table {
+  @override
+  String get tableName => 'consistency_findings';
+
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Meeting checked; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// `FindingKind.wire`.
+  TextColumn get kind => text()();
+
+  /// `FindingSeverity.wire`.
+  TextColumn get severity => text()();
+
+  /// `FindingStatus.wire` — open / dismissed / confirmed.
+  TextColumn get status => text().withDefault(const Constant('open'))();
+
+  /// `heuristic` (pure-Dart rules) or `engine` (minutes engine).
+  TextColumn get origin => text().withDefault(const Constant('heuristic'))();
+
+  /// Stable key (kind + both sides) so a re-check keeps the user's
+  /// decisions.
+  TextColumn get findingKey => text()();
+
+  /// Arabic explanation.
+  TextColumn get explanation => text().withDefault(const Constant(''))();
+
+  /// The new side (`FindingSide.toJson()`).
+  TextColumn get newSideJson => text()();
+
+  /// The earlier side (`FindingSide.toJson()`).
+  TextColumn get priorSideJson => text()();
+
+  /// Meeting of the earlier side (null for a manual task or once that
+  /// meeting is deleted).
+  TextColumn get priorMeetingId => text()
+      .nullable()
+      .references(Meetings, #id, onDelete: KeyAction.setNull)();
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+
+  /// When it was dismissed / confirmed.
+  IntColumn get resolvedAt =>
+      integer().map(const EpochMillisConverter()).nullable()();
+}
+
+/// v6 (D): annotations of a meeting's resolutions — «أُلغي رسمياً» after
+/// the user confirmed a contradiction. An annotation never edits the
+/// minutes (approved minutes stay locked and their hash unchanged); it is
+/// shown next to them. Deleted with either meeting or the finding.
+@DataClassName('ResolutionAnnotationRow')
+@TableIndex(name: 'resolution_annotations_meeting', columns: {#meetingId})
+class ResolutionAnnotations extends Table {
+  @override
+  String get tableName => 'resolution_annotations';
+
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Meeting whose resolution is annotated.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// 0-based index of the decision when annotated.
+  IntColumn get decisionIndex => integer()();
+
+  /// `decisionKeyOf` of the decision (guards against regeneration).
+  TextColumn get decisionKey => text()();
+
+  /// `superseded`.
+  TextColumn get kind => text().withDefault(const Constant('superseded'))();
+
+  /// Meeting whose decision superseded it.
+  TextColumn get byMeetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// The confirmed finding.
+  IntColumn get findingId => integer().references(
+    ConsistencyFindings,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// Snapshot of the superseding side (`FindingSide.toJson()`).
+  TextColumn get bySideJson => text()();
+
+  /// Annotation time (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+}
+
 /// Simple key/value application settings.
 @DataClassName('SettingRow')
 class Settings extends Table {
@@ -499,6 +601,8 @@ class Settings extends Table {
   OfficialRecords,
   MinutesVersions,
   MinutesSignatures,
+  ConsistencyFindings,
+  ResolutionAnnotations,
 ])
 class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database file `insato.sqlite` in the application
@@ -527,8 +631,9 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forExecutor(super.executor);
 
   /// Current schema version (v1.1 = 2, speaker confidence = 3, task
-  /// dismissals = 4, official minutes (v1.2) = 5).
-  static const int currentSchemaVersion = 5;
+  /// dismissals = 4, official minutes (v1.2) = 5, consistency findings and
+  /// resolution annotations (v1.2 D) = 6).
+  static const int currentSchemaVersion = 6;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -550,6 +655,13 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(minutesSignatures);
             await m.createIndex(officialRecordsSequence);
             await m.createIndex(minutesSignaturesMeeting);
+          }
+          if (from < 6 && to >= 6) {
+            await m.createTable(consistencyFindings);
+            await m.createTable(resolutionAnnotations);
+            await m.createIndex(consistencyFindingsMeeting);
+            await m.createIndex(consistencyFindingsPrior);
+            await m.createIndex(resolutionAnnotationsMeeting);
           }
         },
         beforeOpen: (details) async {

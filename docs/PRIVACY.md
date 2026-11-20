@@ -17,7 +17,7 @@
 | نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى محرك المحضر السحابي الذي تختاره (Google Gemini افتراضياً، أو Anthropic Claude) عند كتابة المحضر؛ لا، مع المحرك المحلي |
 | البصمات الصوتية للمتحدثين | قاعدة البيانات المحلية | **لا، أبداً** |
 | أسماء المتحدثين التي تدخلها | قاعدة البيانات المحلية | ضمن نص التفريغ المرسَل لكتابة المحضر |
-| المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك»، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
+| المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك» أو كاشف التناقضات، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
 | مفاتيح API | المخزن الآمن للنظام | تُرسَل فقط إلى مزوّد الخدمة الخاص بها للمصادقة |
 | الإعدادات | قاعدة البيانات المحلية | لا |
 | بيانات الجهة وشعارها وقوالب Word المرفوعة (الإصدار 1.2) | قاعدة البيانات المحلية ومجلد التطبيق | لا؛ يُرسَل اسم المجلس/اللجنة وقائمة الحضور المتوقعين ضمن طلب المحضر إلى المحرك المختار، والشعار والقالب يدخلان الملفات التي تصدّرها أنت فقط |
@@ -65,6 +65,17 @@
 **اسأل اجتماعاتك:** يُرسَل سؤالك مع مقتطفات من نصوص اجتماعاتك ومحاضرها (الأكثر
 صلة بالسؤال فقط) إلى المحرك نفسه المختار للمحضر، وبالموافقة نفسها؛ ولا تُحفظ
 المحادثة بعد إغلاق التطبيق.
+
+**كاشف التناقضات (الإصدار 1.2):** بعد إنشاء المحضر أو عند طلب الفحص يُرسَل إلى
+المحرك نفسه المختار للمحضر، وبالموافقة نفسها: عنوان الاجتماع وتاريخه، وقراراته
+ومهامه مع سطرين من التفريغ على الأكثر دليلاً لكل منها، والقرارات والمهام
+السابقة المرتبطة بها فقط (نصها، ورقم القرار، وعنوان اجتماعها ورقمه وتاريخه،
+والمسؤول والموعد والحالة) — لا تُرسَل التفريغات الكاملة للاجتماعات السابقة.
+مع المحرك المحلي لا يغادر شيء الجهاز، وتعمل القواعد المحلية دون أي إرسال.
+النتائج والتنويهات («أُلغي رسمياً») تُحفظ محلياً وتُحذف مع الاجتماع.
+**الفحص المباشر أثناء التسجيل** معطّل افتراضياً؛ إذا فعّلته يُرسَل كل بضع
+دقائق آخر ما قيل (حتى 60 مقطعاً) مع البنود السابقة المرتبطة به، وفقط إلى محرك
+سحابي (Gemini أو Claude) سبق أن وافقت عليه؛ ولا تُحفظ نتائجه.
 
 ### ب) التفريغ السحابي — Deepgram (اختياري، معطّل افتراضياً)
 إذا اخترت محرك التفريغ السحابي، تُرسَل **مقاطع الصوت** إلى Deepgram عبر
@@ -169,7 +180,7 @@ what leaves the device and where it goes.
 | Transcript text | Local database (SQLite) | Yes, to the cloud minutes engine you choose (Google Gemini by default, or Anthropic Claude) when minutes are generated; no with the on-device engine |
 | Speaker voiceprints | Local database | **Never** |
 | Speaker names you enter | Local database | As part of the transcript sent for minutes |
-| Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings, and open tasks with later minutes requests; otherwise only if you share/export them |
+| Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings or the contradiction checker, and open tasks with later minutes requests; otherwise only if you share/export them |
 | API keys | OS secure storage | Only to their own provider, for authentication |
 | Settings | Local database | No |
 | Entity profile, logo and uploaded Word templates (v1.2) | Local database and app folder | No; the council/committee name and the expected attendees are part of the minutes request to the chosen engine; the logo and template only go into files you export |
@@ -223,6 +234,20 @@ locally too.
 **Ask your meetings:** your question and the excerpts of your transcripts and
 minutes most relevant to it are sent to the same engine as the minutes,
 under the same consent; the conversation is not kept after the app closes.
+
+**Contradiction checker (v1.2):** after minutes are generated, or when you
+run the check, the same engine as the minutes receives, under the same
+consent: the meeting's title and date, its decisions and action items with
+at most two transcript lines of evidence each, and only the related earlier
+resolutions, decisions and tasks (text, resolution number, their meeting's
+title, number and date, owner, deadline, status) — never the full
+transcripts of earlier meetings. With the on-device engine nothing leaves
+the device, and the local rules send nothing. Findings and «أُلغي رسمياً»
+annotations are stored locally and deleted with the meeting. **Live checking
+while recording** is off by default; when enabled, every few minutes the
+latest lines (up to 60 segments) and the related earlier items are sent, and
+only to a cloud engine (Gemini or Claude) you already accepted; its results
+are not stored.
 
 ### b) Cloud transcription — Deepgram (optional, off by default)
 If you select the cloud transcription engine, **audio segments** are sent

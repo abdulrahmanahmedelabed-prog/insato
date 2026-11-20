@@ -1,4 +1,4 @@
-// Schema migrations v1 (Insato 1.0) → v5 (Insato 1.2), verified against the
+// Schema migrations v1 (Insato 1.0) → v6 (Insato 1.2 D), verified against the
 // drift schema snapshots in drift_schemas/ (regenerate the helpers with
 // `dart run drift_dev schema generate drift_schemas/ test/data/generated_migrations/`
 // after adding a schema version).
@@ -12,10 +12,12 @@ import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
+import 'package:insato/data/consistency_repository.dart';
 import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/official_repository.dart';
 import 'package:insato/data/repositories_v11.dart';
+import 'package:insato/features/consistency/consistency_models.dart';
 import 'package:insato/features/official/official_models.dart';
 
 import 'generated_migrations/schema.dart';
@@ -205,6 +207,118 @@ void main() {
       expect(await repo.signatures('m1'), isEmpty);
     });
   }
+
+  test('v5 → v6 and v1–v4 → v6 produce exactly the v6 schema', () async {
+    for (final from in [1, 2, 3, 4, 5]) {
+      final schema = await verifier.schemaAt(from);
+      final db = AppDatabase.forExecutor(schema.newConnection());
+      await verifier.migrateAndValidate(db, 6);
+      await db.close();
+    }
+  });
+
+  test('real v5 data survives v5 → v6 and the checker tables work', () async {
+    final schema = await verifier.schemaAt(5);
+    final raw = schema.rawDatabase;
+    seedV1(raw);
+    // A second (later) meeting, an approved official record, a version, a
+    // signature and a task as stored by v1.2 A/B (schema 5).
+    raw.execute(
+      'INSERT INTO meetings (id, title, created_at, duration_ms, status, '
+      'audio_path, minutes_json, error_message, agenda, expected_attendees, '
+      "template) VALUES ('m2', 'اجتماع لاحق', 1700000900000, 0, 'ready', "
+      "NULL, NULL, NULL, '[]', '[]', 'board')",
+    );
+    raw.execute(
+      'INSERT INTO official_records (meeting_id, entity_key, committee, '
+      'number_year, meeting_number, status, version, record_json, '
+      "updated_at) VALUES ('m1', 'الجهة', 'المجلس', 1448, 3, 'approved', 1, "
+      """'{"meeting_number":3,"number_year":1448,"status":"approved"}', """
+      '1700000003000)',
+    );
+    raw.execute(
+      'INSERT INTO minutes_versions (meeting_id, version, minutes_json, '
+      "record_json, content_hash, approved_at) VALUES ('m1', 1, '{}', '{}', "
+      "'h', 1700000004000)",
+    );
+    raw.execute(
+      'INSERT INTO minutes_signatures (meeting_id, version, signer_name, '
+      'signer_role, strokes_json, content_hash, signed_at) VALUES '
+      """('m1', 1, 'أحمد', 'رئيس', '{"strokes":[]}', 'h', 1700000005000)""",
+    );
+    raw.execute(
+      'INSERT INTO tasks (task, owner_text, status, source_meeting_id, '
+      "evidence_segment_ids, created_at, updated_at) VALUES ('مهمة', 'أحمد', "
+      "'open', 'm1', '[1]', 1700000001000, 1700000001000)",
+    );
+    final db = AppDatabase.forExecutor(schema.newConnection());
+    addTearDown(db.close);
+
+    // Earlier data is intact.
+    final record = (await OfficialMinutesRepository(db).get('m1'))!;
+    expect(record.status, OfficialStatus.approved);
+    expect(record.numberText, '3/1448هـ');
+    expect(await OfficialMinutesRepository(db).versions('m1'), hasLength(1));
+    expect(await OfficialMinutesRepository(db).signatures('m1'), hasLength(1));
+    expect((await TaskRepository(db).getAll()).single.evidenceSegmentIds, [1]);
+    final m1 = (await MeetingRepository(db).get('m1'))!;
+    expect(m1.minutes!.decisions.single.text, 'قرار');
+
+    // The v6 tables work with foreign keys on.
+    final repo = ConsistencyRepository(db);
+    final stored = await repo.replaceOpen('m2', [
+      const ConsistencyFinding(
+        meetingId: 'm2',
+        kind: FindingKind.contradictsResolution,
+        severity: FindingSeverity.high,
+        newSide: FindingSide(
+          kind: SideKind.decision,
+          text: 'إلغاء القرار',
+          meetingId: 'm2',
+          itemIndex: 0,
+          itemKey: 'إلغاء القرار',
+        ),
+        priorSide: FindingSide(
+          kind: SideKind.resolution,
+          text: 'قرار',
+          meetingId: 'm1',
+          itemIndex: 0,
+          itemKey: 'قرار',
+          label: 'قرار رقم (1/3/1448)',
+        ),
+      ),
+    ]);
+    final f = stored.single;
+    await repo.confirm(
+      f,
+      annotate: ResolutionAnnotation(
+        meetingId: 'm1',
+        decisionIndex: 0,
+        decisionKey: 'قرار',
+        byMeetingId: 'm2',
+        findingId: f.id!,
+        bySide: f.newSide,
+        createdAt: DateTime(2026, 11, 20),
+      ),
+    );
+    expect((await repo.get(f.id!))!.status, FindingStatus.confirmed);
+    expect((await repo.annotations('m1')).single.byMeetingId, 'm2');
+    expect(await repo.supersededKeys(), {
+      'm1': {'قرار'},
+    });
+    // The approved record was not touched by the annotation.
+    expect(
+      (await OfficialMinutesRepository(db).get('m1'))!.status,
+      OfficialStatus.approved,
+    );
+
+    // Deleting the later meeting removes its findings and annotations;
+    // deleting the earlier one only clears the finding's link.
+    await MeetingRepository(db).delete('m2');
+    expect(await repo.forMeeting('m2'), isEmpty);
+    expect(await repo.annotations('m1'), isEmpty);
+    expect(await OfficialMinutesRepository(db).get('m1'), isNotNull);
+  });
 
   test('a fresh database is created at the current version', () async {
     final schema = await verifier.schemaAt(AppDatabase.currentSchemaVersion);

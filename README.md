@@ -88,6 +88,14 @@
   الأغلبية، وشاشة مراجعة لأمين السر.
 - **الاعتماد والتواقيع**: مسودة ← مراجعة ← اعتماد يقفل المحتوى ويطبع رمز
   التحقق SHA-256، وتواقيع بالإصبع أو القلم على الجهاز، وسجل للإصدارات.
+- **كاشف التناقضات**: بعد إنشاء المحضر (وعند الطلب من تبويب «التناقضات»)
+  تُقارَن قرارات الاجتماع ومهامه بالقرارات المعتمدة والمهام السابقة وببعضها:
+  تعارض مع قرار سابق، تكرار مهمة قائمة، تغيير المسؤول أو الموعد، إعادة فتح
+  موضوع محسوم، تعارض داخل الاجتماع — مع ذكر الطرفين (الاجتماع ورقمه وتاريخه
+  الهجري والميلادي ورقم القرار والدليل) ودرجة الخطورة. تعمل القواعد المحلية
+  دون اتصال، ويتحقق محرك المحضر من الحالات الأدق دون أن يُسمح له باختلاق
+  مراجع. «تم الإلغاء رسمياً» يضيف تنويهاً إلى القرار السابق في اجتماعه دون
+  تعديل محضره المعتمد. وفحص مباشر أثناء التسجيل اختياري (معطّل افتراضياً).
 
 ## البنية باختصار
 
@@ -286,6 +294,17 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 - **Approval and signatures**: draft → reviewed → approved locks the
   content and prints its SHA-256; finger/pen signatures on the device;
   version history.
+- **Contradiction & consistency checker**: after the minutes are generated
+  (and on demand from the «التناقضات» tab) the meeting's decisions and
+  action items are compared with approved resolutions, earlier decisions and
+  tasks, and with each other: contradicts a resolution, duplicates a task,
+  changes an owner or deadline, revisits a closed topic, conflicts within
+  the meeting — citing both sides (meeting, number, Hijri and Gregorian
+  date, resolution number, evidence) with a severity. Local rules work
+  offline; the minutes engine classifies the subtler cases and cannot invent
+  references. «تم الإلغاء رسمياً» annotates the earlier resolution on its
+  meeting without editing approved minutes. Optional live check while
+  recording (off by default).
 
 ## Architecture summary
 

@@ -282,7 +282,15 @@ void main() {
     await settle(t, rounds: 10);
     expect(find.text('لجنة التدقيق'), findsOneWidget);
     await t.tap(find.text(S.save).first);
-    await settle(t, rounds: 10);
+    // Under a loaded full-suite run the save can take longer than a fixed
+    // number of frames: wait for it.
+    await settleUntil(
+      t,
+      () async =>
+          (await OfficialSettingsStore(env.db).profile()).entityName ==
+          'وزارة المثال',
+      reason: 'profile saved',
+    );
     final profile = await env.run(
       t,
       () => OfficialSettingsStore(env.db).profile(),
@@ -293,7 +301,13 @@ void main() {
     await t.tap(find.text(OS.uploadTemplate));
     await settle(t, rounds: 10);
     await t.tap(find.text(OS.uploadTemplate).last);
-    await settle(t, rounds: 12);
+    await settleUntil(
+      t,
+      () async =>
+          (await OfficialSettingsStore(env.db).templates()).isNotEmpty &&
+          find.text('قالب الجهة').evaluate().isNotEmpty,
+      reason: 'template uploaded',
+    );
     final templates = await env.run(
       t,
       () => OfficialSettingsStore(env.db).templates(),

@@ -222,6 +222,32 @@ Future<void> settle(WidgetTester t, {int rounds = 6}) async {
   await t.pump(const Duration(milliseconds: 16));
 }
 
+/// Pumps (with real-async gaps for the database) until [condition] holds,
+/// for at most [timeout] of real time — robust under a loaded test run,
+/// unlike a fixed number of [settle] rounds. Fails when it never holds.
+Future<void> settleUntil(
+  WidgetTester t,
+  FutureOr<bool> Function() condition, {
+  Duration timeout = const Duration(seconds: 20),
+  String? reason,
+}) async {
+  final sw = Stopwatch()..start();
+  while (true) {
+    await t.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await t.pump(const Duration(milliseconds: 16));
+    final ok = await t.runAsync(() async => await condition()) ?? false;
+    if (ok) break;
+    if (sw.elapsed > timeout) {
+      fail(
+        'settleUntil: condition not met${reason == null ? '' : ' ($reason)'}',
+      );
+    }
+  }
+  await settle(t);
+}
+
 /// Taps the "new meeting" button and starts the recording from the
 /// meeting-context form with "skip and start" (consent already given).
 Future<void> startFromFab(WidgetTester t) async {

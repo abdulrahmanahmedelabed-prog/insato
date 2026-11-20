@@ -51,7 +51,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
 | Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
-| Database | drift schema v5 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`), migrations tested from v1–v4 snapshots | Upgrades keep all data |
+| Database | drift schema v6 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`; v1.2 D: `consistency_findings`, `resolution_annotations`), migrations tested from v1–v5 snapshots (real v5 data upgraded in `test/data/migration_test.dart`) | Upgrades keep all data |
 
 ## Module layout (`lib/`)
 
@@ -95,7 +95,7 @@ lib/
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 features (one folder each, see below)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -151,6 +151,29 @@ minutes, changing the template or editing after approval starts a new draft
 version (`onMinutesSaved` / context flow). Exports take an optional
 `OfficialDocument`; Word uses the meeting's uploaded template when there is
 one (PDF keeps the built-in official layout with that template's rules).
+
+## v1.2 contradiction & consistency checker (D)
+
+`lib/features/consistency/` (strings `DS`), storage in
+`lib/data/consistency_repository.dart` (schema v6):
+
+| Piece | File | Notes |
+|---|---|---|
+| Models | `consistency_models.dart` | `FindingKind` (contradicts_resolution, duplicates_task, changes_owner, changes_deadline, revisits_closed_topic, internal_conflict), `FindingSeverity`, `FindingStatus`, `FindingSide` (snapshot of one side: meeting id / title / date / number, item index + key, resolution label, text, owner, due, task id / status, evidence), `ConsistencyFinding`, `ResolutionAnnotation` |
+| Memory & heuristics | `consistency_logic.dart` | `buildInstitutionalMemory` (earlier meetings only: approved resolutions ×1.0, other decisions ×0.6, tasks ×0.8 / ×0.5 when closed; superseded resolutions skipped), `newItemsOf` (`D1…`, `A1…`), `retrieveCandidates` (F8 `Bm25Index` + `analyzeSearchText`, ≥ 2 shared terms, top 4), `heuristicFindings` (negation / cancellation words, changed numbers, `similarTaskText` + `personNamesMatch`), `mergeFindings` (a pair found by a rule keeps the rule's finding) |
+| Engine request | `consistency_prompt.dart` | `kConsistencySystemPrompt`, strict `consistencyAnswerSchema` (every object closed, all keys required, `prior_ref` nullable, `no_issue` allowed), `buildConsistencyPlan` (budget = `askPromptCharBudget(engine)`; items with candidates first; ≤ 2 evidence lines per item), `parseConsistencyAnswer` (keeps only candidate pairs given in the request, kinds that fit the sides, existing segments; drops findings whose explanation cites unknown `[R7]`, `#44` or resolution numbers; replaces refs by labels), `buildLivePlan` |
+| Service | `consistency_service.dart` | `check` (heuristics → engine when there are candidates or ≥ 2 items; engine errors keep the heuristic findings with a notice), `confirm` (decision findings: annotation of the earlier resolution in the same transaction), `dismiss`, `reopen`, `liveCheck` (cloud engines only, nothing stored) |
+| Wiring | `consistency_providers.dart` | `consistencyServiceProvider` (engine = `minutesBackendFactoryProvider`), `consistencyCheckProvider(meetingId)` (one run at a time, not auto-disposed), `startAutomaticConsistencyCheck` (called by `MeetingJobsController.generateMinutes` after minutes were saved), `liveConsistencyProvider` |
+| UI | `consistency_widgets.dart` | `ConsistencyTab` (6th meeting tab, `ConsistencyTabLabel` badge), `FindingCard` / `FindingSideView` (this meeting: `EvidenceChips`; earlier meeting: `openAskCitation` → source sheet → open meeting), `SupersededResolutionsCard` (earlier meeting's minutes tab and official screen), `LiveConsistencyBanner` (recording screen), `ConsistencyLiveSettingTile` (Settings) |
+
+Approval locks: confirming «تم الإلغاء رسمياً» never edits minutes; it adds
+a `resolution_annotations` row keyed by the decision index and
+`decisionKeyOf` (shown only while the decision still exists). Approved
+minutes therefore keep their content, version and SHA-256; the annotation
+is displayed next to them. Re-checks replace only *open* findings; the
+`finding_key` (kind + both sides) keeps dismissed / confirmed decisions.
+Deleting the checked meeting deletes its findings and annotations; deleting
+the earlier meeting nulls `prior_meeting_id` (the snapshot stays readable).
 
 Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom

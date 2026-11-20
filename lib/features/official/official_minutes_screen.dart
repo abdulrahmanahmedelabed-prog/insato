@@ -13,6 +13,8 @@ import '../../session/providers.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../consistency/consistency_widgets.dart'
+    show SupersededResolutionsCard;
 import 'attendance_screen.dart';
 import 'official_logic.dart';
 import 'official_models.dart';
@@ -101,6 +103,9 @@ class OfficialMinutesScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // v1.2 D: resolutions superseded by later meetings
+                    // (an annotation; the approved content is unchanged).
+                    SupersededResolutionsCard(meeting: meeting),
                     // ------------------------------------------- Template
                     const SectionHeader(
                       OS.templateHeader,

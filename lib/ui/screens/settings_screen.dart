@@ -12,6 +12,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
+import '../../features/consistency/consistency.dart'
+    show ConsistencyLiveSettingTile;
 import '../../features/context/glossary_screen.dart' show GlossaryScreen;
 import '../../features/context/strings.dart' show CS;
 import '../../features/local_llm/local_minutes_backends.dart';
@@ -123,6 +125,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(S.minutesDetailHelper, style: muted),
+              const SizedBox(height: 8),
+              const ConsistencyLiveSettingTile(),
 
               // ------------------------------------------------------- ASR
               const SectionHeader(S.sectionAsr, icon: Icons.graphic_eq_rounded),

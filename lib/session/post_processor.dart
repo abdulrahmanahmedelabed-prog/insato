@@ -37,6 +37,8 @@ import '../audio/wav_writer.dart';
 import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
+import '../features/consistency/consistency_providers.dart'
+    show startAutomaticConsistencyCheck;
 import '../features/official/official_models.dart' show resolveTemplate;
 import '../data/database.dart';
 import '../data/minutes_artifacts.dart';
@@ -1801,11 +1803,18 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
   /// or empty transcript is a successful skip with a notice; otherwise it is
   /// a failure. Returns true when minutes were generated (or skipped
   /// automatically).
+  ///
+  /// v1.2 (D): once new minutes are saved, the consistency checker runs in
+  /// the background (heuristics, then the selected engine).
   Future<bool> generateMinutes({bool automatic = false}) {
     final post = ref.read(postProcessorProvider);
-    return _run(MeetingJobKind.minutes, 'جارٍ إعداد المحضر…', (progress) async {
+    var generated = false;
+    final job = _run(MeetingJobKind.minutes, 'جارٍ إعداد المحضر…', (
+      progress,
+    ) async {
       if (!automatic) {
         await post.regenerateMinutes(meetingId, onProgress: progress);
+        generated = true;
         return const MeetingJobState(
           kind: MeetingJobKind.minutes,
           phase: MeetingJobPhase.succeeded,
@@ -1817,6 +1826,7 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
         meetingId,
         onProgress: progress,
       );
+      generated = run.outcome == MinutesOutcome.generated;
       return switch (run.outcome) {
         MinutesOutcome.generated => const MeetingJobState(
           kind: MeetingJobKind.minutes,
@@ -1847,6 +1857,12 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
               'المحضر. افتح قفل الجهاز ثم اضغط «إنشاء المحضر».',
         ),
       };
+    });
+    return job.then((ok) {
+      if (ok && generated && ref.mounted) {
+        startAutomaticConsistencyCheck(ref, meetingId);
+      }
+      return ok;
     });
   }
 

@@ -104,9 +104,9 @@ void main() {
       );
     });
 
-    test('schema version is 5 (v1.2 official minutes)', () {
-      expect(db.schemaVersion, 5);
-      expect(AppDatabase.currentSchemaVersion, 5);
+    test('schema version is 6 (v1.2 consistency checker)', () {
+      expect(db.schemaVersion, 6);
+      expect(AppDatabase.currentSchemaVersion, 6);
     });
 
     test('blob columns store raw bytes', () async {

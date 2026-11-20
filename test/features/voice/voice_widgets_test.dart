@@ -208,7 +208,11 @@ void main() {
     await settle(t);
     env.mics.recording!.emit(join([noise(400), tone(4800)]));
     await t.pump(const Duration(milliseconds: 150));
-    await settle(t, rounds: 40);
+    await settleUntil(
+      t,
+      () => find.text(VoiceStrings.testResult).evaluate().isNotEmpty,
+      reason: 'mic test result',
+    );
     expect(find.text(VoiceStrings.testResult), findsOneWidget);
     expect(find.text(VoiceStrings.testOk), findsOneWidget);
     await tapVisible(t, find.text(VoiceStrings.playTest));

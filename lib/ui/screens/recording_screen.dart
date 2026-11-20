@@ -24,6 +24,7 @@ import '../../features/system_audio/mixed_session_audio_source.dart'
         audioSourceOfMode,
         resolveSessionAudioMode,
         systemAudioSupportedProvider;
+import '../../features/consistency/consistency.dart' show LiveConsistencyBanner;
 import '../../features/tasks/tasks.dart' show OpenTasksBanner;
 import '../../features/voice/mic_capture.dart' show capturePlatformProvider;
 import '../../features/voice/mic_settings.dart' show MicDeviceChip;
@@ -309,6 +310,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: OpenTasksBanner(meetingId: meetingId),
+          ),
+        if (meetingId != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: LiveConsistencyBanner(meetingId: meetingId),
           ),
         _ControlPanel(
           state: s,

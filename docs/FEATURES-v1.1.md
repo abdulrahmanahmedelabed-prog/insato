@@ -238,7 +238,7 @@ width** so it uses a large Windows window well.
 Goal: Insato becomes *the* app for official Arabic minutes. Scheduled after
 v1.1 is verified on real devices.
 
-## Status (v1.2 A + B, 2026-11-20)
+## Status (v1.2 A + B + D, 2026-11-20)
 
 | Item | State | Reachable from |
 |---|---|---|
@@ -256,7 +256,13 @@ v1.1 is verified on real devices.
 | B tally | Simple / absolute / two-thirds / unanimity, chair casting vote, unclear positions → «بحاجة إلى تأكيد» only when they could change the outcome | Pure Dart (`official_logic.dart`) |
 | B secretary review | Confirm / correct positions and mode per resolution | Official screen → «مراجعة التصويت» |
 | PDF for uploaded templates | PDF uses the built-in official layout with the linked template's rules (a .docx cannot be rendered to PDF on device); Word uses the uploaded file | Export sheet |
-| C, D | Not started | — |
+| D institutional memory | Approved resolutions (weight 1.0), decisions of non-approved minutes (0.6), open (0.8) and closed (0.5) tasks of meetings *before* the checked one, indexed with the F8 BM25 + Arabic analysis; resolutions marked «أُلغي رسمياً» are left out | `consistency_logic.dart` |
+| D checker | After every minutes generation (background) and on demand: pure-Dart heuristics first (same decision again, negation / cancellation, changed numbers, duplicated task, other owner / deadline, closed task re-assigned, conflicts inside the meeting), then one structured request to the selected engine (strict schema) classifying the candidate pairs; references, numbers and segments the engine cites are validated, the rest dropped; engine failure keeps the heuristic findings with a notice | Meeting tab «التناقضات» (badge = open findings) |
+| D findings | Stored per meeting (schema v6 `consistency_findings`), both sides as snapshots (meeting title / number / Hijri + Gregorian date, resolution label, text, owner / deadline, evidence) with severity and origin; re-checks keep dismissed / confirmed ones | Tab «التناقضات» |
+| D actions | Dismiss; «تم الإلغاء رسمياً» → annotation of the earlier resolution (`resolution_annotations`) shown on its meeting (minutes tab and official screen) — never an edit, so approved minutes keep their content, version and hash; task findings «تأكيد»; undo | Tab «التناقضات»; earlier meeting's minutes tab / «المحضر الرسمي» |
+| D live mode | Off by default (Settings → «فحص التناقضات أثناء التسجيل»); every 4 minutes while the recording screen is open, the latest lines + related earlier items go to the selected engine **only if it is a cloud engine already accepted**; subtle banner + details sheet; nothing stored | Recording screen |
+| D not done | Annotations are not printed in exports (PDF / Word) yet; live checks pause while the recording screen is not shown | — |
+| C | Not started | — |
 
 
 ## A — Official Arabic minutes (المحضر الرسمي المعتمد)

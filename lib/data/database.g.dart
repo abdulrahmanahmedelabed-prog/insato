@@ -7010,6 +7010,1406 @@ class MinutesSignaturesCompanion extends UpdateCompanion<MinutesSignatureRow> {
   }
 }
 
+class $ConsistencyFindingsTable extends ConsistencyFindings
+    with TableInfo<$ConsistencyFindingsTable, ConsistencyFindingRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ConsistencyFindingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _severityMeta = const VerificationMeta(
+    'severity',
+  );
+  @override
+  late final GeneratedColumn<String> severity = GeneratedColumn<String>(
+    'severity',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('open'),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('heuristic'),
+  );
+  static const VerificationMeta _findingKeyMeta = const VerificationMeta(
+    'findingKey',
+  );
+  @override
+  late final GeneratedColumn<String> findingKey = GeneratedColumn<String>(
+    'finding_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _explanationMeta = const VerificationMeta(
+    'explanation',
+  );
+  @override
+  late final GeneratedColumn<String> explanation = GeneratedColumn<String>(
+    'explanation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _newSideJsonMeta = const VerificationMeta(
+    'newSideJson',
+  );
+  @override
+  late final GeneratedColumn<String> newSideJson = GeneratedColumn<String>(
+    'new_side_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _priorSideJsonMeta = const VerificationMeta(
+    'priorSideJson',
+  );
+  @override
+  late final GeneratedColumn<String> priorSideJson = GeneratedColumn<String>(
+    'prior_side_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _priorMeetingIdMeta = const VerificationMeta(
+    'priorMeetingId',
+  );
+  @override
+  late final GeneratedColumn<String> priorMeetingId = GeneratedColumn<String>(
+    'prior_meeting_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE SET NULL',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
+      GeneratedColumn<int>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($ConsistencyFindingsTable.$convertercreatedAt);
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int> resolvedAt =
+      GeneratedColumn<int>(
+        'resolved_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $ConsistencyFindingsTable.$converterresolvedAtn,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    meetingId,
+    kind,
+    severity,
+    status,
+    origin,
+    findingKey,
+    explanation,
+    newSideJson,
+    priorSideJson,
+    priorMeetingId,
+    createdAt,
+    resolvedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'consistency_findings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ConsistencyFindingRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('severity')) {
+      context.handle(
+        _severityMeta,
+        severity.isAcceptableOrUnknown(data['severity']!, _severityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_severityMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('finding_key')) {
+      context.handle(
+        _findingKeyMeta,
+        findingKey.isAcceptableOrUnknown(data['finding_key']!, _findingKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_findingKeyMeta);
+    }
+    if (data.containsKey('explanation')) {
+      context.handle(
+        _explanationMeta,
+        explanation.isAcceptableOrUnknown(
+          data['explanation']!,
+          _explanationMeta,
+        ),
+      );
+    }
+    if (data.containsKey('new_side_json')) {
+      context.handle(
+        _newSideJsonMeta,
+        newSideJson.isAcceptableOrUnknown(
+          data['new_side_json']!,
+          _newSideJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_newSideJsonMeta);
+    }
+    if (data.containsKey('prior_side_json')) {
+      context.handle(
+        _priorSideJsonMeta,
+        priorSideJson.isAcceptableOrUnknown(
+          data['prior_side_json']!,
+          _priorSideJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_priorSideJsonMeta);
+    }
+    if (data.containsKey('prior_meeting_id')) {
+      context.handle(
+        _priorMeetingIdMeta,
+        priorMeetingId.isAcceptableOrUnknown(
+          data['prior_meeting_id']!,
+          _priorMeetingIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ConsistencyFindingRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ConsistencyFindingRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      severity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}severity'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      findingKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}finding_key'],
+      )!,
+      explanation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}explanation'],
+      )!,
+      newSideJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_side_json'],
+      )!,
+      priorSideJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prior_side_json'],
+      )!,
+      priorMeetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prior_meeting_id'],
+      ),
+      createdAt: $ConsistencyFindingsTable.$convertercreatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}created_at'],
+        )!,
+      ),
+      resolvedAt: $ConsistencyFindingsTable.$converterresolvedAtn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}resolved_at'],
+        ),
+      ),
+    );
+  }
+
+  @override
+  $ConsistencyFindingsTable createAlias(String alias) {
+    return $ConsistencyFindingsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercreatedAt =
+      const EpochMillisConverter();
+  static TypeConverter<DateTime, int> $converterresolvedAt =
+      const EpochMillisConverter();
+  static TypeConverter<DateTime?, int?> $converterresolvedAtn =
+      NullAwareTypeConverter.wrap($converterresolvedAt);
+}
+
+class ConsistencyFindingRow extends DataClass
+    implements Insertable<ConsistencyFindingRow> {
+  /// Auto-increment primary key.
+  final int id;
+
+  /// Meeting checked; deleted with the meeting.
+  final String meetingId;
+
+  /// `FindingKind.wire`.
+  final String kind;
+
+  /// `FindingSeverity.wire`.
+  final String severity;
+
+  /// `FindingStatus.wire` — open / dismissed / confirmed.
+  final String status;
+
+  /// `heuristic` (pure-Dart rules) or `engine` (minutes engine).
+  final String origin;
+
+  /// Stable key (kind + both sides) so a re-check keeps the user's
+  /// decisions.
+  final String findingKey;
+
+  /// Arabic explanation.
+  final String explanation;
+
+  /// The new side (`FindingSide.toJson()`).
+  final String newSideJson;
+
+  /// The earlier side (`FindingSide.toJson()`).
+  final String priorSideJson;
+
+  /// Meeting of the earlier side (null for a manual task or once that
+  /// meeting is deleted).
+  final String? priorMeetingId;
+
+  /// Creation time (UTC epoch milliseconds in SQL).
+  final DateTime createdAt;
+
+  /// When it was dismissed / confirmed.
+  final DateTime? resolvedAt;
+  const ConsistencyFindingRow({
+    required this.id,
+    required this.meetingId,
+    required this.kind,
+    required this.severity,
+    required this.status,
+    required this.origin,
+    required this.findingKey,
+    required this.explanation,
+    required this.newSideJson,
+    required this.priorSideJson,
+    this.priorMeetingId,
+    required this.createdAt,
+    this.resolvedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['kind'] = Variable<String>(kind);
+    map['severity'] = Variable<String>(severity);
+    map['status'] = Variable<String>(status);
+    map['origin'] = Variable<String>(origin);
+    map['finding_key'] = Variable<String>(findingKey);
+    map['explanation'] = Variable<String>(explanation);
+    map['new_side_json'] = Variable<String>(newSideJson);
+    map['prior_side_json'] = Variable<String>(priorSideJson);
+    if (!nullToAbsent || priorMeetingId != null) {
+      map['prior_meeting_id'] = Variable<String>(priorMeetingId);
+    }
+    {
+      map['created_at'] = Variable<int>(
+        $ConsistencyFindingsTable.$convertercreatedAt.toSql(createdAt),
+      );
+    }
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<int>(
+        $ConsistencyFindingsTable.$converterresolvedAtn.toSql(resolvedAt),
+      );
+    }
+    return map;
+  }
+
+  ConsistencyFindingsCompanion toCompanion(bool nullToAbsent) {
+    return ConsistencyFindingsCompanion(
+      id: Value(id),
+      meetingId: Value(meetingId),
+      kind: Value(kind),
+      severity: Value(severity),
+      status: Value(status),
+      origin: Value(origin),
+      findingKey: Value(findingKey),
+      explanation: Value(explanation),
+      newSideJson: Value(newSideJson),
+      priorSideJson: Value(priorSideJson),
+      priorMeetingId: priorMeetingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(priorMeetingId),
+      createdAt: Value(createdAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+    );
+  }
+
+  factory ConsistencyFindingRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ConsistencyFindingRow(
+      id: serializer.fromJson<int>(json['id']),
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      severity: serializer.fromJson<String>(json['severity']),
+      status: serializer.fromJson<String>(json['status']),
+      origin: serializer.fromJson<String>(json['origin']),
+      findingKey: serializer.fromJson<String>(json['findingKey']),
+      explanation: serializer.fromJson<String>(json['explanation']),
+      newSideJson: serializer.fromJson<String>(json['newSideJson']),
+      priorSideJson: serializer.fromJson<String>(json['priorSideJson']),
+      priorMeetingId: serializer.fromJson<String?>(json['priorMeetingId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'meetingId': serializer.toJson<String>(meetingId),
+      'kind': serializer.toJson<String>(kind),
+      'severity': serializer.toJson<String>(severity),
+      'status': serializer.toJson<String>(status),
+      'origin': serializer.toJson<String>(origin),
+      'findingKey': serializer.toJson<String>(findingKey),
+      'explanation': serializer.toJson<String>(explanation),
+      'newSideJson': serializer.toJson<String>(newSideJson),
+      'priorSideJson': serializer.toJson<String>(priorSideJson),
+      'priorMeetingId': serializer.toJson<String?>(priorMeetingId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+    };
+  }
+
+  ConsistencyFindingRow copyWith({
+    int? id,
+    String? meetingId,
+    String? kind,
+    String? severity,
+    String? status,
+    String? origin,
+    String? findingKey,
+    String? explanation,
+    String? newSideJson,
+    String? priorSideJson,
+    Value<String?> priorMeetingId = const Value.absent(),
+    DateTime? createdAt,
+    Value<DateTime?> resolvedAt = const Value.absent(),
+  }) => ConsistencyFindingRow(
+    id: id ?? this.id,
+    meetingId: meetingId ?? this.meetingId,
+    kind: kind ?? this.kind,
+    severity: severity ?? this.severity,
+    status: status ?? this.status,
+    origin: origin ?? this.origin,
+    findingKey: findingKey ?? this.findingKey,
+    explanation: explanation ?? this.explanation,
+    newSideJson: newSideJson ?? this.newSideJson,
+    priorSideJson: priorSideJson ?? this.priorSideJson,
+    priorMeetingId: priorMeetingId.present
+        ? priorMeetingId.value
+        : this.priorMeetingId,
+    createdAt: createdAt ?? this.createdAt,
+    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+  );
+  ConsistencyFindingRow copyWithCompanion(ConsistencyFindingsCompanion data) {
+    return ConsistencyFindingRow(
+      id: data.id.present ? data.id.value : this.id,
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      severity: data.severity.present ? data.severity.value : this.severity,
+      status: data.status.present ? data.status.value : this.status,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      findingKey: data.findingKey.present
+          ? data.findingKey.value
+          : this.findingKey,
+      explanation: data.explanation.present
+          ? data.explanation.value
+          : this.explanation,
+      newSideJson: data.newSideJson.present
+          ? data.newSideJson.value
+          : this.newSideJson,
+      priorSideJson: data.priorSideJson.present
+          ? data.priorSideJson.value
+          : this.priorSideJson,
+      priorMeetingId: data.priorMeetingId.present
+          ? data.priorMeetingId.value
+          : this.priorMeetingId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      resolvedAt: data.resolvedAt.present
+          ? data.resolvedAt.value
+          : this.resolvedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ConsistencyFindingRow(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('kind: $kind, ')
+          ..write('severity: $severity, ')
+          ..write('status: $status, ')
+          ..write('origin: $origin, ')
+          ..write('findingKey: $findingKey, ')
+          ..write('explanation: $explanation, ')
+          ..write('newSideJson: $newSideJson, ')
+          ..write('priorSideJson: $priorSideJson, ')
+          ..write('priorMeetingId: $priorMeetingId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    meetingId,
+    kind,
+    severity,
+    status,
+    origin,
+    findingKey,
+    explanation,
+    newSideJson,
+    priorSideJson,
+    priorMeetingId,
+    createdAt,
+    resolvedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ConsistencyFindingRow &&
+          other.id == this.id &&
+          other.meetingId == this.meetingId &&
+          other.kind == this.kind &&
+          other.severity == this.severity &&
+          other.status == this.status &&
+          other.origin == this.origin &&
+          other.findingKey == this.findingKey &&
+          other.explanation == this.explanation &&
+          other.newSideJson == this.newSideJson &&
+          other.priorSideJson == this.priorSideJson &&
+          other.priorMeetingId == this.priorMeetingId &&
+          other.createdAt == this.createdAt &&
+          other.resolvedAt == this.resolvedAt);
+}
+
+class ConsistencyFindingsCompanion
+    extends UpdateCompanion<ConsistencyFindingRow> {
+  final Value<int> id;
+  final Value<String> meetingId;
+  final Value<String> kind;
+  final Value<String> severity;
+  final Value<String> status;
+  final Value<String> origin;
+  final Value<String> findingKey;
+  final Value<String> explanation;
+  final Value<String> newSideJson;
+  final Value<String> priorSideJson;
+  final Value<String?> priorMeetingId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> resolvedAt;
+  const ConsistencyFindingsCompanion({
+    this.id = const Value.absent(),
+    this.meetingId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.severity = const Value.absent(),
+    this.status = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.findingKey = const Value.absent(),
+    this.explanation = const Value.absent(),
+    this.newSideJson = const Value.absent(),
+    this.priorSideJson = const Value.absent(),
+    this.priorMeetingId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+  });
+  ConsistencyFindingsCompanion.insert({
+    this.id = const Value.absent(),
+    required String meetingId,
+    required String kind,
+    required String severity,
+    this.status = const Value.absent(),
+    this.origin = const Value.absent(),
+    required String findingKey,
+    this.explanation = const Value.absent(),
+    required String newSideJson,
+    required String priorSideJson,
+    this.priorMeetingId = const Value.absent(),
+    required DateTime createdAt,
+    this.resolvedAt = const Value.absent(),
+  }) : meetingId = Value(meetingId),
+       kind = Value(kind),
+       severity = Value(severity),
+       findingKey = Value(findingKey),
+       newSideJson = Value(newSideJson),
+       priorSideJson = Value(priorSideJson),
+       createdAt = Value(createdAt);
+  static Insertable<ConsistencyFindingRow> custom({
+    Expression<int>? id,
+    Expression<String>? meetingId,
+    Expression<String>? kind,
+    Expression<String>? severity,
+    Expression<String>? status,
+    Expression<String>? origin,
+    Expression<String>? findingKey,
+    Expression<String>? explanation,
+    Expression<String>? newSideJson,
+    Expression<String>? priorSideJson,
+    Expression<String>? priorMeetingId,
+    Expression<int>? createdAt,
+    Expression<int>? resolvedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (kind != null) 'kind': kind,
+      if (severity != null) 'severity': severity,
+      if (status != null) 'status': status,
+      if (origin != null) 'origin': origin,
+      if (findingKey != null) 'finding_key': findingKey,
+      if (explanation != null) 'explanation': explanation,
+      if (newSideJson != null) 'new_side_json': newSideJson,
+      if (priorSideJson != null) 'prior_side_json': priorSideJson,
+      if (priorMeetingId != null) 'prior_meeting_id': priorMeetingId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+    });
+  }
+
+  ConsistencyFindingsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? meetingId,
+    Value<String>? kind,
+    Value<String>? severity,
+    Value<String>? status,
+    Value<String>? origin,
+    Value<String>? findingKey,
+    Value<String>? explanation,
+    Value<String>? newSideJson,
+    Value<String>? priorSideJson,
+    Value<String?>? priorMeetingId,
+    Value<DateTime>? createdAt,
+    Value<DateTime?>? resolvedAt,
+  }) {
+    return ConsistencyFindingsCompanion(
+      id: id ?? this.id,
+      meetingId: meetingId ?? this.meetingId,
+      kind: kind ?? this.kind,
+      severity: severity ?? this.severity,
+      status: status ?? this.status,
+      origin: origin ?? this.origin,
+      findingKey: findingKey ?? this.findingKey,
+      explanation: explanation ?? this.explanation,
+      newSideJson: newSideJson ?? this.newSideJson,
+      priorSideJson: priorSideJson ?? this.priorSideJson,
+      priorMeetingId: priorMeetingId ?? this.priorMeetingId,
+      createdAt: createdAt ?? this.createdAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (severity.present) {
+      map['severity'] = Variable<String>(severity.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (findingKey.present) {
+      map['finding_key'] = Variable<String>(findingKey.value);
+    }
+    if (explanation.present) {
+      map['explanation'] = Variable<String>(explanation.value);
+    }
+    if (newSideJson.present) {
+      map['new_side_json'] = Variable<String>(newSideJson.value);
+    }
+    if (priorSideJson.present) {
+      map['prior_side_json'] = Variable<String>(priorSideJson.value);
+    }
+    if (priorMeetingId.present) {
+      map['prior_meeting_id'] = Variable<String>(priorMeetingId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(
+        $ConsistencyFindingsTable.$convertercreatedAt.toSql(createdAt.value),
+      );
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<int>(
+        $ConsistencyFindingsTable.$converterresolvedAtn.toSql(resolvedAt.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ConsistencyFindingsCompanion(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('kind: $kind, ')
+          ..write('severity: $severity, ')
+          ..write('status: $status, ')
+          ..write('origin: $origin, ')
+          ..write('findingKey: $findingKey, ')
+          ..write('explanation: $explanation, ')
+          ..write('newSideJson: $newSideJson, ')
+          ..write('priorSideJson: $priorSideJson, ')
+          ..write('priorMeetingId: $priorMeetingId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ResolutionAnnotationsTable extends ResolutionAnnotations
+    with TableInfo<$ResolutionAnnotationsTable, ResolutionAnnotationRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ResolutionAnnotationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _decisionIndexMeta = const VerificationMeta(
+    'decisionIndex',
+  );
+  @override
+  late final GeneratedColumn<int> decisionIndex = GeneratedColumn<int>(
+    'decision_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _decisionKeyMeta = const VerificationMeta(
+    'decisionKey',
+  );
+  @override
+  late final GeneratedColumn<String> decisionKey = GeneratedColumn<String>(
+    'decision_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('superseded'),
+  );
+  static const VerificationMeta _byMeetingIdMeta = const VerificationMeta(
+    'byMeetingId',
+  );
+  @override
+  late final GeneratedColumn<String> byMeetingId = GeneratedColumn<String>(
+    'by_meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _findingIdMeta = const VerificationMeta(
+    'findingId',
+  );
+  @override
+  late final GeneratedColumn<int> findingId = GeneratedColumn<int>(
+    'finding_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES consistency_findings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bySideJsonMeta = const VerificationMeta(
+    'bySideJson',
+  );
+  @override
+  late final GeneratedColumn<String> bySideJson = GeneratedColumn<String>(
+    'by_side_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
+      GeneratedColumn<int>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $ResolutionAnnotationsTable.$convertercreatedAt,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    meetingId,
+    decisionIndex,
+    decisionKey,
+    kind,
+    byMeetingId,
+    findingId,
+    bySideJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'resolution_annotations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ResolutionAnnotationRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('decision_index')) {
+      context.handle(
+        _decisionIndexMeta,
+        decisionIndex.isAcceptableOrUnknown(
+          data['decision_index']!,
+          _decisionIndexMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_decisionIndexMeta);
+    }
+    if (data.containsKey('decision_key')) {
+      context.handle(
+        _decisionKeyMeta,
+        decisionKey.isAcceptableOrUnknown(
+          data['decision_key']!,
+          _decisionKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_decisionKeyMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('by_meeting_id')) {
+      context.handle(
+        _byMeetingIdMeta,
+        byMeetingId.isAcceptableOrUnknown(
+          data['by_meeting_id']!,
+          _byMeetingIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_byMeetingIdMeta);
+    }
+    if (data.containsKey('finding_id')) {
+      context.handle(
+        _findingIdMeta,
+        findingId.isAcceptableOrUnknown(data['finding_id']!, _findingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_findingIdMeta);
+    }
+    if (data.containsKey('by_side_json')) {
+      context.handle(
+        _bySideJsonMeta,
+        bySideJson.isAcceptableOrUnknown(
+          data['by_side_json']!,
+          _bySideJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_bySideJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ResolutionAnnotationRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ResolutionAnnotationRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      decisionIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}decision_index'],
+      )!,
+      decisionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}decision_key'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      byMeetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}by_meeting_id'],
+      )!,
+      findingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}finding_id'],
+      )!,
+      bySideJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}by_side_json'],
+      )!,
+      createdAt: $ResolutionAnnotationsTable.$convertercreatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}created_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $ResolutionAnnotationsTable createAlias(String alias) {
+    return $ResolutionAnnotationsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercreatedAt =
+      const EpochMillisConverter();
+}
+
+class ResolutionAnnotationRow extends DataClass
+    implements Insertable<ResolutionAnnotationRow> {
+  /// Auto-increment primary key.
+  final int id;
+
+  /// Meeting whose resolution is annotated.
+  final String meetingId;
+
+  /// 0-based index of the decision when annotated.
+  final int decisionIndex;
+
+  /// `decisionKeyOf` of the decision (guards against regeneration).
+  final String decisionKey;
+
+  /// `superseded`.
+  final String kind;
+
+  /// Meeting whose decision superseded it.
+  final String byMeetingId;
+
+  /// The confirmed finding.
+  final int findingId;
+
+  /// Snapshot of the superseding side (`FindingSide.toJson()`).
+  final String bySideJson;
+
+  /// Annotation time (UTC epoch milliseconds in SQL).
+  final DateTime createdAt;
+  const ResolutionAnnotationRow({
+    required this.id,
+    required this.meetingId,
+    required this.decisionIndex,
+    required this.decisionKey,
+    required this.kind,
+    required this.byMeetingId,
+    required this.findingId,
+    required this.bySideJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['decision_index'] = Variable<int>(decisionIndex);
+    map['decision_key'] = Variable<String>(decisionKey);
+    map['kind'] = Variable<String>(kind);
+    map['by_meeting_id'] = Variable<String>(byMeetingId);
+    map['finding_id'] = Variable<int>(findingId);
+    map['by_side_json'] = Variable<String>(bySideJson);
+    {
+      map['created_at'] = Variable<int>(
+        $ResolutionAnnotationsTable.$convertercreatedAt.toSql(createdAt),
+      );
+    }
+    return map;
+  }
+
+  ResolutionAnnotationsCompanion toCompanion(bool nullToAbsent) {
+    return ResolutionAnnotationsCompanion(
+      id: Value(id),
+      meetingId: Value(meetingId),
+      decisionIndex: Value(decisionIndex),
+      decisionKey: Value(decisionKey),
+      kind: Value(kind),
+      byMeetingId: Value(byMeetingId),
+      findingId: Value(findingId),
+      bySideJson: Value(bySideJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ResolutionAnnotationRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ResolutionAnnotationRow(
+      id: serializer.fromJson<int>(json['id']),
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      decisionIndex: serializer.fromJson<int>(json['decisionIndex']),
+      decisionKey: serializer.fromJson<String>(json['decisionKey']),
+      kind: serializer.fromJson<String>(json['kind']),
+      byMeetingId: serializer.fromJson<String>(json['byMeetingId']),
+      findingId: serializer.fromJson<int>(json['findingId']),
+      bySideJson: serializer.fromJson<String>(json['bySideJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'meetingId': serializer.toJson<String>(meetingId),
+      'decisionIndex': serializer.toJson<int>(decisionIndex),
+      'decisionKey': serializer.toJson<String>(decisionKey),
+      'kind': serializer.toJson<String>(kind),
+      'byMeetingId': serializer.toJson<String>(byMeetingId),
+      'findingId': serializer.toJson<int>(findingId),
+      'bySideJson': serializer.toJson<String>(bySideJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ResolutionAnnotationRow copyWith({
+    int? id,
+    String? meetingId,
+    int? decisionIndex,
+    String? decisionKey,
+    String? kind,
+    String? byMeetingId,
+    int? findingId,
+    String? bySideJson,
+    DateTime? createdAt,
+  }) => ResolutionAnnotationRow(
+    id: id ?? this.id,
+    meetingId: meetingId ?? this.meetingId,
+    decisionIndex: decisionIndex ?? this.decisionIndex,
+    decisionKey: decisionKey ?? this.decisionKey,
+    kind: kind ?? this.kind,
+    byMeetingId: byMeetingId ?? this.byMeetingId,
+    findingId: findingId ?? this.findingId,
+    bySideJson: bySideJson ?? this.bySideJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ResolutionAnnotationRow copyWithCompanion(
+    ResolutionAnnotationsCompanion data,
+  ) {
+    return ResolutionAnnotationRow(
+      id: data.id.present ? data.id.value : this.id,
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      decisionIndex: data.decisionIndex.present
+          ? data.decisionIndex.value
+          : this.decisionIndex,
+      decisionKey: data.decisionKey.present
+          ? data.decisionKey.value
+          : this.decisionKey,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      byMeetingId: data.byMeetingId.present
+          ? data.byMeetingId.value
+          : this.byMeetingId,
+      findingId: data.findingId.present ? data.findingId.value : this.findingId,
+      bySideJson: data.bySideJson.present
+          ? data.bySideJson.value
+          : this.bySideJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResolutionAnnotationRow(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('decisionIndex: $decisionIndex, ')
+          ..write('decisionKey: $decisionKey, ')
+          ..write('kind: $kind, ')
+          ..write('byMeetingId: $byMeetingId, ')
+          ..write('findingId: $findingId, ')
+          ..write('bySideJson: $bySideJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    meetingId,
+    decisionIndex,
+    decisionKey,
+    kind,
+    byMeetingId,
+    findingId,
+    bySideJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ResolutionAnnotationRow &&
+          other.id == this.id &&
+          other.meetingId == this.meetingId &&
+          other.decisionIndex == this.decisionIndex &&
+          other.decisionKey == this.decisionKey &&
+          other.kind == this.kind &&
+          other.byMeetingId == this.byMeetingId &&
+          other.findingId == this.findingId &&
+          other.bySideJson == this.bySideJson &&
+          other.createdAt == this.createdAt);
+}
+
+class ResolutionAnnotationsCompanion
+    extends UpdateCompanion<ResolutionAnnotationRow> {
+  final Value<int> id;
+  final Value<String> meetingId;
+  final Value<int> decisionIndex;
+  final Value<String> decisionKey;
+  final Value<String> kind;
+  final Value<String> byMeetingId;
+  final Value<int> findingId;
+  final Value<String> bySideJson;
+  final Value<DateTime> createdAt;
+  const ResolutionAnnotationsCompanion({
+    this.id = const Value.absent(),
+    this.meetingId = const Value.absent(),
+    this.decisionIndex = const Value.absent(),
+    this.decisionKey = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.byMeetingId = const Value.absent(),
+    this.findingId = const Value.absent(),
+    this.bySideJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ResolutionAnnotationsCompanion.insert({
+    this.id = const Value.absent(),
+    required String meetingId,
+    required int decisionIndex,
+    required String decisionKey,
+    this.kind = const Value.absent(),
+    required String byMeetingId,
+    required int findingId,
+    required String bySideJson,
+    required DateTime createdAt,
+  }) : meetingId = Value(meetingId),
+       decisionIndex = Value(decisionIndex),
+       decisionKey = Value(decisionKey),
+       byMeetingId = Value(byMeetingId),
+       findingId = Value(findingId),
+       bySideJson = Value(bySideJson),
+       createdAt = Value(createdAt);
+  static Insertable<ResolutionAnnotationRow> custom({
+    Expression<int>? id,
+    Expression<String>? meetingId,
+    Expression<int>? decisionIndex,
+    Expression<String>? decisionKey,
+    Expression<String>? kind,
+    Expression<String>? byMeetingId,
+    Expression<int>? findingId,
+    Expression<String>? bySideJson,
+    Expression<int>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (decisionIndex != null) 'decision_index': decisionIndex,
+      if (decisionKey != null) 'decision_key': decisionKey,
+      if (kind != null) 'kind': kind,
+      if (byMeetingId != null) 'by_meeting_id': byMeetingId,
+      if (findingId != null) 'finding_id': findingId,
+      if (bySideJson != null) 'by_side_json': bySideJson,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ResolutionAnnotationsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? meetingId,
+    Value<int>? decisionIndex,
+    Value<String>? decisionKey,
+    Value<String>? kind,
+    Value<String>? byMeetingId,
+    Value<int>? findingId,
+    Value<String>? bySideJson,
+    Value<DateTime>? createdAt,
+  }) {
+    return ResolutionAnnotationsCompanion(
+      id: id ?? this.id,
+      meetingId: meetingId ?? this.meetingId,
+      decisionIndex: decisionIndex ?? this.decisionIndex,
+      decisionKey: decisionKey ?? this.decisionKey,
+      kind: kind ?? this.kind,
+      byMeetingId: byMeetingId ?? this.byMeetingId,
+      findingId: findingId ?? this.findingId,
+      bySideJson: bySideJson ?? this.bySideJson,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (decisionIndex.present) {
+      map['decision_index'] = Variable<int>(decisionIndex.value);
+    }
+    if (decisionKey.present) {
+      map['decision_key'] = Variable<String>(decisionKey.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (byMeetingId.present) {
+      map['by_meeting_id'] = Variable<String>(byMeetingId.value);
+    }
+    if (findingId.present) {
+      map['finding_id'] = Variable<int>(findingId.value);
+    }
+    if (bySideJson.present) {
+      map['by_side_json'] = Variable<String>(bySideJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(
+        $ResolutionAnnotationsTable.$convertercreatedAt.toSql(createdAt.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResolutionAnnotationsCompanion(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('decisionIndex: $decisionIndex, ')
+          ..write('decisionKey: $decisionKey, ')
+          ..write('kind: $kind, ')
+          ..write('byMeetingId: $byMeetingId, ')
+          ..write('findingId: $findingId, ')
+          ..write('bySideJson: $bySideJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7036,6 +8436,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $MinutesSignaturesTable minutesSignatures =
       $MinutesSignaturesTable(this);
+  late final $ConsistencyFindingsTable consistencyFindings =
+      $ConsistencyFindingsTable(this);
+  late final $ResolutionAnnotationsTable resolutionAnnotations =
+      $ResolutionAnnotationsTable(this);
   late final Index segmentsMeetingIdx = Index(
     'segments_meeting_idx',
     'CREATE INDEX segments_meeting_idx ON segments (meeting_id, idx)',
@@ -7080,6 +8484,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'minutes_signatures_meeting',
     'CREATE INDEX minutes_signatures_meeting ON minutes_signatures (meeting_id)',
   );
+  late final Index consistencyFindingsMeeting = Index(
+    'consistency_findings_meeting',
+    'CREATE INDEX consistency_findings_meeting ON consistency_findings (meeting_id)',
+  );
+  late final Index consistencyFindingsPrior = Index(
+    'consistency_findings_prior',
+    'CREATE INDEX consistency_findings_prior ON consistency_findings (prior_meeting_id)',
+  );
+  late final Index resolutionAnnotationsMeeting = Index(
+    'resolution_annotations_meeting',
+    'CREATE INDEX resolution_annotations_meeting ON resolution_annotations (meeting_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7099,6 +8515,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     officialRecords,
     minutesVersions,
     minutesSignatures,
+    consistencyFindings,
+    resolutionAnnotations,
     segmentsMeetingIdx,
     segmentsSpeaker,
     glossaryTermsMeeting,
@@ -7110,6 +8528,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     codeFindingsMeeting,
     officialRecordsSequence,
     minutesSignaturesMeeting,
+    consistencyFindingsMeeting,
+    consistencyFindingsPrior,
+    resolutionAnnotationsMeeting,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -7224,6 +8645,41 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('minutes_signatures', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('consistency_findings', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('consistency_findings', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('resolution_annotations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('resolution_annotations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'consistency_findings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('resolution_annotations', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -14012,6 +15468,1299 @@ typedef $$MinutesSignaturesTableProcessedTableManager =
       MinutesSignatureRow,
       PrefetchHooks Function({bool meetingId})
     >;
+typedef $$ConsistencyFindingsTableCreateCompanionBuilder =
+    ConsistencyFindingsCompanion Function({
+      Value<int> id,
+      required String meetingId,
+      required String kind,
+      required String severity,
+      Value<String> status,
+      Value<String> origin,
+      required String findingKey,
+      Value<String> explanation,
+      required String newSideJson,
+      required String priorSideJson,
+      Value<String?> priorMeetingId,
+      required DateTime createdAt,
+      Value<DateTime?> resolvedAt,
+    });
+typedef $$ConsistencyFindingsTableUpdateCompanionBuilder =
+    ConsistencyFindingsCompanion Function({
+      Value<int> id,
+      Value<String> meetingId,
+      Value<String> kind,
+      Value<String> severity,
+      Value<String> status,
+      Value<String> origin,
+      Value<String> findingKey,
+      Value<String> explanation,
+      Value<String> newSideJson,
+      Value<String> priorSideJson,
+      Value<String?> priorMeetingId,
+      Value<DateTime> createdAt,
+      Value<DateTime?> resolvedAt,
+    });
+
+final class $$ConsistencyFindingsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ConsistencyFindingsTable,
+          ConsistencyFindingRow
+        > {
+  $$ConsistencyFindingsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) =>
+      db.meetings.createAlias('consistency_findings__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $MeetingsTable _priorMeetingIdTable(_$AppDatabase db) => db.meetings
+      .createAlias('consistency_findings__prior_meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager? get priorMeetingId {
+    final $_column = $_itemColumn<String>('prior_meeting_id');
+    if ($_column == null) return null;
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_priorMeetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ResolutionAnnotationsTable,
+    List<ResolutionAnnotationRow>
+  >
+  _resolutionAnnotationsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.resolutionAnnotations,
+        aliasName:
+            'consistency_findings__id__resolution_annotations__finding_id',
+      );
+
+  $$ResolutionAnnotationsTableProcessedTableManager
+  get resolutionAnnotationsRefs {
+    final manager = $$ResolutionAnnotationsTableTableManager(
+      $_db,
+      $_db.resolutionAnnotations,
+    ).filter((f) => f.findingId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _resolutionAnnotationsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ConsistencyFindingsTableFilterComposer
+    extends Composer<_$AppDatabase, $ConsistencyFindingsTable> {
+  $$ConsistencyFindingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get findingKey => $composableBuilder(
+    column: $table.findingKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newSideJson => $composableBuilder(
+    column: $table.newSideJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get priorSideJson => $composableBuilder(
+    column: $table.priorSideJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
+      $composableBuilder(
+        column: $table.createdAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int> get resolvedAt =>
+      $composableBuilder(
+        column: $table.resolvedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableFilterComposer get priorMeetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.priorMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> resolutionAnnotationsRefs(
+    Expression<bool> Function($$ResolutionAnnotationsTableFilterComposer f) f,
+  ) {
+    final $$ResolutionAnnotationsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.resolutionAnnotations,
+          getReferencedColumn: (t) => t.findingId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ResolutionAnnotationsTableFilterComposer(
+                $db: $db,
+                $table: $db.resolutionAnnotations,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ConsistencyFindingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ConsistencyFindingsTable> {
+  $$ConsistencyFindingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get findingKey => $composableBuilder(
+    column: $table.findingKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newSideJson => $composableBuilder(
+    column: $table.newSideJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get priorSideJson => $composableBuilder(
+    column: $table.priorSideJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableOrderingComposer get priorMeetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.priorMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ConsistencyFindingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ConsistencyFindingsTable> {
+  $$ConsistencyFindingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get severity =>
+      $composableBuilder(column: $table.severity, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get findingKey => $composableBuilder(
+    column: $table.findingKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newSideJson => $composableBuilder(
+    column: $table.newSideJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get priorSideJson => $composableBuilder(
+    column: $table.priorSideJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get resolvedAt =>
+      $composableBuilder(
+        column: $table.resolvedAt,
+        builder: (column) => column,
+      );
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableAnnotationComposer get priorMeetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.priorMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> resolutionAnnotationsRefs<T extends Object>(
+    Expression<T> Function($$ResolutionAnnotationsTableAnnotationComposer a) f,
+  ) {
+    final $$ResolutionAnnotationsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.resolutionAnnotations,
+          getReferencedColumn: (t) => t.findingId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ResolutionAnnotationsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.resolutionAnnotations,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ConsistencyFindingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ConsistencyFindingsTable,
+          ConsistencyFindingRow,
+          $$ConsistencyFindingsTableFilterComposer,
+          $$ConsistencyFindingsTableOrderingComposer,
+          $$ConsistencyFindingsTableAnnotationComposer,
+          $$ConsistencyFindingsTableCreateCompanionBuilder,
+          $$ConsistencyFindingsTableUpdateCompanionBuilder,
+          (ConsistencyFindingRow, $$ConsistencyFindingsTableReferences),
+          ConsistencyFindingRow,
+          PrefetchHooks Function({
+            bool meetingId,
+            bool priorMeetingId,
+            bool resolutionAnnotationsRefs,
+          })
+        > {
+  $$ConsistencyFindingsTableTableManager(
+    _$AppDatabase db,
+    $ConsistencyFindingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ConsistencyFindingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ConsistencyFindingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ConsistencyFindingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> meetingId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> severity = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> findingKey = const Value.absent(),
+                Value<String> explanation = const Value.absent(),
+                Value<String> newSideJson = const Value.absent(),
+                Value<String> priorSideJson = const Value.absent(),
+                Value<String?> priorMeetingId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+              }) => ConsistencyFindingsCompanion(
+                id: id,
+                meetingId: meetingId,
+                kind: kind,
+                severity: severity,
+                status: status,
+                origin: origin,
+                findingKey: findingKey,
+                explanation: explanation,
+                newSideJson: newSideJson,
+                priorSideJson: priorSideJson,
+                priorMeetingId: priorMeetingId,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String meetingId,
+                required String kind,
+                required String severity,
+                Value<String> status = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                required String findingKey,
+                Value<String> explanation = const Value.absent(),
+                required String newSideJson,
+                required String priorSideJson,
+                Value<String?> priorMeetingId = const Value.absent(),
+                required DateTime createdAt,
+                Value<DateTime?> resolvedAt = const Value.absent(),
+              }) => ConsistencyFindingsCompanion.insert(
+                id: id,
+                meetingId: meetingId,
+                kind: kind,
+                severity: severity,
+                status: status,
+                origin: origin,
+                findingKey: findingKey,
+                explanation: explanation,
+                newSideJson: newSideJson,
+                priorSideJson: priorSideJson,
+                priorMeetingId: priorMeetingId,
+                createdAt: createdAt,
+                resolvedAt: resolvedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ConsistencyFindingsTable, ConsistencyFindingRow>(
+                    table,
+                  ),
+                  $$ConsistencyFindingsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                meetingId = false,
+                priorMeetingId = false,
+                resolutionAnnotationsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (resolutionAnnotationsRefs) db.resolutionAnnotations,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (meetingId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.meetingId,
+                            referencedTable:
+                                $$ConsistencyFindingsTableReferences
+                                    ._meetingIdTable(db),
+                            referencedColumn:
+                                $$ConsistencyFindingsTableReferences
+                                    ._meetingIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+                        if (priorMeetingId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.priorMeetingId,
+                            referencedTable:
+                                $$ConsistencyFindingsTableReferences
+                                    ._priorMeetingIdTable(db),
+                            referencedColumn:
+                                $$ConsistencyFindingsTableReferences
+                                    ._priorMeetingIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (resolutionAnnotationsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          ConsistencyFindingRow,
+                          $ConsistencyFindingsTable,
+                          ResolutionAnnotationRow,
+                          $ResolutionAnnotationsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConsistencyFindingsTableReferences
+                              ._resolutionAnnotationsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConsistencyFindingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resolutionAnnotationsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'finding_id',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ConsistencyFindingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ConsistencyFindingsTable,
+      ConsistencyFindingRow,
+      $$ConsistencyFindingsTableFilterComposer,
+      $$ConsistencyFindingsTableOrderingComposer,
+      $$ConsistencyFindingsTableAnnotationComposer,
+      $$ConsistencyFindingsTableCreateCompanionBuilder,
+      $$ConsistencyFindingsTableUpdateCompanionBuilder,
+      (ConsistencyFindingRow, $$ConsistencyFindingsTableReferences),
+      ConsistencyFindingRow,
+      PrefetchHooks Function({
+        bool meetingId,
+        bool priorMeetingId,
+        bool resolutionAnnotationsRefs,
+      })
+    >;
+typedef $$ResolutionAnnotationsTableCreateCompanionBuilder =
+    ResolutionAnnotationsCompanion Function({
+      Value<int> id,
+      required String meetingId,
+      required int decisionIndex,
+      required String decisionKey,
+      Value<String> kind,
+      required String byMeetingId,
+      required int findingId,
+      required String bySideJson,
+      required DateTime createdAt,
+    });
+typedef $$ResolutionAnnotationsTableUpdateCompanionBuilder =
+    ResolutionAnnotationsCompanion Function({
+      Value<int> id,
+      Value<String> meetingId,
+      Value<int> decisionIndex,
+      Value<String> decisionKey,
+      Value<String> kind,
+      Value<String> byMeetingId,
+      Value<int> findingId,
+      Value<String> bySideJson,
+      Value<DateTime> createdAt,
+    });
+
+final class $$ResolutionAnnotationsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ResolutionAnnotationsTable,
+          ResolutionAnnotationRow
+        > {
+  $$ResolutionAnnotationsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) => db.meetings
+      .createAlias('resolution_annotations__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $MeetingsTable _byMeetingIdTable(_$AppDatabase db) => db.meetings
+      .createAlias('resolution_annotations__by_meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get byMeetingId {
+    final $_column = $_itemColumn<String>('by_meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_byMeetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConsistencyFindingsTable _findingIdTable(_$AppDatabase db) =>
+      db.consistencyFindings.createAlias(
+        'resolution_annotations__finding_id__consistency_findings__id',
+      );
+
+  $$ConsistencyFindingsTableProcessedTableManager get findingId {
+    final $_column = $_itemColumn<int>('finding_id')!;
+
+    final manager = $$ConsistencyFindingsTableTableManager(
+      $_db,
+      $_db.consistencyFindings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_findingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ResolutionAnnotationsTableFilterComposer
+    extends Composer<_$AppDatabase, $ResolutionAnnotationsTable> {
+  $$ResolutionAnnotationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get decisionIndex => $composableBuilder(
+    column: $table.decisionIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get decisionKey => $composableBuilder(
+    column: $table.decisionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bySideJson => $composableBuilder(
+    column: $table.bySideJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
+      $composableBuilder(
+        column: $table.createdAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableFilterComposer get byMeetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.byMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConsistencyFindingsTableFilterComposer get findingId {
+    final $$ConsistencyFindingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.findingId,
+      referencedTable: $db.consistencyFindings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConsistencyFindingsTableFilterComposer(
+            $db: $db,
+            $table: $db.consistencyFindings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResolutionAnnotationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ResolutionAnnotationsTable> {
+  $$ResolutionAnnotationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get decisionIndex => $composableBuilder(
+    column: $table.decisionIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get decisionKey => $composableBuilder(
+    column: $table.decisionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bySideJson => $composableBuilder(
+    column: $table.bySideJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableOrderingComposer get byMeetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.byMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConsistencyFindingsTableOrderingComposer get findingId {
+    final $$ConsistencyFindingsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.findingId,
+          referencedTable: $db.consistencyFindings,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ConsistencyFindingsTableOrderingComposer(
+                $db: $db,
+                $table: $db.consistencyFindings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ResolutionAnnotationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ResolutionAnnotationsTable> {
+  $$ResolutionAnnotationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get decisionIndex => $composableBuilder(
+    column: $table.decisionIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get decisionKey => $composableBuilder(
+    column: $table.decisionKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get bySideJson => $composableBuilder(
+    column: $table.bySideJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$MeetingsTableAnnotationComposer get byMeetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.byMeetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConsistencyFindingsTableAnnotationComposer get findingId {
+    final $$ConsistencyFindingsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.findingId,
+          referencedTable: $db.consistencyFindings,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ConsistencyFindingsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.consistencyFindings,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ResolutionAnnotationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ResolutionAnnotationsTable,
+          ResolutionAnnotationRow,
+          $$ResolutionAnnotationsTableFilterComposer,
+          $$ResolutionAnnotationsTableOrderingComposer,
+          $$ResolutionAnnotationsTableAnnotationComposer,
+          $$ResolutionAnnotationsTableCreateCompanionBuilder,
+          $$ResolutionAnnotationsTableUpdateCompanionBuilder,
+          (ResolutionAnnotationRow, $$ResolutionAnnotationsTableReferences),
+          ResolutionAnnotationRow,
+          PrefetchHooks Function({
+            bool meetingId,
+            bool byMeetingId,
+            bool findingId,
+          })
+        > {
+  $$ResolutionAnnotationsTableTableManager(
+    _$AppDatabase db,
+    $ResolutionAnnotationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ResolutionAnnotationsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ResolutionAnnotationsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ResolutionAnnotationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> meetingId = const Value.absent(),
+                Value<int> decisionIndex = const Value.absent(),
+                Value<String> decisionKey = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> byMeetingId = const Value.absent(),
+                Value<int> findingId = const Value.absent(),
+                Value<String> bySideJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ResolutionAnnotationsCompanion(
+                id: id,
+                meetingId: meetingId,
+                decisionIndex: decisionIndex,
+                decisionKey: decisionKey,
+                kind: kind,
+                byMeetingId: byMeetingId,
+                findingId: findingId,
+                bySideJson: bySideJson,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String meetingId,
+                required int decisionIndex,
+                required String decisionKey,
+                Value<String> kind = const Value.absent(),
+                required String byMeetingId,
+                required int findingId,
+                required String bySideJson,
+                required DateTime createdAt,
+              }) => ResolutionAnnotationsCompanion.insert(
+                id: id,
+                meetingId: meetingId,
+                decisionIndex: decisionIndex,
+                decisionKey: decisionKey,
+                kind: kind,
+                byMeetingId: byMeetingId,
+                findingId: findingId,
+                bySideJson: bySideJson,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $ResolutionAnnotationsTable,
+                    ResolutionAnnotationRow
+                  >(table),
+                  $$ResolutionAnnotationsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({meetingId = false, byMeetingId = false, findingId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (meetingId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.meetingId,
+                            referencedTable:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._meetingIdTable(db),
+                            referencedColumn:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._meetingIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+                        if (byMeetingId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.byMeetingId,
+                            referencedTable:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._byMeetingIdTable(db),
+                            referencedColumn:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._byMeetingIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+                        if (findingId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.findingId,
+                            referencedTable:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._findingIdTable(db),
+                            referencedColumn:
+                                $$ResolutionAnnotationsTableReferences
+                                    ._findingIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ResolutionAnnotationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ResolutionAnnotationsTable,
+      ResolutionAnnotationRow,
+      $$ResolutionAnnotationsTableFilterComposer,
+      $$ResolutionAnnotationsTableOrderingComposer,
+      $$ResolutionAnnotationsTableAnnotationComposer,
+      $$ResolutionAnnotationsTableCreateCompanionBuilder,
+      $$ResolutionAnnotationsTableUpdateCompanionBuilder,
+      (ResolutionAnnotationRow, $$ResolutionAnnotationsTableReferences),
+      ResolutionAnnotationRow,
+      PrefetchHooks Function({bool meetingId, bool byMeetingId, bool findingId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -14044,4 +16793,8 @@ class $AppDatabaseManager {
       $$MinutesVersionsTableTableManager(_db, _db.minutesVersions);
   $$MinutesSignaturesTableTableManager get minutesSignatures =>
       $$MinutesSignaturesTableTableManager(_db, _db.minutesSignatures);
+  $$ConsistencyFindingsTableTableManager get consistencyFindings =>
+      $$ConsistencyFindingsTableTableManager(_db, _db.consistencyFindings);
+  $$ResolutionAnnotationsTableTableManager get resolutionAnnotations =>
+      $$ResolutionAnnotationsTableTableManager(_db, _db.resolutionAnnotations);
 }

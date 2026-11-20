@@ -1,6 +1,7 @@
 // Meeting details: tabs for the minutes (with the meeting context and
 // evidence chips), the full transcript (evidence highlight), the speakers,
-// the meeting's tasks with pending task updates (F9) and the codes (F17),
+// the meeting's tasks with pending task updates (F9), the codes (F17) and
+// the contradictions found by the consistency checker (v1.2 D),
 // all under one evidence scope with a docked audio player (F5); plus share /
 // export (PDF, Word, Markdown — F12) / print / copy, edit context, rename,
 // re-process and delete actions and the progress of background jobs.
@@ -13,6 +14,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/errors.dart';
 import '../../core/models.dart';
 import '../../features/codes/codes.dart' show CodesTab, KS;
+import '../../features/consistency/consistency.dart'
+    show ConsistencyTab, ConsistencyTabLabel;
 import '../../features/context/meeting_context_flows.dart'
     show editMeetingContextFlow;
 import '../../features/context/strings.dart' show CS;
@@ -20,8 +23,7 @@ import '../../features/evidence/evidence.dart'
     show EvidenceScope, EvidenceTranscriptTab;
 import '../../features/export_docx/export_docx.dart' show showExportShareSheet;
 import '../../features/export_docx/strings.dart' show XS;
-import '../../features/official/official_document.dart'
-    show OfficialDocument;
+import '../../features/official/official_document.dart' show OfficialDocument;
 import '../../features/official/official_minutes_screen.dart'
     show openOfficialMinutesScreen;
 import '../../features/official/official_service.dart'
@@ -101,7 +103,7 @@ class _MeetingDetail extends ConsumerWidget {
     final session = ref.watch(meetingSessionControllerProvider);
     final isLive = session.isActive && session.meetingId == meeting.id;
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !embedded,
@@ -121,40 +123,46 @@ class _MeetingDetail extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const TabBar(
-                  // Five tabs do not fit a phone's width.
+                TabBar(
+                  // Six tabs do not fit a phone's width.
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
                   tabs: [
-                    Tab(
+                    const Tab(
                       icon: Icon(Icons.description_outlined, size: 20),
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: S.tabMinutes,
                     ),
-                    Tab(
+                    const Tab(
                       icon: Icon(Icons.notes_rounded, size: 20),
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: S.tabTranscript,
                     ),
-                    Tab(
+                    const Tab(
                       icon: Icon(Icons.groups_outlined, size: 20),
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: S.tabSpeakers,
                     ),
-                    Tab(
+                    const Tab(
                       icon: Icon(Icons.task_alt_rounded, size: 20),
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: TS.tasksTitle,
                     ),
-                    Tab(
+                    const Tab(
                       icon: Icon(Icons.password_rounded, size: 20),
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: KS.tabTitle,
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.rule_rounded, size: 20),
+                      iconMargin: EdgeInsets.zero,
+                      height: 48,
+                      child: ConsistencyTabLabel(meetingId: meeting.id),
                     ),
                   ],
                 ),
@@ -218,6 +226,7 @@ class _MeetingDetail extends ConsumerWidget {
                     MeetingSpeakersTab(meetingId: meeting.id),
                     MeetingTasksPanel(meetingId: meeting.id),
                     CodesTab(meetingId: meeting.id),
+                    ConsistencyTab(meetingId: meeting.id),
                   ],
                 ),
               ),

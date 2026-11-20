@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
+import '../../features/consistency/consistency.dart'
+    show SupersededResolutionsCard;
 import '../../features/context/meeting_context_card.dart';
 import '../../features/evidence/evidence.dart' show EvidenceChips;
 import '../../features/official/official_summary_card.dart'
@@ -54,6 +56,7 @@ class MeetingMinutesTab extends ConsumerWidget {
 
     final children = <Widget>[
       OfficialSummaryCard(meeting: meeting),
+      SupersededResolutionsCard(meeting: meeting),
       MeetingContextCard(meeting: meeting),
       const SizedBox(height: 12),
     ];
