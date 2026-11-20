@@ -36,7 +36,9 @@ ProviderContainer _container(
 
 Future<MinutesEngineReadiness?> _read(ProviderContainer c) async {
   final sub = c.listen(minutesEngineReadinessProvider, (_, _) {});
+  final states = c.listen(localLlmModelStatesProvider, (_, _) {});
   addTearDown(sub.close);
+  addTearDown(states.close);
   await c.read(appSettingsDataProvider.future);
   await c.read(localLlmModelStatesProvider.future);
   await Future<void>.delayed(Duration.zero);
@@ -68,7 +70,9 @@ void main() {
   });
 
   test('on-device engine is ready only once its model is installed', () async {
-    const settings = AppSettingsData(minutesEngine: AppSettingsData.engineLocal);
+    const settings = AppSettingsData(
+      minutesEngine: AppSettingsData.engineLocal,
+    );
     final model = LocalLlmCatalog.resolve(null, desktop: true);
     final missing = await _read(
       _container(
