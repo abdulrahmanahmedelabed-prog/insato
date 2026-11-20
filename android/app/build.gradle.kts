@@ -57,6 +57,12 @@ fun releaseProperty(name: String): String =
         )
 
 android {
+    // Android lint crashes on some plugin sources (e.g. file_selector_android)
+    // when run during release builds; lint still runs in normal development.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
     namespace = "app.insato.insato"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
