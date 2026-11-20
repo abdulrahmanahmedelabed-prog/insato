@@ -1447,74 +1447,74 @@
   {
    "dimension_id": "arabic_minutes",
    "rating": "yes",
-   "en": "Formal Arabic minutes via Claude; built, not field-tested",
-   "ar": "محاضر عربية رسمية عبر Claude؛ منجزة ولم تُختبر ميدانيًا"
+   "en": "Formal minutes for any institution: your Word template, logo, Hijri dates, quorum, votes, signatures; not field-tested",
+   "ar": "محضر رسمي لأي مؤسسة: قالب Word وشعار وتاريخ هجري ونصاب وتصويت وتوقيعات؛ لم يُجرَّب ميدانيًا"
   },
   {
    "dimension_id": "arabic_asr",
    "rating": "partial",
-   "en": "Whisper or Nova-3; dialect accuracy untested, likely weaker",
-   "ar": "Whisper أو Nova-3؛ دقة اللهجات لم تُقَس وقد تكون أضعف"
+   "en": "On-device Whisper or Deepgram Nova-3; dialect accuracy unmeasured, likely weaker than specialists",
+   "ar": "Whisper على الجهاز أو Deepgram Nova-3؛ دقة اللهجات غير مقاسة وغالبًا أضعف من المتخصصين"
   },
   {
    "dimension_id": "multilingual",
    "rating": "partial",
-   "en": "Any Whisper/Nova-3 language; code-switching untested",
-   "ar": "أي لغة يدعمها Whisper أو Nova-3؛ والمزج لم يُختبر"
+   "en": "Any Whisper/Nova-3 language in; Arabic minutes out; code-switching untested",
+   "ar": "أي لغة يدعمها Whisper أو Nova-3، والمحضر بالعربية؛ المزج بين اللغات لم يُختبر"
   },
   {
    "dimension_id": "voice_memory",
    "rating": "yes",
-   "en": "On-device voiceprints; renames apply everywhere; untested at scale",
-   "ar": "بصمات صوتية على الجهاز، والتسمية تسري على كل الاجتماعات؛ لم تُختبر على نطاق واسع"
+   "en": "On-device voiceprints, optional enrollment, rename once updates everywhere; untested at scale",
+   "ar": "بصمات على الجهاز وتسجيل مسبق اختياري، والتسمية تنطبق على الكل؛ لم يُختبر على نطاق واسع"
   },
   {
    "dimension_id": "inroom",
    "rating": "yes",
-   "en": "Phone or PC microphone, no bot; built, not field-tested",
-   "ar": "ميكروفون الهاتف أو الحاسوب دون روبوت؛ منجز ولم يُختبر ميدانيًا"
+   "en": "Phone or PC mic, external mics, or up to 5 devices as one array; not field-tested",
+   "ar": "مايك الجوال أو الحاسوب أو مايك خارجي أو حتى 5 أجهزة كمايك واحد؛ لم يُجرَّب ميدانيًا"
   },
   {
    "dimension_id": "offline",
-   "rating": "partial",
-   "en": "Transcription and voiceprints on device; minutes need Claude cloud",
-   "ar": "التفريغ والبصمات على الجهاز؛ والمحضر يحتاج سحابة Claude"
+   "rating": "yes",
+   "en": "Transcription, voiceprints and (optional) minutes fully on device; minutes quality on device lower",
+   "ar": "التفريغ والبصمات والمحضر (اختياريًا) كاملة على الجهاز؛ جودة المحضر المحلي أقل"
   },
   {
    "dimension_id": "online_capture",
-   "rating": "planned",
-   "en": "Windows system-audio capture planned; no bot",
-   "ar": "التقاط صوت النظام في ويندوز مخطط له؛ ولا روبوت"
+   "rating": "partial",
+   "en": "Windows captures Zoom/Teams system audio; no bot; phones cannot capture other apps",
+   "ar": "ويندوز يلتقط صوت Zoom وTeams؛ بلا روبوت؛ الجوالات لا تلتقط صوت التطبيقات الأخرى"
   },
   {
    "dimension_id": "platforms",
    "rating": "partial",
-   "en": "Android, iOS, Windows; no web or Mac",
-   "ar": "أندرويد وiOS وويندوز؛ لا ويب ولا ماك"
+   "en": "Android, iOS (sideload/TestFlight pending), Windows; no web or Mac",
+   "ar": "أندرويد وiOS (التثبيت اليدوي، وTestFlight لاحقًا) وويندوز؛ لا ويب ولا ماك"
   },
   {
    "dimension_id": "collaboration",
-   "rating": "no",
-   "en": "PDF/Markdown export only; DOCX and Q&A planned",
-   "ar": "تصدير PDF وMarkdown فقط؛ وDOCX والأسئلة عبر الاجتماعات مخطط لها"
+   "rating": "partial",
+   "en": "Word/PDF/Markdown export, Ask your meetings, task tracking; no shared workspace or calendar",
+   "ar": "تصدير Word وPDF وMarkdown، واسأل اجتماعاتك، وتتبّع المهام؛ لا مساحة مشتركة ولا تقويم"
   },
   {
    "dimension_id": "compliance",
    "rating": "no",
-   "en": "No certifications; pre-release",
-   "ar": "لا شهادات؛ ما زال قبل الإطلاق"
+   "en": "No certifications; pre-release; data stays on device by design",
+   "ar": "لا شهادات؛ قبل الإطلاق؛ البيانات تبقى على الجهاز بالتصميم"
   },
   {
    "dimension_id": "price",
-   "rating": "partial",
-   "en": "User pays own Claude/Deepgram usage; app price TBD",
-   "ar": "يدفع المستخدم كلفة استخدامه لـClaude وDeepgram؛ وسعر التطبيق لم يُحدد"
+   "rating": "yes",
+   "en": "Free app; minutes with free Gemini key or on-device; optional paid Claude/Deepgram",
+   "ar": "التطبيق مجاني؛ المحضر بمفتاح Gemini مجاني أو على الجهاز؛ Claude وDeepgram اختياريان بمقابل"
   },
   {
    "dimension_id": "maturity",
    "rating": "no",
-   "en": "Pre-release: no users, no benchmarks",
-   "ar": "قبل الإطلاق: لا مستخدمين ولا قياسات دقة"
+   "en": "Public beta (1.2.0-beta.1): no field results, no benchmarks",
+   "ar": "نسخة تجريبية عامة (1.2.0-beta.1): لا نتائج ميدانية ولا قياسات"
   }
  ],
  "katib_weaknesses": [
@@ -1539,40 +1539,40 @@
    "mitigation_ar": "تقييم نماذج مفتوحة مضبوطة للعربية لتعمل على الجهاز، وإتاحة محرك سحابي متخصص بالعربية خيارًا إضافيًا، وإضافة كشف النشاط الصوتي للحد من الاختلاق في فترات الصمت، وإطلاق المفردات المخصصة المخطط لها."
   },
   {
-   "title_en": "Cannot capture remote meetings properly",
-   "title_ar": "لا يلتقط الاجتماعات عن بُعد بشكل سليم",
-   "detail_en": "Insato has no meeting bot. System-audio capture on Windows is still only planned. iOS does not let apps record other apps' audio, so remote participants are captured only if they play through a speaker.",
-   "detail_ar": "لا يملك إنصاتو روبوت اجتماعات، والتقاط صوت النظام في ويندوز ما زال مخططًا له، ونظام iOS لا يسمح بتسجيل صوت التطبيقات الأخرى، فلا يُلتقط صوت المشاركين عن بُعد إلا إذا خرج من مكبر الصوت.",
+   "title_en": "No meeting bot, and phones cannot capture calls",
+   "title_ar": "لا روبوت للاجتماعات، والجوال لا يلتقط المكالمات",
+   "detail_en": "Windows can now record Zoom/Teams system audio, but there is still no bot that joins calls, no calendar join, and phones (especially iPhone) cannot capture other apps' audio.",
+   "detail_ar": "صار ويندوز يسجّل صوت النظام في Zoom وTeams، لكن لا يوجد روبوت ينضم للمكالمات ولا انضمام من التقويم، والجوالات (خاصة آيفون) لا تلتقط صوت التطبيقات الأخرى.",
    "who_does_better": "Otter.ai, Fireflies.ai, Zoom My Notes, Plaud Desktop, MacWhisper and Sembly all capture remote meetings, and Teams and Zoom capture natively on their own platforms.",
    "severity": "high",
-   "mitigation_en": "Ship Windows system-audio capture (WASAPI loopback) first. Document the speakerphone workaround on phones. Consider importing recordings from Zoom and Teams.",
-   "mitigation_ar": "البدء بإطلاق التقاط صوت النظام في ويندوز (WASAPI loopback)، وتوثيق حل مكبر الصوت على الهواتف، ودراسة استيراد تسجيلات Zoom وTeams."
+   "mitigation_en": "Promote the Windows path for online meetings; evaluate a lightweight bot later.",
+   "mitigation_ar": "توجيه الاجتماعات عن بُعد إلى نسخة ويندوز، ودراسة روبوت خفيف لاحقًا."
   },
   {
-   "title_en": "Minutes currently require a cloud LLM",
-   "title_ar": "المحاضر تتطلب حاليًا نموذجًا لغويًا سحابيًا",
-   "detail_en": "Transcription and voiceprints can stay on the device, but minutes are written by Claude in the cloud, so the transcript leaves the device. The fully local option (llama.cpp, Ollama, LM Studio) is still only planned.",
-   "detail_ar": "يمكن أن يبقى التفريغ والبصمات على الجهاز، لكن المحضر يكتبه Claude في السحابة، فيخرج نص التفريغ من الجهاز. الخيار المحلي بالكامل (llama.cpp أو Ollama أو LM Studio) ما زال مخططًا له.",
-   "who_does_better": "MacWhisper already supports local summaries via Ollama and LM Studio. Aiko never touches the network, though it produces no summaries.",
-   "severity": "high",
-   "mitigation_en": "Ship local-LLM minutes, label each meeting's data path clearly, and add a strict 'never leave device' mode for sensitive meetings.",
-   "mitigation_ar": "إطلاق المحاضر بنموذج لغوي محلي، وبيان مسار البيانات بوضوح لكل اجتماع، وإضافة وضع صارم «لا يغادر الجهاز» للاجتماعات الحساسة."
-  },
-  {
-   "title_en": "Bring-your-own API key and unclear running costs",
-   "title_ar": "مفتاح API يجلبه المستخدم وتكاليف تشغيل غير واضحة",
-   "detail_en": "Users must create Anthropic (and optionally Deepgram) accounts and paste API keys. Costs depend on meeting length and model, and are not shown upfront. This is a real barrier for non-technical users.",
-   "detail_ar": "على المستخدم إنشاء حساب لدى Anthropic (واختياريًا Deepgram) ولصق مفاتيح API، والتكلفة تتغير بطول الاجتماع والنموذج ولا تظهر مسبقًا، وهذا عائق حقيقي أمام غير التقنيين.",
-   "who_does_better": "Fireflies, Otter and Zoom offer flat subscriptions. Apple, Samsung and Pixel recorders are free and need no setup.",
+   "title_en": "On-device minutes are much weaker than cloud minutes",
+   "title_ar": "المحضر على الجهاز أضعف بكثير من المحضر السحابي",
+   "detail_en": "Insato can now write minutes fully offline with a small local model or a local server, but small models handle long Arabic meetings, dialects and formal phrasing far worse than Gemini or Claude. Long meetings are summarised in parts.",
+   "detail_ar": "يستطيع إنصاتو الآن كتابة المحضر دون اتصال بنموذج محلي صغير أو خادم محلي، لكن النماذج الصغيرة أضعف بكثير من Gemini وClaude في الاجتماعات العربية الطويلة واللهجات والصياغة الرسمية، وتُلخَّص الاجتماعات الطويلة على أجزاء.",
+   "who_does_better": "Cloud tools (Otter, Fireflies, Teams, Zoom, Mudawin) use large server models for every summary.",
    "severity": "medium",
-   "mitigation_en": "Add a guided key setup, a cost estimate before each meeting and a usage meter. Consider an optional managed plan with a fixed price.",
-   "mitigation_ar": "إضافة معالج إعداد للمفاتيح، وتقدير للتكلفة قبل كل اجتماع، وعداد للاستهلاك، ودراسة خطة مُدارة اختيارية بسعر ثابت."
+   "mitigation_en": "Default to free Gemini Flash-Lite for quality; recommend the larger local model on PCs; measure local quality before promoting it.",
+   "mitigation_ar": "الافتراضي Gemini Flash-Lite المجاني للجودة؛ والتوصية بالنموذج المحلي الأكبر على الحواسيب؛ وقياس جودة المحلي قبل ترشيحه."
   },
   {
-   "title_en": "No team collaboration, integrations or calendar",
-   "title_ar": "لا عمل جماعي ولا تكاملات ولا تقويم",
-   "detail_en": "Insato is single-user and only exports PDF and Markdown. It has no shared workspace, calendar, task tools or CRM sync, and no question-answering across meetings yet.",
-   "detail_ar": "إنصاتو أداة لمستخدم واحد تصدّر PDF وMarkdown فقط، ولا تملك بعد مساحة عمل مشتركة ولا تقويمًا ولا ربطًا بأدوات المهام أو أنظمة إدارة العملاء، ولا أسئلة عبر الاجتماعات.",
+   "title_en": "Free-tier limits and privacy depend on Google",
+   "title_ar": "حدود الخطة المجانية وخصوصيتها بيد Google",
+   "detail_en": "The default engine is the free Gemini tier: quotas change without notice, and Google may use free-tier text to improve its products (human review possible). Users must get their own key.",
+   "detail_ar": "المحرك الافتراضي هو خطة Gemini المجانية: حصصها تتغير دون إشعار، وقد تستخدم Google نصوص الخطة المجانية لتحسين منتجاتها مع احتمال المراجعة البشرية، وعلى المستخدم إنشاء مفتاحه بنفسه.",
+   "who_does_better": "Subscription tools (Otter, Fireflies, Zoom) include processing with contractual data terms.",
+   "severity": "medium",
+   "mitigation_en": "Clear privacy notice before first use, Flash-Lite default for quota, automatic fallback, on-device engine for confidential meetings.",
+   "mitigation_ar": "تنبيه خصوصية واضح قبل أول استخدام، وFlash-Lite افتراضيًا لسعة الحصة، وتحويل تلقائي، والمحرك المحلي للاجتماعات السرية."
+  },
+  {
+   "title_en": "No shared workspace, calendar or integrations",
+   "title_ar": "لا مساحة عمل مشتركة ولا تقويم ولا تكاملات",
+   "detail_en": "Insato now has Word export, task tracking and Ask-your-meetings, but everything lives on one device: no team sharing, sync, calendar, Slack/CRM or task-tool integrations.",
+   "detail_ar": "صار لدى إنصاتو تصدير Word وتتبّع المهام واسأل اجتماعاتك، لكن كل شيء على جهاز واحد: لا مشاركة فريق ولا مزامنة ولا تقويم ولا تكامل مع Slack أو أنظمة العملاء أو أدوات المهام.",
    "who_does_better": "Otter.ai, Fireflies.ai (AskFred), Microsoft Teams/Copilot, Google Meet and Sembly.",
    "severity": "medium",
    "mitigation_en": "Ship the planned DOCX export, Q&A across meetings and action-item tracking. Add calendar context and sharing on top of the on-device-first design.",
@@ -1595,8 +1595,8 @@
    "detail_ar": "ميكروفون هاتف واحد في قاعة يلتقط صوتًا بعيدًا ومتداخلًا، فتتراجع دقة البصمات الصوتية بشدة (يرتفع خطأ CAM++ من 0.73% إلى 6.78% في البيانات الأصعب)، وقد تدمج البصمات شخصين في واحد أو تقسم الشخص الواحد.",
    "who_does_better": "Bots and platforms (Teams, Zoom, Otter, Fireflies) get a separate audio stream per participant. Teams Rooms and Sembly use enrolled voice profiles.",
    "severity": "medium",
-   "mitigation_en": "Add optional short enrollment samples, confidence thresholds with a 'needs review' flag, and fast correction tools. Ship the planned multi-phone recording over the local network.",
-   "mitigation_ar": "إضافة عينات تسجيل قصيرة اختيارية، وعتبات ثقة مع علامة «تحتاج مراجعة»، وأدوات تصحيح سريعة، وإطلاق التسجيل متعدد الهواتف عبر الشبكة المحلية المخطط له."
+   "mitigation_en": "Built: optional voice enrollment, external-mic support, and multi-device recording (up to 5 devices) with nearest-device cues; still to be measured in real rooms.",
+   "mitigation_ar": "بُني: تسجيل البصمة المسبق، ودعم المايكات الخارجية، والتسجيل بعدة أجهزة (حتى 5) مع إشارة أقرب جهاز؛ وما زال القياس في قاعات حقيقية مطلوبًا."
   },
   {
    "title_en": "Large model downloads, battery and CPU load on phones",
@@ -1697,6 +1697,22 @@
    "detail_ar": "لا يشغّل إنصاتو خادمًا يخزّن الاجتماعات، وتذهب الطلبات السحابية مباشرة إلى حسابات المستخدم نفسه لدى Anthropic وDeepgram، ويمكن تبديل المحركات بين تفريغ على الجهاز وآخر سحابي، مع نماذج لغوية محلية مخطط لها.",
    "evidence_en": "Otter trains on de-identified customer data, and Granola trains by default on Free and Business plans. Both store meetings on their own US servers. MacWhisper offers a similar choice of providers, but only on Mac.",
    "evidence_ar": "تدرّب Otter نماذجها على بيانات العملاء بعد إزالة ما يحدد هويتهم، وتدرّب Granola افتراضيًا في الخطتين المجانية وBusiness، وكلتاهما تخزّن الاجتماعات على خوادمها في الولايات المتحدة. يتيح MacWhisper خيارًا مشابهًا للمزوّدين، لكن على ماك فقط."
+  },
+  {
+   "title_en": "Official minutes in your institution's own format",
+   "title_ar": "محضر رسمي بقالب مؤسستك نفسه",
+   "detail_en": "Upload your Word template and logo; Insato fills it with Hijri and Gregorian dates, attendance and quorum, numbered resolutions, detected votes, signatures and a content hash, with versioned approval.",
+   "detail_ar": "ارفع قالب Word وشعار مؤسستك، فيملؤه إنصاتو بالتاريخين الهجري والميلادي والحضور والنصاب والقرارات المرقّمة والتصويت المرصود والتوقيعات وبصمة المحتوى، مع اعتماد ونسخ محفوظة.",
+   "evidence_en": "None of the reviewed tools documents filling an institution's own minutes template, quorum or vote counting; Mudawin and Faris claim Arabic minutes and Word export only.",
+   "evidence_ar": "لم توثّق أي أداة راجعناها ملء قالب المحضر الخاص بالمؤسسة أو حساب النصاب أو عدّ الأصوات؛ ومدوّن وفارس يدّعيان محاضر عربية وتصدير Word فقط."
+  },
+  {
+   "title_en": "Institutional memory that catches contradictions",
+   "title_ar": "ذاكرة مؤسسية تكشف التناقضات",
+   "detail_en": "After each meeting, Insato checks new decisions and tasks against earlier resolutions and flags contradictions, duplicates and changed owners or deadlines, citing both sides.",
+   "detail_ar": "بعد كل اجتماع يقارن إنصاتو القرارات والمهام الجديدة بالقرارات السابقة، وينبّه إلى التناقض والتكرار وتغيّر المسؤول أو الموعد مع ذكر الطرفين.",
+   "evidence_en": "Cross-meeting Q&A exists elsewhere (e.g. Fireflies AskFred, Otter), but none of the reviewed tools documents contradiction detection against prior resolutions.",
+   "evidence_ar": "البحث عبر الاجتماعات موجود لدى غيرنا (مثل AskFred في Fireflies وOtter)، لكن لم توثّق أي أداة راجعناها كشف التناقض مع القرارات السابقة."
   }
  ],
  "accuracy_note_en": "No meeting notetaker we reviewed publishes an Arabic word error rate (WER). Insato has none either. Reported figures, all unverified, as of 2026-11-19:\n- Whisper large-v3, the family Insato runs on-device, averages about 36.86% WER (17.21% CER) on the Open Universal Arabic ASR Leaderboard.\n- One vendor table puts Whisper at 46% (Gulf), 59% (Levantine) and 72% (North African) WER.\n- Whisper large-v3-turbo and int8 builds are reported somewhat worse than large-v3.\n- Arabic-specialist models report lower leaderboard averages: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87% and Munsit 26.68%. All three are vendor-reported.\n- Deepgram Nova-3, Insato's cloud engine, has no public Arabic WER. A competitor (Munsit) reports 35.87% WER for it on Saudi audio.\n- Recent papers report MAI-Transcribe-2 at 13.51%, Gemini at 16.13% and ElevenLabs Scribe at 16.12% on a 120-hour Arabic test.\nThese numbers come from different test sets, text normalization and averaging methods, so they cannot be ranked against each other directly. Speaker diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.",

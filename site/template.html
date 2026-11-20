@@ -343,7 +343,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-bet
     <div class="step"><span class="n">01</span><h3 data-i18n="s1h">Listen</h3><p data-i18n="s1p">Records the device microphone at 16 kHz, in the room or beside your call. Keeps a local audio archive if you choose.</p><span class="tech">record · WAV · silero VAD</span></div>
     <div class="step"><span class="n">02</span><h3 data-i18n="s2h">Transcribe</h3><p data-i18n="s2p">Speech in any language is transcribed on-device with Whisper, or with Deepgram Nova-3 in the cloud when you allow it.</p><span class="tech">sherpa-onnx Whisper turbo · Nova-3</span></div>
     <div class="step"><span class="n">03</span><h3 data-i18n="s3h">Recognize voices</h3><p data-i18n="s3p">Every new voice gets a temporary name such as "Speaker 4" and a voiceprint. Rename once and every past and future meeting updates.</p><span class="tech">speaker embeddings · on-device clustering</span></div>
-    <div class="step"><span class="n">04</span><h3 data-i18n="s4h">Write minutes</h3><p data-i18n="s4p">Claude turns the multilingual transcript into formal Arabic minutes: summary, topics, decisions, owners and deadlines. Export as PDF or Markdown.</p><span class="tech">Claude Opus · JSON schema · PDF</span></div>
+    <div class="step"><span class="n">04</span><h3 data-i18n="s4h">Write minutes</h3><p data-i18n="s4p">Gemini (free), Claude or an on-device model turns the multilingual transcript into formal Arabic minutes in your institution's template: resolutions, votes, owners and deadlines. Export as Word, PDF or Markdown.</p><span class="tech">Gemini · on-device · DOCX · PDF</span></div>
   </div>
 </div></section>
 
@@ -418,7 +418,7 @@ demo_live:"Recording · 3 voices · 3 languages",how_eye:"How it works",how_h:"F
 s1h:"Listen",s1p:"Records the device microphone at 16 kHz, in the room or beside your call. Keeps a local audio archive if you choose.",
 s2h:"Transcribe",s2p:"Speech in any language is transcribed on-device with Whisper, or with Deepgram Nova-3 in the cloud when you allow it.",
 s3h:"Recognize voices",s3p:"Every new voice gets a temporary name such as \"Speaker 4\" and a voiceprint. Rename once and every past and future meeting updates.",
-s4h:"Write minutes",s4p:"Claude turns the multilingual transcript into formal Arabic minutes: summary, topics, decisions, owners and deadlines. Export as PDF or Markdown.",
+s4h:"Write minutes",s4p:"Gemini (free), Claude or an on-device model turns the multilingual transcript into formal Arabic minutes in your institution's template: resolutions, votes, owners and deadlines. Export as Word, PDF or Markdown.",
 cmp_eye:"Comparison",cmp_h:"Insato against the strongest tools in the world",cmp_p:"Fifteen products: global notetakers, platform-native AI, a hardware recorder, an on-device app and seven Arabic specialists, researched and fact-checked on 19 November 2026. Insato's column is graded strictly: anything not built yet is marked planned, and nothing is marked proven.",
 v_notes:"With notes",g_all:"All",g_ar:"Arabic specialists",g_gl:"Global",v_compact:"Ratings only",cmp_hint:"Select a product name to see what it does best and the sources behind its column. Scroll the table sideways on small screens.",
 weak_eye:"Weaknesses",weak_h:"Where Insato is weaker today, and who does it better",weak_p:"We list these first because they are the reasons you might not choose Insato yet. Each one names the competitors that are ahead and what we are doing about it.",
@@ -445,7 +445,7 @@ demo_live:"تسجيل · ٣ أصوات · ٣ لغات",how_eye:"آلية الع�
 s1h:"الاستماع",s1p:"يسجّل مايك الجهاز بتردد 16 كيلوهرتز، داخل القاعة أو بجوار مكالمتك، ويحتفظ بأرشيف صوتي محلي إن أردت.",
 s2h:"التفريغ",s2p:"يُفرَّغ الكلام بأي لغة على الجهاز بنموذج Whisper، أو سحابيًا عبر Deepgram Nova-3 إن سمحت بذلك.",
 s3h:"التعرّف على الأصوات",s3p:"كل صوت جديد يأخذ اسمًا مؤقتًا مثل «متحدث 4» وبصمة صوتية. غيّر الاسم مرة واحدة فيتحدّث في كل الاجتماعات السابقة واللاحقة.",
-s4h:"كتابة المحضر",s4p:"يحوّل Claude النص متعدد اللغات إلى محضر عربي رسمي: الملخص والمحاور والقرارات والمسؤولون والمواعيد. ويُصدَّر بصيغة PDF أو Markdown.",
+s4h:"كتابة المحضر",s4p:"يحوّل Gemini المجاني أو Claude أو نموذج على الجهاز النص متعدد اللغات إلى محضر عربي رسمي بقالب مؤسستك: القرارات والتصويت والمسؤولون والمواعيد. ويُصدَّر بصيغة Word أو PDF أو Markdown.",
 cmp_eye:"المقارنة",cmp_h:"إنصاتو أمام أقوى الأدوات في العالم",cmp_p:"خمسة عشر منتجًا تشمل مساعدي الاجتماعات العالميين والذكاء الاصطناعي المدمج في المنصات وجهاز تسجيل وتطبيقًا يعمل على الجهاز وسبعة متخصصين بالعربية، بُحثت ودُقّقت في 19 نوفمبر 2026. قُيّم عمود إنصاتو بصرامة: كل ما لم يُبنَ بعد موسوم «مخطط»، ولا شيء موسوم «مُثبت».",
 v_notes:"مع الملاحظات",g_all:"الكل",g_ar:"المتخصصون بالعربية",g_gl:"العالميون",v_compact:"التقييم فقط",cmp_hint:"اختر اسم منتج لترى أبرز ما يتقنه والمصادر التي بُني عليها عموده. على الشاشات الصغيرة مرّر الجدول أفقيًا.",
 weak_eye:"نقاط الضعف",weak_h:"أين إنصاتو أضعف اليوم، ومن يتفوق عليه",weak_p:"نبدأ بها لأنها الأسباب التي قد تجعلك لا تختار إنصاتو بعد. كل نقطة تذكر المنافسين المتقدمين علينا وما نفعله لمعالجتها.",
