@@ -44,6 +44,7 @@ import '../data/database.dart';
 import '../data/minutes_artifacts.dart';
 import '../data/repositories.dart';
 import '../data/secure_settings.dart';
+import '../diarization/channel_cue.dart';
 import '../diarization/clustering.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
@@ -260,6 +261,7 @@ class RefinementInput {
     required this.clusterThreshold,
     required this.linkThreshold,
     required this.lockedAssignments,
+    this.channelProfiles = const {},
   });
 
   /// `(segmentId, embedding, durationMs)` in chronological order.
@@ -276,6 +278,10 @@ class RefinementInput {
 
   /// Segment id → speaker id locked by the user.
   final Map<String, String> lockedAssignments;
+
+  /// Segment id → SNR per device (v1.2 C multi-device meetings; empty
+  /// otherwise).
+  final Map<String, ChannelProfile> channelProfiles;
 }
 
 /// Runs the clustering; injectable for tests.
@@ -289,6 +295,7 @@ RefinementResult _refineSync(RefinementInput input) => refineSpeakers(
   clusterThreshold: input.clusterThreshold,
   linkThreshold: input.linkThreshold,
   lockedAssignments: input.lockedAssignments,
+  channelProfiles: input.channelProfiles,
 );
 
 /// Default [RefinementRunner]: inline for small meetings, in a background
@@ -659,6 +666,7 @@ class PostProcessor {
     RefinementRunner? runRefinement,
     this._onMinutesSaved,
     this._onMeetingDeleted,
+    this._channelProfilesOf,
   }) : _minutesFactory = minutesEngineFactory,
        _isActive = isMeetingActive ?? ((_) => false),
        _runRefinement = runRefinement ?? runRefinementInBackground;
@@ -683,6 +691,11 @@ class PostProcessor {
   /// profiles (F16), so its content no longer shows in anyone's profile.
   /// Best-effort: a failure never fails the delete (profiles can be rebuilt).
   final Future<void> Function(String meetingId)? _onMeetingDeleted;
+
+  /// v1.2 C: segment id → SNR per device of a multi-device meeting (empty
+  /// for single-device meetings). Best-effort: a failure means no cue.
+  final Future<Map<String, ChannelProfile>> Function(String meetingId)?
+  _channelProfilesOf;
 
   // -------------------------------------------------------------------------
   // Refinement
@@ -762,6 +775,15 @@ class PostProcessor {
             speakersById.containsKey(s.speakerId))
           s.id: s.speakerId!,
     };
+    var channelProfiles = const <String, ChannelProfile>{};
+    final loadProfiles = _channelProfilesOf;
+    if (loadProfiles != null) {
+      try {
+        channelProfiles = await loadProfiles(meetingId);
+      } catch (_) {
+        // No multi-device cue; the voices alone decide.
+      }
+    }
     final result = await _runRefinement(
       RefinementInput(
         items: items,
@@ -769,6 +791,7 @@ class PostProcessor {
         clusterThreshold: kDefaultRefineClusterThreshold,
         linkThreshold: math.min(0.95, settings.matchThreshold + 0.05),
         lockedAssignments: locked,
+        channelProfiles: channelProfiles,
       ),
     );
 

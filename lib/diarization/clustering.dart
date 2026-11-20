@@ -36,6 +36,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../core/models.dart';
+import 'channel_cue.dart';
 import 'vector_math.dart';
 
 /// How a [RefinedCluster] got its [RefinedCluster.linkedSpeakerId].
@@ -159,6 +160,10 @@ class RefinementResult {
 /// * [maxMatrixItems]: above this many initial clusters, only the longest
 ///   segments are clustered agglomeratively and the rest are attached to the
 ///   nearest cluster, bounding memory to `maxMatrixItems²/2` floats.
+/// * [channelProfiles] (v1.2 C, multi-device meetings): segment id → SNR per
+///   device. When present, step 3 clusters [augmentWithChannelCue] vectors
+///   (voice cosine + a small "same nearest device" term); centroids, tiny
+///   cluster cleanup and linking still use the voice embeddings only.
 ///
 /// Throws an [ArgumentError] on duplicate segment ids or invalid thresholds.
 RefinementResult refineSpeakers({
@@ -173,6 +178,7 @@ RefinementResult refineSpeakers({
   double voiceprintMergeThreshold = 0.4,
   double maxSegmentWeightSec = 4,
   int maxMatrixItems = 3000,
+  Map<String, ChannelProfile> channelProfiles = const {},
 }) {
   if (!clusterThreshold.isFinite) {
     throw ArgumentError.value(clusterThreshold, 'clusterThreshold');
@@ -242,8 +248,19 @@ RefinementResult refineSpeakers({
   }
 
   // --- 3. Agglomerative clustering -----------------------------------------
+  final channels = <String>{
+    for (final id in ids)
+      if (channelProfiles[id] case final p? when p.isInformative)
+        ...p.snrDb.keys,
+  }.toList()..sort();
+  final useCue = channels.length >= 2;
   final labels = agglomerativeCluster(
-    vecs,
+    useCue
+        ? [
+            for (var i = 0; i < ids.length; i++)
+              augmentWithChannelCue(vecs[i], channelProfiles[ids[i]], channels),
+          ]
+        : vecs,
     threshold: clusterThreshold,
     weights: weights,
     anchors: anchors,
@@ -251,7 +268,11 @@ RefinementResult refineSpeakers({
     fallbackAttachThreshold: tinyMergeThreshold,
     voiceprints: [
       for (final s in knownSpeakers)
-        if (isUsableEmbedding(s.centroid, dimension: d)) l2Normalize(s.centroid!),
+        if (isUsableEmbedding(s.centroid, dimension: d))
+          useCue
+              ? (Float32List(d + channels.length)
+                  ..setAll(0, l2Normalize(s.centroid!)))
+              : l2Normalize(s.centroid!),
     ],
     voiceprintThreshold: linkThreshold,
   );

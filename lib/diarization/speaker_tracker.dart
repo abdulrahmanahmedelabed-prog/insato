@@ -28,6 +28,12 @@
 //   gap is below `continuityGapMs` (unless the embedding clearly points to
 //   another local cluster), otherwise take the best local match above
 //   threshold, otherwise stay unknown.
+// * Multi-device meetings (v1.2 C): a long segment may carry a
+//   [ChannelProfile] (SNR per device). Local clusters remember the mean
+//   "nearest device" of their speech, and a matching / opposite proximity
+//   adds / subtracts up to `channelCueWeight` to the ranking score (never to
+//   the similarity checked against the thresholds). Without profiles (one
+//   device) nothing changes.
 
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -35,6 +41,7 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 
 import '../core/models.dart';
+import 'channel_cue.dart';
 import 'vector_math.dart';
 
 /// Why the tracker produced a given [SpeakerAssignment].
@@ -194,6 +201,9 @@ class _Cluster {
   final Float64List sum;
   double weight = 0;
   int count = 0;
+
+  /// Mean device proximity of the absorbed segments (multi-device cue).
+  final ProximityAccumulator proximity = ProximityAccumulator();
   int totalMs = 0;
   int firstStartMs;
   int lastEndMs = 0;
@@ -293,6 +303,7 @@ class SpeakerTracker {
     this.voiceprintPriorWeight = 3,
     this.maxSegmentWeightSec = 10,
     this.maxClusters = 64,
+    this.channelCueWeight = 0.05,
     int firstAutoLabelNumber = 1,
   })  : knownSpeakerThreshold = knownSpeakerThreshold ?? matchThreshold,
         _nextAutoLabel = firstAutoLabelNumber {
@@ -360,6 +371,17 @@ class SpeakerTracker {
   /// Maximum number of local clusters.
   final int maxClusters;
 
+  /// Largest score shift from the multi-device proximity cue.
+  final double channelCueWeight;
+
+  /// Cue bonus of cluster [c] for a segment with proximity [prox].
+  double _cueBonus(_Cluster c, Map<String, double>? prox) {
+    if (prox == null || channelCueWeight <= 0) return 0;
+    final evidence = math.min(1.0, c.proximity.evidence / 3);
+    if (evidence <= 0) return 0;
+    return channelCueWeight * evidence * proximityCue(prox, c.proximity.mean());
+  }
+
   final List<_Cluster> _clusters = [];
   final Map<String, String> _redirects = {};
   List<Speaker> _known = const [];
@@ -408,14 +430,20 @@ class SpeakerTracker {
   /// [embedding] may be null (segment too short/silent to embed). Embeddings
   /// that are non-finite, zero, or of a different dimension than the first
   /// usable one are treated as missing.
+  ///
+  /// [channels] (multi-device meetings): SNR per device for this segment;
+  /// see the file header.
   SpeakerAssignment assign({
     required int segmentIndex,
     required int startMs,
     required int endMs,
     Float32List? embedding,
+    ChannelProfile? channels,
   }) {
     final durationMs = math.max(0, endMs - startMs);
     final e = _prepare(embedding);
+    final profile = channels != null && channels.isInformative ? channels : null;
+    final prox = profile?.proximity();
 
     final prev = _last;
     final prevEnd = _lastEndMs;
@@ -504,7 +532,11 @@ class SpeakerTracker {
     // --- Long segment --------------------------------------------------------
     final candidates = <_Candidate>[
       for (var i = 0; i < _clusters.length; i++)
-        _Candidate.local(_clusters[i], localSims[i], localPreference),
+        _Candidate.local(
+          _clusters[i],
+          localSims[i],
+          localPreference + _cueBonus(_clusters[i], prox),
+        ),
       for (final s in _unclaimedKnown(e.length))
         _Candidate.global(s, cosine(e, s.centroid!)),
     ]..sort((a, b) => b.score.compareTo(a.score));
@@ -526,7 +558,7 @@ class SpeakerTracker {
         final conf = _matchConfidence(best.sim, margin ?? 1, threshold);
         if (best.isLocal) {
           final c = best.cluster!;
-          _absorb(c, e, durationMs, startMs);
+          _absorb(c, e, durationMs, startMs, profile);
           return _commit(
             segmentIndex: segmentIndex,
             cluster: c,
@@ -539,7 +571,7 @@ class SpeakerTracker {
         }
         if (_clusters.length < maxClusters) {
           final c = _newCluster(startMs, e.length, linkTo: best.speaker!.id);
-          _absorb(c, e, durationMs, startMs);
+          _absorb(c, e, durationMs, startMs, profile);
           return _commit(
             segmentIndex: segmentIndex,
             cluster: c,
@@ -609,7 +641,7 @@ class SpeakerTracker {
     }
 
     final c = _newCluster(startMs, e.length);
-    _absorb(c, e, durationMs, startMs);
+    _absorb(c, e, durationMs, startMs, profile);
     final bestSim = best?.sim;
     return _commit(
       segmentIndex: segmentIndex,
@@ -678,6 +710,7 @@ class SpeakerTracker {
       keep.sum[i] += drop.sum[i];
     }
     keep.weight += drop.weight;
+    keep.proximity.addAll(drop.proximity);
     keep.count += drop.count;
     keep.totalMs += drop.totalMs;
     keep.firstStartMs = math.min(keep.firstStartMs, drop.firstStartMs);
@@ -745,9 +778,16 @@ class SpeakerTracker {
     return c;
   }
 
-  void _absorb(_Cluster c, Float32List e, int durationMs, int startMs) {
+  void _absorb(
+    _Cluster c,
+    Float32List e,
+    int durationMs,
+    int startMs, [
+    ChannelProfile? profile,
+  ]) {
     final w = (durationMs / 1000).clamp(0.5, math.max(0.5, maxSegmentWeightSec));
     c.add(e, w.toDouble(), durationMs);
+    if (profile != null) c.proximity.add(profile, w.toDouble());
     c.firstStartMs = math.min(c.firstStartMs, startMs);
     c.recompute(voiceprintPriorWeight);
   }
