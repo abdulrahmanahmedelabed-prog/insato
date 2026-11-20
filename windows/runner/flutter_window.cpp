@@ -29,6 +29,8 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger(), GetHandle());
   battery_ = std::make_unique<BatteryChannel>(
       flutter_controller_->engine()->messenger());
+  audio_decoder_ = std::make_unique<AudioDecoderChannel>(
+      flutter_controller_->engine()->messenger());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -47,6 +49,7 @@ void FlutterWindow::OnDestroy() {
   // Stops the capture thread while the messenger is still alive.
   system_audio_ = nullptr;
   battery_ = nullptr;
+  audio_decoder_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

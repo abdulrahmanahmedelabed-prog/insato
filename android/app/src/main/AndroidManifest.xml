@@ -78,6 +78,34 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!--
+                Recording import ("استيراد تسجيل"): call recordings, voice
+                memos and meeting downloads shared to Insato ("Share" /
+                "Open with") from a call recorder, the voice recorder, a file
+                manager or a chat app. MainActivity / SharedAudioChannel.kt
+                copies the content:// file into the cache and hands it to
+                Dart (lib/features/import_audio/shared_audio_inbox.dart).
+                3GP call recordings are often labelled video/3gpp, Ogg files
+                application/ogg.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="audio/*"/>
+                <data android:mimeType="application/ogg"/>
+                <data android:mimeType="video/3gpp"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="audio/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="audio/*"/>
+            </intent-filter>
         </activity>
 
         <!--

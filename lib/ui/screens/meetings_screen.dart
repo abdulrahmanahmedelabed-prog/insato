@@ -6,6 +6,14 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
 import '../../core/time_format.dart';
+import '../../features/import_audio/import_audio.dart'
+    show
+        IS,
+        ImportProgressCard,
+        ImportRecordingButton,
+        ImportedBadge,
+        importRecordingFlow,
+        isImportedMeeting;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
 import '../../session/providers.dart';
 import '../actions.dart';
@@ -65,7 +73,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             const Text(S.appName),
           ],
         ),
-        actions: const [MultiDeviceMenuButton()],
+        actions: const [ImportRecordingButton(), MultiDeviceMenuButton()],
       ),
       floatingActionButton: Tooltip(
         message: S.newMeetingShortcut,
@@ -79,6 +87,10 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
       body: Column(
         children: [
           const ModelsMissingBanner(padding: EdgeInsets.fromLTRB(16, 4, 16, 8)),
+          ImportProgressCard(
+            onOpen: widget.onOpen,
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: SearchBar(
@@ -116,10 +128,22 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
                     icon: Icons.record_voice_over_rounded,
                     title: S.noMeetingsTitle,
                     body: S.noMeetingsBody,
-                    action: FilledButton.icon(
-                      onPressed: () => startNewMeeting(context, ref),
-                      icon: const Icon(Icons.mic_rounded),
-                      label: const Text(S.newMeeting),
+                    action: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => startNewMeeting(context, ref),
+                          icon: const Icon(Icons.mic_rounded),
+                          label: const Text(S.newMeeting),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => importRecordingFlow(context, ref),
+                          icon: const Icon(Icons.upload_file_rounded),
+                          label: const Text(IS.importAction),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -246,6 +270,7 @@ class MeetingTile extends ConsumerWidget {
                 runSpacing: 4,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  if (isImportedMeeting(meeting)) const ImportedBadge(),
                   _IconText(
                     icon: Icons.calendar_today_rounded,
                     child: Text(

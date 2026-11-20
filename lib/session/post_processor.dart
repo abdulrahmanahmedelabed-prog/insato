@@ -1336,10 +1336,22 @@ class PostProcessor {
   /// the voice-activity detection and more failed speech segments than
   /// [maxToleratedReprocessFailures] allows (a few isolated failures are
   /// tolerated and reported in [ReprocessReport.failedSegments]).
+  ///
+  /// [isCancelled] is polled while the audio is analysed; once it returns
+  /// true the run stops with an [OperationCancelledException] and, like any
+  /// failure, leaves the old transcript as it was (used by the recording
+  /// import, `lib/features/import_audio/`).
   Future<ReprocessReport> reprocessFromAudio(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
+    bool Function()? isCancelled,
   }) async {
+    void checkCancelled() {
+      if (isCancelled?.call() ?? false) {
+        throw const OperationCancelledException();
+      }
+    }
+
     final factory = _enginesFactory;
     if (factory == null) {
       throw const InsatoException('إعادة المعالجة غير متاحة.');
@@ -1420,6 +1432,7 @@ class PostProcessor {
           'جارٍ إعادة تفريغ الاجتماع (${(100 * done / total).round()}٪)…';
       try {
         await for (final chunk in readWavChunks(path)) {
+          checkCancelled();
           engines.segmenter.accept(chunk);
           fedMs += chunk.length * 1000 ~/ kSampleRate;
           // Bound memory: never queue more than a few segments ahead.
@@ -1442,6 +1455,7 @@ class PostProcessor {
           cause: e,
         );
       }
+      checkCancelled();
       engines.segmenter.flush();
       await engines.segmenter.dispose();
       await segmenterDone.future.timeout(
@@ -1456,6 +1470,7 @@ class PostProcessor {
           );
         },
       );
+      checkCancelled();
       // Never replace a transcript with a partial one: any VAD error means
       // the audio was not fully analysed, and more than a few failed
       // segments (e.g. the network dropped half-way with cloud ASR) mean

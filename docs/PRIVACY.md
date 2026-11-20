@@ -126,6 +126,19 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 - لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
 
+### و) استيراد تسجيل (مكالمة أو مذكرة صوتية)
+- الملف الذي تختاره أو تشاركه إلى إنصاتو يُقرأ على جهازك فقط، ويُفكّ ترميزه
+  بمفكّكات نظام التشغيل نفسه (لا خدمة خارجية ولا خدمة مدفوعة). تُحذف النسخة
+  المؤقتة التي يصنعها النظام عند المشاركة بعد الاستيراد، ويبقى ملفك الأصلي
+  كما هو.
+- يُعامل الاجتماع المستورد كأي اجتماع مسجّل: يُحفظ الصوت المحوَّل في مجلد
+  التسجيلات الخاص بالتطبيق فقط إذا كان «الاحتفاظ بالتسجيل الصوتي» مفعّلاً،
+  ويُرسَل إلى الخدمات الخارجية ما يُرسَل في الاجتماع المسجّل نفسه (مقاطع الصوت
+  إلى Deepgram إن اخترت التفريغ السحابي، والنص إلى محرك المحضر).
+- يُحفظ مع الاجتماع اسم الملف الأصلي وصيغته فقط، ويُحذفان بحذفه.
+- **تسجيل المكالمات تحكمه قوانين تختلف من بلد إلى آخر؛** يذكّرك إنصاتو بذلك
+  قبل كل استيراد، وعليك التأكد من أن التسجيل مسموح به وأن المشاركين علموا به.
+
 ## 3. الحماية والاحتفاظ والحذف
 
 - تُحفظ مفاتيح API في المخزن الآمن للنظام، لا في قاعدة بيانات التطبيق:
@@ -331,6 +344,22 @@ microphones:
 - No ads, trackers, usage analytics or automatic crash reporting.
 - No Insato server: the app talks directly to the services above with your keys.
 - No selling or sharing of data with anyone else.
+
+### f) Importing a recording (phone call, voice memo)
+- The file you choose or share to Insato is read on your device only and
+  decoded with the operating system's own decoders (no external or paid
+  service). The temporary copy the OS makes when sharing is deleted after the
+  import; your original file is left untouched.
+- An imported meeting is treated like a recorded one: the converted audio is
+  kept in the app's private recordings folder only when "keep audio" is on,
+  and the same data leaves the device as for a recorded meeting (audio
+  segments to Deepgram if you chose cloud transcription, the transcript to
+  the minutes engine).
+- Only the original file name and format are stored with the meeting, and
+  they are deleted with it.
+- **Call-recording laws differ between countries;** Insato reminds you
+  before every import — make sure the recording is lawful and that the
+  participants were informed.
 
 ## 3. Security, retention and deletion
 

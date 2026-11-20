@@ -121,6 +121,11 @@ const String kVoiceprintLedgerKeyPrefix = 'voiceprint_ledger:';
 /// `lib/features/multi_device/meeting_log.dart`), deleted with the meeting.
 const String kMultiDeviceLogKeyPrefix = 'multi_device_log:';
 
+/// Settings key prefix of an imported recording's details (original file
+/// name, format; `lib/features/import_audio/import_store.dart`), deleted
+/// with the meeting.
+const String kImportInfoKeyPrefix = 'import_info:';
+
 /// Prefix of a ledger tombstone value. Never starts a real (UUID) speaker id.
 const String kVoiceprintLedgerTombstonePrefix = '!';
 
@@ -470,6 +475,10 @@ class MeetingRepository {
     // v1.2 C: the multi-device log (devices, gaps, per-segment SNRs).
     await (_db.delete(_db.settings)
           ..where((s) => s.key.equals('$kMultiDeviceLogKeyPrefix$id')))
+        .go();
+    // Imported recordings: the original file's details.
+    await (_db.delete(_db.settings)
+          ..where((s) => s.key.equals('$kImportInfoKeyPrefix$id')))
         .go();
     final stored = row.audioPath;
     if (stored != null && stored.isNotEmpty) {

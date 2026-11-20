@@ -7,6 +7,7 @@ project(runner LANGUAGES CXX)
 #
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
+  "audio_decoder_channel.cpp"
   "battery_channel.cpp"
   "flutter_window.cpp"
   "main.cpp"
@@ -41,6 +42,10 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 # CoTaskMemFree) and MMCSS (AvSetMmThreadCharacteristicsW). The MMDevice /
 # IAudioClient GUIDs come from __uuidof, so no uuid.lib / mmdevapi.lib.
 target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "avrt.lib")
+# Recording import (audio_decoder_channel.cpp): Media Foundation source
+# reader (MFStartup / MFCreateMediaType in mfplat, MFCreateSourceReaderFromURL
+# in mfreadwrite, the MF_MT_* / MFAudioFormat_* GUIDs in mfuuid).
+target_link_libraries(${BINARY_NAME} PRIVATE "mfplat.lib" "mfreadwrite.lib" "mfuuid.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
