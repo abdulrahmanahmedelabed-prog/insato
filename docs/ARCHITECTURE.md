@@ -52,6 +52,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
 | Multi-device (v1.2 C) | LAN WebSocket (dart:io) + ChaCha20-Poly1305 (package:cryptography), mDNS (bonsoir), QR (qr / mobile_scanner), pure-Dart clock sync, cross-correlation and fusion | No internet, no server; works on Android, iOS and Windows; fully unit-tested on localhost |
+| Phone-call mode | Windows: microphone + WASAPI loopback as two aligned channels, side per segment by activity with echo suppression; elsewhere bandwidth of the speakerphone audio; hard diarization partition per side; telephone audio profile | Remote and local voices never mixed; no internet on the remote side, no telephony API |
 | Database | drift schema v6 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`; v1.2 D: `consistency_findings`, `resolution_annotations`), migrations tested from v1–v5 snapshots (real v5 data upgraded in `test/data/migration_test.dart`) | Upgrades keep all data |
 
 ## Module layout (`lib/`)
@@ -96,7 +97,7 @@ lib/
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, phone_call/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -232,6 +233,56 @@ Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
 `diarization/`, `minutes/minutes_prompt.dart`, `minutes/claude_client.dart`
 parsing) are covered by unit tests in `test/`.
 
+## Phone-call mode (وضع المكالمة الهاتفية)
+
+`lib/features/phone_call/` (strings `PCS`). A regular cellular call is
+transcribed live while a remote group gathers around one phone on speaker.
+
+```
+ Phone Link (Windows)                          speakerphone (any platform)
+ mic ──┐ (clock)          loopback ──┐         mic (device-aware source)
+       ▼                             ▼                 │
+ PhoneLinkSessionAudioSource: per mic frame take the   │
+ same number of loopback samples (80 ms pre-roll,      │
+ 200 ms bound) → localRing / remoteRing (90 s, one     │
+ timeline) + noise floors; VAD feed & archive = mix    │
+       ▼                                               ▼
+ VadSegmenter (telephone VAD: TelephoneAudioProfile.vadFor)
+       ▼  MeetingSessionController._onSegment → SessionSegmentFuser.fuseSegment
+ attributeCallSegment(local, remote)               classifyBandwidth(samples)
+ (10 ms energies, envelope xcorr ±300 ms → echo    (> 4.2 kHz vs 300–3400 Hz:
+ gain p25, local = mic ≥ echo + 6 dB)              ≤ −32 dB remote, ≥ −20 dB local)
+       ▼                                               ▼
+ samples of that side's channel only (remote band-limited 300–3400 Hz)
+ + ChannelProfile(partition: local | remote)
+       ▼
+ SpeakerTracker: candidates / continuity per partition; voiceprint threshold
+ per side (knownSpeakerThresholdIn → TelephoneAudioProfile.knownSpeakerThreshold)
+       ▼ stop → finishTake → PhoneCallLogStore (`phone_call_log:<id>`)
+ PostProcessor.refine (channelProfilesOf ⊃ partitions → refineSpeakers runs
+ each side separately), learnFromCorrections (segmentVoiceDevicesOf →
+ `telephone|call` tag), minutesInputsFor (callHintOf → MinutesCallHint →
+ "Phone call: …" metadata line, remote speakers marked)
+```
+
+| Piece | File | Notes |
+|---|---|---|
+| Models | `phone_call_models.dart` | `PhoneCallMode` (phoneLink / speakerphone), `CallSide` (= partition), `kTelephoneVoiceDeviceKey` |
+| Telephone profile | `telephone_profile.dart` | VAD per mode, `TelephoneBandLimiter` (4th-order Butterworth HP 300 Hz × LP 3400 Hz), `measureBandwidth` / `classifyBandwidth`, `knownSpeakerThreshold` (same channel: base; telephone ↔ microphone: −0.10, floor 0.38; two microphones: F18 rule), `resolveCallLanguageHint` (sherpa-onnx Whisper takes no prompt: the language tag is the hint) |
+| Attribution | `channel_attribution.dart` | `attributeCallSegment` (bleed suppression, overlap → dominant side), `NoiseFloorTracker` |
+| Sources | `phone_link_source.dart`, `speakerphone_source.dart`, `call_session_audio.dart` | `SessionAudioSource` + `SessionInputDeviceReporter` + `SessionSegmentFuser` + `CallSessionAudio` (per-side levels, `CallLiveStats`); `onTakeEnded` disarms the setup after the take |
+| Log | `phone_call_log.dart` | `PhoneCallLog` (mode, side per stored segment, echo / overlap / unattributed counters); deleted with the meeting (`kPhoneCallLogKeyPrefix`) |
+| Providers | `phone_call_providers.dart` | `phoneCallSetupProvider` (armed for the next recording), `phoneCallSessionPlanProvider` (read by `MeetingSessionController.start`: `adjustRequest` → `SessionEngineRequest.vadConfig` / language), `phoneCallAwareSource` (in `sessionAudioSourceProvider`; while armed it replaces the mixed / multi-device chain), `phoneCallProbeFactoryProvider` |
+| UI | `phone_call_setup_screen.dart`, `phone_call_guide.dart`, `phone_call_check.dart`, `phone_call_widgets.dart` | `PhoneCallMenuButton` (meetings app bar) → setup (mode, language, legal consent, Android / iPhone guide, level check) → `startNewMeetingWithContext`; `PhoneCallRecordingCard` (recording screen); `PhoneCallMeetingCard` (minutes tab) |
+
+Shared-layer hooks (all no-ops without a call): `ChannelProfile.partition`,
+`SpeakerTracker.knownSpeakerThresholdIn`, `refineSpeakers` partitions,
+`SessionEngineRequest.vadConfig` / `withOverrides`, `MinutesInputs.call`,
+`PostProcessor(callHintOf:, segmentVoiceDevicesOf:)`. Limitations: the VAD
+runs on the mix, so overlapping speech of both sides becomes one segment of
+the dominant side; the archive is the mono mix, so re-processing from audio
+loses the side attribution; a call is not combined with a multi-device hub.
+
 ## Speaker identification details
 
 * Embeddings are L2-normalised; similarity = cosine.
@@ -322,6 +373,10 @@ parsing) are covered by unit tests in `test/`.
   (`MinutesOutcome.postponedKeyUnavailable`), and Settings shows the key
   state as unknown.
 * A recording-consent reminder is shown before the first recording.
+* Phone-call mode: Insato only records the PC speakers (loopback) and the
+  microphone; it never touches the phone network or Phone Link. The setup
+  screen requires confirming that every party is informed (call-recording
+  laws). The call log (mode, side per segment) is deleted with the meeting.
 * Multi-device meetings (v1.2 C): guest audio goes only to the host over the
   LAN, encrypted and authenticated with a key derived from the join code
   (never transmitted); guests store nothing; the host advertises only its

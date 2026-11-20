@@ -321,6 +321,44 @@ v1.1 is verified on real devices.
 * Robust to a node dropping out (meeting continues; gap noted); battery and
   network-quality indicators per node.
 
+## E — Phone-call mode (وضع المكالمة الهاتفية)
+Status: implemented in `lib/features/phone_call/` (needs device checks, see
+the end of this section).
+* Goal: transcribe a regular cellular (GSM) call live — no internet on the
+  remote side — where a remote group gathers around one phone on speaker.
+* **Phone Link (Windows, preferred)**: the user takes the call on the PC via
+  Microsoft Phone Link (Bluetooth). The session records the remote side from
+  system audio (WASAPI loopback) and the local side from the microphone as
+  two channels on one timeline. Each VAD segment is attributed to a side
+  from the channels' activity; its audio is that channel only; remote
+  segments are diarized among remote voices and local ones among local
+  voices (hard partition in the live tracker and the offline refinement).
+  Bleed: the mic's energy envelope is correlated with the loopback's at
+  ±300 ms; a mic block counts as local speech only 6 dB above the predicted
+  echo, so a segment whose mic activity is all echo goes to the remote side.
+  Headphones are recommended (card hint when echo is frequent).
+* **Speakerphone + second device (any platform)**: the call runs on speaker
+  on one phone; Insato records with the mic of another device. Narrowband
+  segments (nothing above ~4 kHz) are attributed to the remote side,
+  clearly wideband ones to the room; HD-voice calls stay unattributed.
+* **Telephone audio profile**: VAD threshold 0.40 / 0.32 (Phone Link /
+  speakerphone), min speech 0.2 s; remote segments band-limited to
+  300–3400 Hz (4th-order Butterworth) before ASR and embedding; voiceprints
+  learned from remote speech are tagged `telephone|call`, and a wideband ↔
+  telephone mismatch relaxes the voiceprint threshold by 0.10 (floor 0.38);
+  call language choice (Settings / auto / Arabic / English) — sherpa-onnx
+  Whisper has no initial prompt, so the language tag is the hint.
+* **Metadata & minutes**: `phone_call_log:<meeting id>` (mode, side of each
+  segment, echo / overlap counters); the minutes prompt states that part of
+  the meeting was a phone call and marks remote speakers.
+* **UI**: setup screen (mode, language, legal notice with consent checkbox,
+  Android / iPhone Phone Link guide, level check of both sides), recording
+  card (per-side levels and counters), meeting card.
+* **Device checks needed**: Phone Link call audio on the loopback of the
+  default render device (and Windows communications ducking off), a shared-mode
+  mic capture while Phone Link holds the mic, echo lag / gain on real PC
+  speakers, narrowband detection on real speakerphones (AMR-NB vs HD voice).
+
 ## D — Contradiction & consistency checker (كاشف التناقضات)
 * Institutional memory: all approved resolutions and tasks (F9) are indexed
   (F8 retrieval).

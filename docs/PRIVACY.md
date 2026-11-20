@@ -157,6 +157,17 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 أثناء التسجيل على Android. المستخدم هو المسؤول عن الالتزام بالأنظمة المعمول
 بها، وعن حذف بصمة أي شخص يطلب ذلك.
 
+**المكالمات الهاتفية (وضع المكالمة):** تسجيل المكالمات تنظّمه قوانين خاصة
+تختلف من بلد إلى آخر؛ كثير منها يشترط علم جميع أطراف المكالمة أو موافقتهم،
+وقد يُعدّ تسجيل مكالمة دون إذن مخالفة أو جريمة. أبلِغ الطرف البعيد في بداية
+المكالمة بأنها تُسجَّل وتُفرَّغ لإعداد محضر، واحصل على موافقة الحاضرين في
+الطرفين. يعرض إنصاتو هذا التنبيه في شاشة إعداد المكالمة ولا يبدأ قبل تأكيده.
+لا يتصل إنصاتو بشبكة الهاتف ولا بتطبيق Phone Link: يسجّل فقط ما يصدر من سمّاعات
+الحاسوب وما يلتقطه الميكروفون، ويُعالَج كل ذلك على الجهاز كأي اجتماع (ويُرسل
+النص وحده إلى محرك المحضر المختار). تُحفظ مع الاجتماع طريقة الالتقاط ونسبة كل
+مقطع إلى الطرف المحلي أو البعيد، وتُحذف بحذفه. البصمات المتعلَّمة من صوت
+الطرف البعيد تُوسَم بأنها من خط الهاتف.
+
 ## 5. الأذونات
 
 | الإذن | السبب |
@@ -359,6 +370,20 @@ starting.** Insato shows a reminder before the first recording and a
 persistent notification while recording on Android. The user is responsible
 for complying with applicable law and for deleting anyone's voiceprint on
 request.
+
+**Phone calls (phone-call mode):** call recording is governed by specific
+laws that differ between countries; many require every party to the call to
+be informed or to consent, and recording a call without permission may be an
+offence. Tell the remote side at the start of the call that it is being
+recorded and transcribed for minutes, and obtain the consent of everyone on
+both sides. Insato shows this notice on the call setup screen and does not
+start before it is confirmed. Insato does not connect to the phone network
+or to Phone Link: it only records what the PC speakers play and what the
+microphone hears, processed on the device like any meeting (only the text
+goes to the chosen minutes engine). The capture mode and the side (local /
+remote) of each segment are stored with the meeting and deleted with it.
+Voiceprints learned from remote speech are tagged as telephone-line
+voiceprints.
 
 ## 5. Permissions
 

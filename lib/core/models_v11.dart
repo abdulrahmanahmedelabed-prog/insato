@@ -11,7 +11,7 @@
 // skipped, missing lists are empty. This keeps minutes stored by v1 (which
 // lack every v1.1 key) readable.
 
-import 'models_v12.dart' show MinutesStyleHint;
+import 'models_v12.dart' show MinutesCallHint, MinutesStyleHint;
 
 // ---------------------------------------------------------------------------
 // JSON helpers (shared by models.dart and the v1.1 models)
@@ -1321,6 +1321,7 @@ class MinutesInputs {
     this.openTasks = const [],
     this.taskSourceTitles = const {},
     this.style,
+    this.call,
   });
 
   /// No extra inputs (v1 behaviour).
@@ -1339,4 +1340,8 @@ class MinutesInputs {
   /// v1.2 (A): official register of the chosen template; null = the
   /// neutral default.
   final MinutesStyleHint? style;
+
+  /// Phone-call mode: part of the meeting was a phone call with a remote
+  /// group; null for ordinary meetings.
+  final MinutesCallHint? call;
 }

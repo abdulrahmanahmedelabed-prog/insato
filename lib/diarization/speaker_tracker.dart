@@ -34,6 +34,11 @@
 //   adds / subtracts up to `channelCueWeight` to the ranking score (never to
 //   the similarity checked against the thresholds). Without profiles (one
 //   device) nothing changes.
+// * Phone-call mode: a profile may name a hard [ChannelProfile.partition]
+//   (the side of the call). Such a segment is only compared with clusters
+//   opened in the same partition (or without one), continuity is tracked
+//   per partition, and new clusters remember their partition. Voiceprint
+//   thresholds may depend on the partition ([knownSpeakerThresholdIn]).
 
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -186,6 +191,7 @@ class _Cluster {
     this.autoLabelNumber,
     this.linkedSpeakerId,
     this.prior,
+    this.partition,
   })  : sum = Float64List(dimension),
         centroid = Float32List(dimension);
 
@@ -193,6 +199,9 @@ class _Cluster {
   final int dimension;
   final int? autoLabelNumber;
   String? linkedSpeakerId;
+
+  /// Hard partition (phone-call side) this cluster was opened in, or null.
+  final String? partition;
 
   /// Normalised voiceprint of the linked speaker (acts as a Bayesian prior).
   Float32List? prior;
@@ -286,6 +295,10 @@ class SpeakerTracker {
   /// * [maxSegmentWeightSec]: cap on a single segment's centroid weight
   ///   (segment weight = its duration in seconds, at least 0.5).
   /// * [maxClusters]: hard cap on local clusters per meeting.
+  /// * [knownSpeakerThresholdIn]: phone-call mode, per-voiceprint threshold
+  ///   that also depends on the segment's partition (a voiceprint learned
+  ///   on a wideband microphone heard through the telephone line); takes
+  ///   precedence over [knownSpeakerThresholdOf] when given.
   /// * [firstAutoLabelNumber]: `N` of the first auto label `متحدث N`.
   SpeakerTracker({
     required List<Speaker> knownSpeakers,
@@ -304,6 +317,7 @@ class SpeakerTracker {
     this.maxSegmentWeightSec = 10,
     this.maxClusters = 64,
     this.channelCueWeight = 0.05,
+    this.knownSpeakerThresholdIn,
     int firstAutoLabelNumber = 1,
   })  : knownSpeakerThreshold = knownSpeakerThreshold ?? matchThreshold,
         _nextAutoLabel = firstAutoLabelNumber {
@@ -332,8 +346,15 @@ class SpeakerTracker {
   /// Per-voiceprint threshold (null: [knownSpeakerThreshold] for all).
   final double Function(Speaker speaker)? knownSpeakerThresholdOf;
 
+  /// Per-voiceprint threshold given the segment's partition (null: no
+  /// partition dependence).
+  final double Function(Speaker speaker, String? partition)?
+      knownSpeakerThresholdIn;
+
   double _thresholdOf(_Candidate c) {
     if (c.isLocal) return matchThreshold;
+    final inPartition = knownSpeakerThresholdIn;
+    if (inPartition != null) return inPartition(c.speaker!, _part);
     final of = knownSpeakerThresholdOf;
     return of == null ? knownSpeakerThreshold : of(c.speaker!);
   }
@@ -391,6 +412,11 @@ class SpeakerTracker {
   _Cluster? _last;
   int? _lastEndMs;
 
+  /// Partition of the segment being assigned (null: none).
+  String? _part;
+  final Map<String, _Cluster?> _lastIn = {};
+  final Map<String, int> _lastEndIn = {};
+
   /// Embedding dimension fixed by the first usable embedding (null before).
   int? get dimension => _dimension;
 
@@ -444,9 +470,19 @@ class SpeakerTracker {
     final e = _prepare(embedding);
     final profile = channels != null && channels.isInformative ? channels : null;
     final prox = profile?.proximity();
+    final part = _part = channels?.partition;
+    // Clusters this segment may join: all of them, or (phone-call mode)
+    // those of its partition and those opened without one.
+    final pool = part == null
+        ? _clusters
+        : [
+            for (final c in _clusters)
+              if (c.partition == null || c.partition == part) c,
+          ];
 
-    final prev = _last;
-    final prevEnd = _lastEndMs;
+    var prev = part == null ? _last : _lastIn[part];
+    if (prev != null && !pool.contains(prev)) prev = null;
+    final prevEnd = part == null ? _lastEndMs : _lastEndIn[part];
     final gap = prevEnd == null ? null : math.max(0, startMs - prevEnd);
     final continuity = prev != null && gap != null && gap < continuityGapMs;
 
@@ -470,7 +506,7 @@ class SpeakerTracker {
     }
 
     final localSims = <double>[
-      for (final c in _clusters) cosine(e, c.centroid),
+      for (final c in pool) cosine(e, c.centroid),
     ];
 
     // --- Short segment: never create or update clusters ---------------------
@@ -478,7 +514,7 @@ class SpeakerTracker {
       final (bi, best, second) = bestAndSecond(localSims);
       final margin = second.isFinite ? best - second : null;
       if (continuity) {
-        final prevSim = localSims[_clusters.indexOf(prev)];
+        final prevSim = localSims[pool.indexOf(prev)];
         // After a real pause the floor may have changed hands, so a smaller
         // margin is enough to switch to another local speaker.
         final afterPause = gap >= turnTakingGapMs;
@@ -486,12 +522,12 @@ class SpeakerTracker {
             ? math.min(shortSegmentSwitchMargin, shortSegmentTurnSwitchMargin)
             : shortSegmentSwitchMargin;
         if (bi >= 0 &&
-            !identical(_clusters[bi], prev) &&
+            !identical(pool[bi], prev) &&
             best >= matchThreshold &&
             best - prevSim >= switchMargin) {
           return _commit(
             segmentIndex: segmentIndex,
-            cluster: _clusters[bi],
+            cluster: pool[bi],
             endMs: endMs,
             decision: AssignmentDecision.weakMatch,
             similarity: best,
@@ -517,7 +553,7 @@ class SpeakerTracker {
       if (bi >= 0 && best >= matchThreshold) {
         return _commit(
           segmentIndex: segmentIndex,
-          cluster: _clusters[bi],
+          cluster: pool[bi],
           endMs: endMs,
           decision: AssignmentDecision.weakMatch,
           similarity: best,
@@ -531,11 +567,11 @@ class SpeakerTracker {
 
     // --- Long segment --------------------------------------------------------
     final candidates = <_Candidate>[
-      for (var i = 0; i < _clusters.length; i++)
+      for (var i = 0; i < pool.length; i++)
         _Candidate.local(
-          _clusters[i],
+          pool[i],
           localSims[i],
-          localPreference + _cueBonus(_clusters[i], prox),
+          localPreference + _cueBonus(pool[i], prox),
         ),
       for (final s in _unclaimedKnown(e.length))
         _Candidate.global(s, cosine(e, s.centroid!)),
@@ -570,7 +606,12 @@ class SpeakerTracker {
           );
         }
         if (_clusters.length < maxClusters) {
-          final c = _newCluster(startMs, e.length, linkTo: best.speaker!.id);
+          final c = _newCluster(
+            startMs,
+            e.length,
+            linkTo: best.speaker!.id,
+            partition: part,
+          );
           _absorb(c, e, durationMs, startMs, profile);
           return _commit(
             segmentIndex: segmentIndex,
@@ -629,7 +670,7 @@ class SpeakerTracker {
       if (bi >= 0) {
         return _commit(
           segmentIndex: segmentIndex,
-          cluster: _clusters[bi],
+          cluster: pool[bi],
           endMs: endMs,
           decision: AssignmentDecision.weakMatch,
           similarity: bestSim,
@@ -640,7 +681,7 @@ class SpeakerTracker {
       return _unknown(segmentIndex, endMs);
     }
 
-    final c = _newCluster(startMs, e.length);
+    final c = _newCluster(startMs, e.length, partition: part);
     _absorb(c, e, durationMs, startMs, profile);
     final bestSim = best?.sim;
     return _commit(
@@ -721,6 +762,9 @@ class SpeakerTracker {
     _clusters.remove(drop);
     _redirects[drop.key] = keep.key;
     if (identical(_last, drop)) _last = keep;
+    for (final k in _lastIn.keys.toList()) {
+      if (identical(_lastIn[k], drop)) _lastIn[k] = keep;
+    }
     return keep.key;
   }
 
@@ -765,8 +809,14 @@ class SpeakerTracker {
     }
   }
 
-  _Cluster _newCluster(int startMs, int dimension, {String? linkTo}) {
+  _Cluster _newCluster(
+    int startMs,
+    int dimension, {
+    String? linkTo,
+    String? partition,
+  }) {
     final c = _Cluster(
+      partition: partition,
       key: '$localKeyPrefix${_nextOrdinal++}',
       dimension: dimension,
       firstStartMs: startMs,
@@ -805,6 +855,11 @@ class SpeakerTracker {
     cluster.lastEndMs = math.max(cluster.lastEndMs, endMs);
     _last = cluster;
     _lastEndMs = math.max(_lastEndMs ?? endMs, endMs);
+    final part = _part;
+    if (part != null) {
+      _lastIn[part] = cluster;
+      _lastEndIn[part] = math.max(_lastEndIn[part] ?? endMs, endMs);
+    }
     return SpeakerAssignment(
       segmentIndex: segmentIndex,
       clusterKey: cluster.key,
@@ -824,6 +879,11 @@ class SpeakerTracker {
     // inherit across it.
     _last = null;
     _lastEndMs = math.max(_lastEndMs ?? endMs, endMs);
+    final part = _part;
+    if (part != null) {
+      _lastIn[part] = null;
+      _lastEndIn[part] = math.max(_lastEndIn[part] ?? endMs, endMs);
+    }
     return SpeakerAssignment(
       segmentIndex: segmentIndex,
       similarity: similarity,

@@ -121,6 +121,11 @@ const String kVoiceprintLedgerKeyPrefix = 'voiceprint_ledger:';
 /// `lib/features/multi_device/meeting_log.dart`), deleted with the meeting.
 const String kMultiDeviceLogKeyPrefix = 'multi_device_log:';
 
+/// Settings key prefix of a phone-call meeting's log (call mode, side of
+/// each segment; `lib/features/phone_call/phone_call_log.dart`), deleted
+/// with the meeting.
+const String kPhoneCallLogKeyPrefix = 'phone_call_log:';
+
 /// Prefix of a ledger tombstone value. Never starts a real (UUID) speaker id.
 const String kVoiceprintLedgerTombstonePrefix = '!';
 
@@ -470,6 +475,10 @@ class MeetingRepository {
     // v1.2 C: the multi-device log (devices, gaps, per-segment SNRs).
     await (_db.delete(_db.settings)
           ..where((s) => s.key.equals('$kMultiDeviceLogKeyPrefix$id')))
+        .go();
+    // Phone-call mode: call mode and the side of each segment.
+    await (_db.delete(_db.settings)
+          ..where((s) => s.key.equals('$kPhoneCallLogKeyPrefix$id')))
         .go();
     final stored = row.audioPath;
     if (stored != null && stored.isNotEmpty) {

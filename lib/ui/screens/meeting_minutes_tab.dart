@@ -13,6 +13,8 @@ import '../../features/consistency/consistency.dart'
 import '../../features/context/meeting_context_card.dart';
 import '../../features/evidence/evidence.dart' show EvidenceChips;
 import '../../features/multi_device/widgets.dart' show MultiDeviceLogCard;
+import '../../features/phone_call/phone_call_widgets.dart'
+    show PhoneCallMeetingCard;
 import '../../features/official/official_summary_card.dart'
     show OfficialSummaryCard, confirmRegenerateOfficial;
 import '../../session/post_processor.dart';
@@ -60,6 +62,7 @@ class MeetingMinutesTab extends ConsumerWidget {
       SupersededResolutionsCard(meeting: meeting),
       MeetingContextCard(meeting: meeting),
       MultiDeviceLogCard(meetingId: meeting.id),
+      PhoneCallMeetingCard(meetingId: meeting.id),
       const SizedBox(height: 12),
     ];
 

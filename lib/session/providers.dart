@@ -25,6 +25,8 @@ import '../features/context/session_keyterms.dart';
 import '../features/local_llm/local_minutes_backends.dart';
 import '../features/multi_device/multi_device_providers.dart'
     show multiDeviceAwareSource, multiDeviceLogStoreProvider;
+import '../features/phone_call/phone_call_providers.dart'
+    show phoneCallAwareSource, phoneCallLogStoreProvider;
 import '../features/official/official_service.dart'
     show officialMinutesServiceProvider;
 import '../features/profiles/profile_service.dart'
@@ -356,9 +358,15 @@ final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
 ///
 /// v1.2 C: while a multi-device lobby is open the source also records the
 /// guests ([multiDeviceAwareSource]).
+///
+/// Phone-call mode: while a call setup is armed the source is the Phone Link
+/// (two channels) or speakerphone source instead ([phoneCallAwareSource]).
 final sessionAudioSourceProvider = Provider<SessionAudioSource>(
-  (ref) =>
-      multiDeviceAwareSource(ref, ref.watch(mixedSessionAudioSourceProvider)),
+  (ref) => phoneCallAwareSource(
+    ref,
+    () =>
+        multiDeviceAwareSource(ref, ref.watch(mixedSessionAudioSourceProvider)),
+  ),
 );
 
 /// Resolves the key of the microphone a new recording will use
@@ -410,8 +418,15 @@ final postProcessorProvider = Provider<PostProcessor>((ref) {
     onMeetingDeleted: (id) =>
         ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),
     // v1.2 C: nearest-device cue of multi-device meetings.
-    channelProfilesOf: (id) =>
-        ref.read(multiDeviceLogStoreProvider).profiles(id),
+    // Phone-call mode: the side of each segment is a hard partition.
+    channelProfilesOf: (id) async => {
+      ...await ref.read(multiDeviceLogStoreProvider).profiles(id),
+      ...await ref.read(phoneCallLogStoreProvider).partitions(id),
+    },
+    // Phone-call mode: remote voices in the minutes, telephone voiceprints.
+    callHintOf: (id) => ref.read(phoneCallLogStoreProvider).minutesHint(id),
+    segmentVoiceDevicesOf: (id) =>
+        ref.read(phoneCallLogStoreProvider).segmentVoiceDevices(id),
   );
 });
 

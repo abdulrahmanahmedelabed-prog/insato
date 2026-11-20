@@ -196,6 +196,27 @@ RefinementResult refineSpeakers({
     }
   }
 
+  // Phone-call mode: segments of different sides never share a cluster.
+  final partitions = <String?>{
+    for (final it in items) channelProfiles[it.$1]?.partition,
+  };
+  if (partitions.length >= 2) {
+    return _refinePartitioned(
+      items: items,
+      partitions: partitions,
+      knownSpeakers: knownSpeakers,
+      clusterThreshold: clusterThreshold,
+      linkThreshold: linkThreshold,
+      lockedAssignments: lockedAssignments,
+      tinyClusterMaxMs: tinyClusterMaxMs,
+      tinyMergeThreshold: tinyMergeThreshold,
+      voiceprintMergeThreshold: voiceprintMergeThreshold,
+      maxSegmentWeightSec: maxSegmentWeightSec,
+      maxMatrixItems: maxMatrixItems,
+      channelProfiles: channelProfiles,
+    );
+  }
+
   // --- 1. Validate & normalise --------------------------------------------
   final dimCounts = <int, int>{};
   for (final it in items) {
@@ -396,6 +417,98 @@ RefinementResult refineSpeakers({
       linkReason: g.linkReason,
     ));
   }
+  return RefinementResult(
+      clusters: out, clusterIdBySegment: bySegment, skippedSegmentIds: skipped);
+}
+
+/// [refineSpeakers] for items carrying hard partitions
+/// ([ChannelProfile.partition], phone-call sides): each partition (items
+/// without one form their own group) is refined on its own, then the
+/// results are merged. A voiceprint linked by similarity in two partitions
+/// stays with the better-matching cluster; user locks are kept as given.
+RefinementResult _refinePartitioned({
+  required List<(String segmentId, Float32List embedding, int durationMs)>
+      items,
+  required Set<String?> partitions,
+  required List<Speaker> knownSpeakers,
+  required double clusterThreshold,
+  required double linkThreshold,
+  required Map<String, String> lockedAssignments,
+  required int tinyClusterMaxMs,
+  required double tinyMergeThreshold,
+  required double voiceprintMergeThreshold,
+  required double maxSegmentWeightSec,
+  required int maxMatrixItems,
+  required Map<String, ChannelProfile> channelProfiles,
+}) {
+  final order = <String, int>{
+    for (var i = 0; i < items.length; i++) items[i].$1: i,
+  };
+  final merged = <RefinedCluster>[];
+  final skipped = <String>[];
+  for (final part in partitions) {
+    final group = [
+      for (final it in items)
+        if (channelProfiles[it.$1]?.partition == part) it,
+    ];
+    if (group.isEmpty) continue;
+    final ids = {for (final it in group) it.$1};
+    final r = refineSpeakers(
+      items: group,
+      knownSpeakers: knownSpeakers,
+      clusterThreshold: clusterThreshold,
+      linkThreshold: linkThreshold,
+      lockedAssignments: {
+        for (final e in lockedAssignments.entries)
+          if (ids.contains(e.key)) e.key: e.value,
+      },
+      tinyClusterMaxMs: tinyClusterMaxMs,
+      tinyMergeThreshold: tinyMergeThreshold,
+      voiceprintMergeThreshold: voiceprintMergeThreshold,
+      maxSegmentWeightSec: maxSegmentWeightSec,
+      maxMatrixItems: maxMatrixItems,
+      channelProfiles: {
+        for (final id in ids)
+          if (channelProfiles[id] case final p?) id: p.withoutPartition(),
+      },
+    );
+    merged.addAll(r.clusters);
+    skipped.addAll(r.skippedSegmentIds);
+  }
+  // One voiceprint, one cluster (similarity links only).
+  final bestBySpeaker = <String, RefinedCluster>{};
+  for (final c in merged) {
+    final sid = c.linkedSpeakerId;
+    if (sid == null || c.linkReason != ClusterLinkReason.voiceprint) continue;
+    final cur = bestBySpeaker[sid];
+    if (cur == null || (c.linkSimilarity ?? 0) > (cur.linkSimilarity ?? 0)) {
+      bestBySpeaker[sid] = c;
+    }
+  }
+  int firstOf(RefinedCluster c) =>
+      c.segmentIds.map((id) => order[id] ?? 0).fold(1 << 30, math.min);
+  merged.sort((a, b) => firstOf(a).compareTo(firstOf(b)));
+  final out = <RefinedCluster>[];
+  final bySegment = <String, String>{};
+  for (var k = 0; k < merged.length; k++) {
+    final c = merged[k];
+    final id = 'cluster:${k + 1}';
+    final loses = c.linkReason == ClusterLinkReason.voiceprint &&
+        !identical(bestBySpeaker[c.linkedSpeakerId], c);
+    for (final s in c.segmentIds) {
+      bySegment[s] = id;
+    }
+    out.add(RefinedCluster(
+      id: id,
+      segmentIds: c.segmentIds,
+      centroid: c.centroid,
+      totalMs: c.totalMs,
+      linkedSpeakerId: loses ? null : c.linkedSpeakerId,
+      linkSimilarity: loses ? null : c.linkSimilarity,
+      linkReason: loses ? ClusterLinkReason.none : c.linkReason,
+    ));
+  }
+  skipped.sort((a, b) => (order[a] ?? 0).compareTo(order[b] ?? 0));
   return RefinementResult(
       clusters: out, clusterIdBySegment: bySegment, skippedSegmentIds: skipped);
 }

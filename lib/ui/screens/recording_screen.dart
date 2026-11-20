@@ -28,6 +28,8 @@ import '../../features/consistency/consistency.dart' show LiveConsistencyBanner;
 import '../../features/tasks/tasks.dart' show OpenTasksBanner;
 import '../../features/voice/mic_capture.dart' show capturePlatformProvider;
 import '../../features/multi_device/widgets.dart' show MultiDeviceRecordingCard;
+import '../../features/phone_call/phone_call_widgets.dart'
+    show PhoneCallRecordingCard;
 import '../../features/voice/mic_settings.dart' show MicDeviceChip;
 import '../../features/voice/strings.dart' show VoiceStrings;
 import '../../session/meeting_session_controller.dart';
@@ -318,6 +320,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             child: LiveConsistencyBanner(meetingId: meetingId),
           ),
         const MultiDeviceRecordingCard(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+        ),
+        const PhoneCallRecordingCard(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
         ),
         _ControlPanel(

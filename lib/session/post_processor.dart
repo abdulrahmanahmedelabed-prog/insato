@@ -667,6 +667,8 @@ class PostProcessor {
     this._onMinutesSaved,
     this._onMeetingDeleted,
     this._channelProfilesOf,
+    this._callHintOf,
+    this._segmentVoiceDevicesOf,
   }) : _minutesFactory = minutesEngineFactory,
        _isActive = isMeetingActive ?? ((_) => false),
        _runRefinement = runRefinement ?? runRefinementInBackground;
@@ -696,6 +698,17 @@ class PostProcessor {
   /// for single-device meetings). Best-effort: a failure means no cue.
   final Future<Map<String, ChannelProfile>> Function(String meetingId)?
   _channelProfilesOf;
+
+  /// Phone-call mode: how the call was captured and which segments came
+  /// from the remote side (null for ordinary meetings). Best-effort.
+  final Future<MinutesCallHint?> Function(String meetingId)? _callHintOf;
+
+  /// Phone-call mode: segment id → voice-device tag of the channel it was
+  /// heard on when it differs from `Meeting.inputDevice` (the telephone
+  /// line). Voiceprints learned mostly from such segments take that tag.
+  /// Best-effort.
+  final Future<Map<String, String>> Function(String meetingId)?
+  _segmentVoiceDevicesOf;
 
   // -------------------------------------------------------------------------
   // Refinement
@@ -887,6 +900,17 @@ class PostProcessor {
       final speakers = await _speakers.getAllById();
       final ledger = await _loadLedger(meetingId);
       final meetingDevice = (await _meetings.get(meetingId))?.inputDevice;
+      var segmentDevices = const <String, String>{};
+      final loadDevices = _segmentVoiceDevicesOf;
+      if (loadDevices != null) {
+        try {
+          segmentDevices = await loadDevices(meetingId);
+        } catch (_) {
+          // The meeting's microphone tags everything.
+        }
+      }
+      // Speaker id → learned segments heard on each channel tag.
+      final addedDevices = <String, Map<String?, int>>{};
       final speechMs = <String, int>{};
       for (final s in segs) {
         final sid = s.speakerId;
@@ -922,6 +946,9 @@ class PostProcessor {
         final sp = speakers[cur];
         if (sp == null || !_eligible(s, sp, speechMs)) continue;
         (adds[cur] ??= []).add(e);
+        final tag = segmentDevices[s.id] ?? meetingDevice;
+        final byTag = addedDevices[cur] ??= {};
+        byTag[tag] = (byTag[tag] ?? 0) + 1;
         ledger[s.id] = cur;
       }
       final present = {for (final s in segs) s.id};
@@ -949,7 +976,7 @@ class PostProcessor {
           final hadVoice = centroid != null && isUsableEmbedding(centroid);
           final device = voiceDeviceAfterLearning(
             currentDevice: hadVoice ? sp.voiceDevice : null,
-            sessionDeviceKey: meetingDevice,
+            sessionDeviceKey: _dominantTag(addedDevices[id], meetingDevice),
             previousCount: hadVoice ? count : 0,
             learnedCount: add.length,
           );
@@ -977,6 +1004,21 @@ class PostProcessor {
         unlearnedSegments: removes.values.fold(0, (a, l) => a + l.length),
       );
     });
+  }
+
+  /// The channel tag most of a speaker's newly learned segments were heard
+  /// on ([fallback] when none).
+  static String? _dominantTag(Map<String?, int>? counts, String? fallback) {
+    if (counts == null || counts.isEmpty) return fallback;
+    String? best = fallback;
+    var bestN = counts[fallback] ?? 0;
+    counts.forEach((tag, n) {
+      if (n > bestN) {
+        best = tag;
+        bestN = n;
+      }
+    });
+    return best;
   }
 
   static bool _eligible(
@@ -1228,11 +1270,21 @@ class PostProcessor {
         if (t.sourceMeetingId case final id?)
           if (meetingsById[id] case final m?) id: m.title,
     };
+    MinutesCallHint? call;
+    final loadCall = _callHintOf;
+    if (loadCall != null) {
+      try {
+        call = await loadCall(meeting.id);
+      } catch (_) {
+        // The minutes are written without the phone-call note.
+      }
+    }
     return MinutesInputs(
       glossary: glossary,
       openTasks: open,
       taskSourceTitles: titles,
       style: await _styleHintFor(meeting),
+      call: call,
     );
   }
 

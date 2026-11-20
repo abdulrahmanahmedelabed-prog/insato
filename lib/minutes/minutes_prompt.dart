@@ -7,6 +7,8 @@
 //
 // Pure Dart: no Flutter imports, fully unit-tested.
 
+import 'dart:math' as math;
+
 import '../core/models.dart';
 import '../core/time_format.dart';
 
@@ -364,6 +366,46 @@ String _escapeTranscriptText(String s) => s.replaceAllMapped(
   ),
   (m) => '‹${m.group(1)}${m.group(2)}›',
 );
+
+/// The metadata line of a phone-call meeting ([MinutesCallHint]).
+String phoneCallMetadataLine(MinutesCallHint call) {
+  final how = call.mode == MinutesCallHint.modePhoneLink
+      ? 'taken on this computer through Microsoft Phone Link, the remote '
+            'side recorded on its own channel'
+      : 'played on a phone loudspeaker and recorded by this device\'s '
+            'microphone';
+  return 'Phone call: part of this meeting was a regular cellular phone call '
+      '($how) with a remote group gathered around one phone. Speakers marked '
+      '"remote side" spoke through the telephone line: their audio was '
+      'narrowband, so names, numbers and terms they said may be less reliable '
+      '(mark such uncertainty in notes rather than guessing), and say in the '
+      'minutes that they took part by phone.';
+}
+
+/// Display names of the speakers who spoke mostly on the remote side of a
+/// phone call (segments in [remoteSegmentIds] are at least half of their
+/// speaking time).
+Set<String> remoteCallSpeakerNames(
+  List<TranscriptSegment> segments,
+  Map<String, Speaker> speakersById,
+  Set<String> remoteSegmentIds,
+) {
+  if (remoteSegmentIds.isEmpty) return const {};
+  final total = <String, int>{};
+  final remote = <String, int>{};
+  for (final s in segments) {
+    if (!s.hasContent || s.speakerId == null) continue;
+    final name = speakerDisplayName(s.speakerId, speakersById);
+    if (name == kUnknownSpeakerName) continue;
+    final d = math.max(1, s.endMs - s.startMs);
+    total[name] = (total[name] ?? 0) + d;
+    if (remoteSegmentIds.contains(s.id)) remote[name] = (remote[name] ?? 0) + d;
+  }
+  return {
+    for (final e in remote.entries)
+      if (e.value * 2 >= (total[e.key] ?? 0)) e.key,
+  };
+}
 
 /// Resolves a segment's display name: the speaker's name, or
 /// [kUnknownSpeakerName] when unassigned / unknown.
@@ -730,6 +772,13 @@ String buildMinutesUserMessage({
   if (unintelligible > 0) {
     b.writeln('Unintelligible speech segments: $unintelligible');
   }
+  final call = inputs.call;
+  final remoteNames = call == null
+      ? const <String>{}
+      : remoteCallSpeakerNames(segments, speakersById, call.remoteSegmentIds);
+  if (call != null) {
+    b.writeln(phoneCallMetadataLine(call));
+  }
   b.writeln('Speakers (by first appearance; use these names verbatim):');
   if (stats.isEmpty) {
     b.writeln('- (none)');
@@ -738,8 +787,11 @@ String buildMinutesUserMessage({
     final kind = s.name == kUnknownSpeakerName
         ? 'unidentified speech, not a person'
         : (s.isAutoName ? 'automatic label' : 'name set by the user');
+    final side = remoteNames.contains(s.name)
+        ? '; remote side of the phone call (الطرف البعيد)'
+        : '';
     b.writeln(
-      '- ${s.name} — $kind; speaking time '
+      '- ${s.name} — $kind$side; speaking time '
       '${formatDuration(s.speakingMs, alwaysHours: true)}',
     );
   }
