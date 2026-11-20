@@ -235,6 +235,78 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 - `windows/runner/battery_channel.cpp` serves the `insato/battery`
   MethodChannel (`GetSystemPowerStatus`).
 
+### 4.4 Live call («مكالمة إنصاتو الحية»): signaling relay and TURN
+
+The live call needs a **signaling relay** — a tiny WebSocket service that
+introduces the two devices to each other. It only forwards sealed,
+authenticated setup messages (it cannot read them or impersonate a device)
+and carries no audio. Insato runs no relay itself: deploy one once, for
+free, and enter its `wss://` URL in Settings → «إعدادات المكالمة الحية» on
+the caller's device (a joiner who scans the QR code uses the caller's relay
+automatically; one who types the code uses its own setting).
+
+**Option A — Cloudflare Workers (free plan, recommended).**
+`tools/signaling/worker.js` + `wrangler.toml` (one SQLite-backed Durable
+Object per room, available on the free plan):
+
+```bash
+npm install -g wrangler
+cd tools/signaling
+wrangler login
+wrangler deploy
+# → https://insato-signaling.<account>.workers.dev
+```
+
+URL for Insato: `wss://insato-signaling.<account>.workers.dev`. Opening the
+https URL in a browser shows `Insato signaling relay: ok`.
+
+**Option B — the reference Dart relay in a container** (Render, Koyeb,
+Fly.io or any VPS; the image listens on `$PORT`, default 8080):
+
+```bash
+cd tools
+docker build -f signaling/Dockerfile -t insato-signaling .
+docker run -p 8080:8080 insato-signaling        # local check
+```
+
+Deploy the image (or point the host at the repository with the Dockerfile
+path `tools/signaling/Dockerfile` and build context `tools/`). The host must
+provide TLS so the URL is `wss://…`. Free instances that sleep when idle
+(e.g. Render's free web services) add a cold start of up to about a minute
+to the first call after a quiet period.
+
+**Option C — local test** (two devices on the same machine / LAN):
+`dart run tools/signaling_server.dart` (port 8080 or `PORT`), URL
+`ws://<pc-ip>:8080` (plain `ws://` is accepted for tests; use `wss://` in
+production).
+
+**Baking a relay into a build**: `flutter build … --dart-define=
+INSATO_SIGNALING_URL=wss://insato-signaling.<account>.workers.dev` makes it
+the default (the setting can still override it).
+
+**TURN (optional).** Calls connect peer-to-peer with the public STUN server
+`stun:stun.l.google.com:19302`. Some networks (symmetric NAT on mobile
+carriers, corporate firewalls) block that; then add a TURN server in the
+same settings screen: URL(s) (`turn:host:3478`, `turns:host:5349`,
+comma-separated), user name and credential (kept in the platform keystore).
+Use your own coturn on a small VPS (`turnserver -a -u user:pass -r insato
+--listening-port 3478`) or a TURN provider's free tier. «الاتصال عبر TURN
+فقط» forces relayed media (hides each side's IP address from the other).
+TURN only relays encrypted DTLS-SRTP packets.
+
+**Platform notes.**
+- Android: the call runs in the existing flutter_foreground_task service
+  with types `microphone|mediaPlayback` (manifest) and the
+  `FOREGROUND_SERVICE_MEDIA_PLAYBACK` permission; the notification «إنصاتو:
+  يتم البث والتفريغ» has a «إيقاف البث» button. `CHANGE_NETWORK_STATE` is
+  required by flutter_webrtc. minSdk 24 (flutter_webrtc needs ≥ 21).
+- iOS: `UIBackgroundModes: audio` keeps the call alive with the screen
+  locked; no CallKit / VoIP push (a call never starts by itself). The
+  microphone text mentions the live call. flutter_webrtc needs iOS 13+
+  (the app targets 16.4).
+- Windows: flutter_webrtc ships a Windows plugin (libwebrtc); no extra
+  setup. Allow Insato through the firewall if Windows asks.
+
 ## 5. Continuous integration
 
 `.github/workflows/ci.yml` runs on every push and pull request

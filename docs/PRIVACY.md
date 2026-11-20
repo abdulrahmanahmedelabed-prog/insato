@@ -114,9 +114,37 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 - يرسل الجهاز الإضافي إلى المضيف مستوى البطارية (إن توفر) ومستوى الصوت لعرض
   حالته.
 
-### هـ) ما لا يحدث أبداً
+### هـ) المكالمة الحية (الإصدار 1.2) — عبر الإنترنت، بين جهازين فقط
+لا تبدأ المكالمة إلا بفعل شخص على كل جهاز: يبدؤها أحدهما فيظهر رمز، وينضم
+الآخر بنفسه بكتابة الرمز أو مسحه. لا ردّ تلقائي ولا تشغيل في الخلفية ولا وضع
+خفي، ويُعرض إشعار موافقة قبل المكالمة الأولى.
+- **الصوت**: يُرسل صوت الميكروفون بتقنية WebRTC مشفّراً (DTLS-SRTP) **مباشرةً
+  بين الجهازين**. إن منعت الشبكة الاتصال المباشر وضبطتَ خادم TURN، يمرّ الصوت
+  عبره مشفّراً دون أن يستطيع سماعه. يُستخدم خادم STUN عام
+  (`stun.l.google.com`) فقط ليعرف كل جهاز عنوانه العام؛ لا يمرّ عبره صوت ولا نص.
+- **خادم الإشارة** (تنشره أنت أو جهتك، مجاناً): يمرّر رسائل إعداد الاتصال فقط
+  (وصف الجلسة SDP ومرشّحات الشبكة ICE واسم الجهاز ونهاية المكالمة)، وكلها
+  **مشفّرة وموثّقة** (ChaCha20-Poly1305) بمفتاح مشتق من رمز المكالمة الذي لا
+  يُرسل عبر الشبكة أبداً. يرى الخادم معرّف غرفة (بصمة أحادية الاتجاه للرمز)
+  وعناوين IP للجهازين وتوقيت الاتصال وحجم الرسائل، ولا يستطيع قراءتها ولا
+  تزويرها ولا انتحال أحد الطرفين: بصمة شهادة كل جهاز موقّعة بمفتاح الرمز
+  ويتحقق منها الطرف الآخر، ويُعرض «رمز أمان» يجب أن يتطابق على الشاشتين.
+  لا يحفظ الخادم المرجعي شيئاً ولا يسجّل معرّفات الغرف أو العناوين.
+- **النص**: يفرّغ كل جهاز ميكروفونه على الجهاز نفسه (أو عبر Deepgram إن اخترت
+  التفريغ السحابي) ويرسل النص وأسماء المتحدثين (كما يعرفها جهازه) إلى الطرف
+  الآخر عبر قناة البيانات المشفّرة نفسها. لا تُرسل البصمات الصوتية.
+- **الحفظ**: يحفظ كل جهاز الاجتماع لديه: تسجيل ميكروفونه هو (لا يُسجَّل صوت
+  الطرف الآخر كملف)، والنص المدمج للطرفين، وسجل المكالمة (اسما الجهازين،
+  ووقتا بدء البث وإيقافه ومن أوقفه، والكتم وانقطاعات الاتصال، ورمز الأمان).
+  يُحذف السجل مع الاجتماع. يُرسل النص إلى محرك المحضر الذي اخترته كأي اجتماع.
+- **أثناء البث**: مؤشر «يتم البث والتفريغ» ظاهر على الشاشتين مع زر إيقاف
+  بلمسة واحدة، وإشعار دائم على Android بزر «إيقاف البث». الكتم يوقف إرسال
+  الصوت وتفريغه معاً. إغلاق التطبيق ينهي المكالمة.
+
+### و) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
-- لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
+- لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك (وخادم
+  إشارة المكالمة الحية تنشره أنت ولا يرى إلا رسائل مشفّرة).
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
 
 ## 3. الحماية والاحتفاظ والحذف
@@ -166,7 +194,8 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 | الإنترنت | تنزيل النماذج، وكتابة المحضر، والتفريغ السحابي الاختياري |
 | منع السكون / الخدمة المقدّمة / الصوت في الخلفية | استمرار التسجيل مع إطفاء الشاشة |
 | الشبكة المحلية (iOS)، حالة الشبكة وWi-Fi والبث المتعدد (Android) | الاجتماع متعدد الأجهزة: الاتصال بين الأجهزة في القاعة واكتشافها على الشبكة المحلية |
-| الكاميرا (اختياري) | مسح رمز QR للانضمام إلى اجتماع متعدد الأجهزة فقط؛ لا تُلتقط صور ولا تُحفظ |
+| الكاميرا (اختياري) | مسح رمز QR للانضمام إلى اجتماع متعدد الأجهزة أو مكالمة حية فقط؛ لا تُلتقط صور ولا تُحفظ |
+| الخدمة المقدّمة لتشغيل الوسائط وتغيير حالة الشبكة (Android) | المكالمة الحية: تشغيل صوت الطرف الآخر مع إشعار «يتم البث والتفريغ» واستمرار الاتصال عند تغيّر الشبكة |
 
 لا يطلب إنصاتو الوصول إلى جهات الاتصال أو الموقع أو الصور، ولا يستخدم
 الكاميرا إلا لمسح رمز الانضمام عند طلبك.
@@ -312,9 +341,48 @@ microphones:
 - Extra devices report their battery level (when available) and input level
   to the host for its status display.
 
-### e) What never happens
+### e) Live call (version 1.2) — over the internet, two devices only
+A call only starts by a person's action on each device: one starts it and
+gets a code, the other joins by typing or scanning it. No auto-answer, no
+background start, no hidden mode; a consent notice is shown before the
+first call.
+- **Audio**: the microphone audio is sent with WebRTC, encrypted
+  (DTLS-SRTP), **directly between the two devices**. If the network blocks
+  direct connections and you configured a TURN server, audio passes through
+  it, still encrypted and unreadable to it. A public STUN server
+  (`stun.l.google.com`) only tells each device its public address; no audio
+  or text goes through it.
+- **Signaling relay** (deployed by you or your organisation, free): it only
+  forwards call-setup messages (SDP session description, ICE network
+  candidates, device name, hang-up), all **sealed and authenticated**
+  (ChaCha20-Poly1305) with a key derived from the call code, which is never
+  sent over the network. The relay sees a room id (a one-way hash of the
+  code), both devices' IP addresses, timing and message sizes; it can
+  neither read nor forge the messages nor impersonate a side: each device's
+  certificate fingerprint is authenticated with the code key and verified
+  by the other, and a safety code that must match is shown on both
+  screens. The reference relay stores nothing and logs no room ids or
+  addresses.
+- **Text**: each device transcribes its own microphone on the device (or
+  with Deepgram if you chose cloud transcription) and sends the text and
+  speaker names (as that device knows them) to the other side over the same
+  encrypted data channel. Voiceprints are never sent.
+- **Storage**: each device saves the meeting: its own microphone recording
+  (the other side's audio is not saved as a file), the merged transcript of
+  both sides, and the call log (both device names, when streaming started
+  and stopped and who stopped it, mutes and reconnections, the safety code).
+  The log is deleted with the meeting. The text goes to your minutes engine
+  like any meeting.
+- **While streaming**: a «يتم البث والتفريغ» indicator is on both screens
+  with a one-tap stop, plus an ongoing Android notification with a stop
+  button. Mute stops both sending and transcribing your audio. Closing the
+  app ends the call.
+
+### f) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.
-- No Insato server: the app talks directly to the services above with your keys.
+- No Insato server: the app talks directly to the services above with your keys
+  (the live-call signaling relay is deployed by you and only sees sealed
+  messages).
 - No selling or sharing of data with anyone else.
 
 ## 3. Security, retention and deletion
@@ -369,7 +437,8 @@ request.
 | Internet | Model downloads, minutes generation, optional cloud transcription |
 | Wake lock / foreground service / background audio | Keep recording with the screen off |
 | Local network (iOS); network state, Wi-Fi state, multicast (Android) | Multi-device meetings: connecting and discovering the devices in the room on the local network |
-| Camera (optional) | Only to scan the QR code that joins a multi-device meeting; no photos are taken or stored |
+| Camera (optional) | Only to scan the QR code that joins a multi-device meeting or a live call; no photos are taken or stored |
+| Media-playback foreground service, change network state (Android) | Live call: playing the other side's voice with the «يتم البث والتفريغ» notification, and keeping the call across network changes |
 
 Insato does not request access to contacts, location or photos, and uses
 the camera only to scan a join code when you ask it to.

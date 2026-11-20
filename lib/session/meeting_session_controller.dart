@@ -347,6 +347,7 @@ class SessionEngineRequest {
     this.languageHint,
     this.firstIndex = 0,
     this.farField = false,
+    this.maxSegmentSeconds,
   });
 
   /// Builds a request from the user's settings.
@@ -377,8 +378,30 @@ class SessionEngineRequest {
   /// distant speech ([vadConfigFor]).
   final bool farField;
 
+  /// v1.2 live call: hard cap (seconds) of a speech segment, so text
+  /// appears within a few seconds even while someone talks on (null = the
+  /// VAD profile's own cap, ~20 s).
+  final double? maxSegmentSeconds;
+
   /// True when transcription goes to the cloud engine.
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
+}
+
+/// [base] with segments cut after at most [maxSeconds] of speech.
+VadSegmenterConfig cappedVadConfig(VadSegmenterConfig base, double? maxSeconds) {
+  if (maxSeconds == null || maxSeconds <= 0) return base;
+  return VadSegmenterConfig(
+    threshold: base.threshold,
+    minSilenceDuration: base.minSilenceDuration,
+    minSpeechDuration: base.minSpeechDuration,
+    maxSpeechDuration: math.min(base.maxSpeechDuration, maxSeconds),
+    windowSize: base.windowSize,
+    bufferSizeInSeconds: base.bufferSizeInSeconds,
+    prePaddingMs: base.prePaddingMs,
+    postPaddingMs: base.postPaddingMs,
+    maxSegmentSeconds: math.min(base.maxSegmentSeconds, maxSeconds + 1),
+    numThreads: base.numThreads,
+  );
 }
 
 /// How long [disposeSegmenterSafely] waits for a segmenter to finish closing.
@@ -562,7 +585,10 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     final segmenter = VadSegmenter(
       modelPath: vadPath,
       firstIndex: request.firstIndex,
-      config: vadConfigFor(farField: request.farField),
+      config: cappedVadConfig(
+        vadConfigFor(farField: request.farField),
+        request.maxSegmentSeconds,
+      ),
     );
     CloudAsrEngine? cloud;
     try {

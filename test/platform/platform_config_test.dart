@@ -107,7 +107,11 @@ void main() {
           r'<service\s[^>]*android:name="com\.pravera\.flutter_foreground_task\.service\.ForegroundService"[^>]*/>',
         ).firstMatch(manifest)?.group(0);
         expect(service, isNotNull);
-        expect(service, contains('android:foregroundServiceType="microphone"'));
+        // v1.2 live call adds mediaPlayback next to microphone.
+        expect(
+          service,
+          matches(RegExp(r'android:foregroundServiceType="([a-zA-Z]+\|)*microphone(\|[a-zA-Z]+)*"')),
+        );
         expect(service, contains('android:exported="false"'));
       },
     );

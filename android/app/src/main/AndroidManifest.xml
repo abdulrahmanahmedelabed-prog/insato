@@ -27,6 +27,11 @@
          the type-specific permission matching foregroundServiceType below. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- v1.2 live call: the call's foreground service also plays the remote
+         voice (type mediaPlayback next to microphone). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- v1.2 live call (flutter_webrtc): network changes during a call. -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <!-- Android 13+ (API 33): the ongoing "recording" notification of the
          foreground service is only visible after this runtime permission. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -86,13 +91,16 @@
             * foregroundServiceType="microphone": mandatory on Android 14+ for a
               service that captures audio; it must be started while the app is
               in the foreground and after RECORD_AUDIO has been granted.
+            * mediaPlayback (v1.2 live call): the call service plays the
+              remote voice; the recording service still starts with the
+              microphone type only (types passed at start are a subset).
             * stopWithTask="true": the recorder lives in the UI engine, so when
               the user swipes the app away the service stops with it instead of
               leaving an orphaned "recording" notification.
         -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="microphone"
+            android:foregroundServiceType="microphone|mediaPlayback"
             android:stopWithTask="true"
             android:exported="false" />
 

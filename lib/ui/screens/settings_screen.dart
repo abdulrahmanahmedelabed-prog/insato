@@ -21,6 +21,7 @@ import '../../features/official/entity_settings_screen.dart'
     show EntitySettingsTile;
 import '../../features/system_audio/audio_source_selector.dart'
     show AudioSourceSelector;
+import '../../features/live_call/widgets.dart' show LiveCallSettingsTile;
 import '../../features/voice/mic_settings.dart' show MicSettingsSection;
 import '../../minutes/claude_client.dart';
 import '../../minutes/gemini_client.dart';
@@ -203,6 +204,7 @@ class SettingsScreen extends ConsumerWidget {
               // ------------------------------------- Microphone & source
               const MicSettingsSection(),
               const AudioSourceSelector(),
+              const LiveCallSettingsTile(),
 
               // -------------------------------------------------- Speakers
               const SectionHeader(

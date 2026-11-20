@@ -332,3 +332,44 @@ v1.1 is verified on real devices.
 * Each finding cites both sides (meeting, resolution number, timestamp) and a
   severity; the user can dismiss or confirm (“تم الإلغاء رسمياً”) which
   updates the earlier resolution's status.
+
+## E — Live Insato call (مكالمة إنصاتو الحية) — owner-approved addition
+
+* A voice call over the internet between two Insato devices (phone↔phone,
+  phone↔PC), started by a person on each device: «بدء مكالمة» shows a
+  12-character code + QR (`insato://call?v=1&k=…&u=<relay>&n=…`); the other
+  side picks «الانضمام إلى مكالمة» and types or scans it. No auto-answer,
+  no background start, no hidden mode; consent notice before the first call.
+* Transport: WebRTC (flutter_webrtc 1.6) — one audio track with echo
+  cancellation / noise suppression / AGC, one negotiated data channel;
+  DTLS-SRTP; public STUN `stun:stun.l.google.com:19302`, optional TURN
+  (URL / user / credential in Settings; credential in secure storage;
+  optional relay-only).
+* Signaling: a configurable WebSocket relay that we do not run — the
+  reference `tools/signaling_server.dart` (dart:io, Docker for free container
+  hosts) or `tools/signaling/worker.js` (Cloudflare Workers free plan with a
+  Durable Object per room). Everything through it is sealed with
+  K_call = HKDF(PBKDF2(code)); the room id is another HKDF output. The DTLS
+  fingerprints in the sealed SDPs are re-verified with MACs over the data
+  channel and both screens show a six-digit safety code.
+* Real time: each side transcribes its own microphone with the usual
+  pipeline but segments capped at 7 s (`SessionEngineRequest.
+  maxSegmentSeconds`); a pending placeholder is shown on both screens as
+  soon as the VAD cuts a segment, replaced by the text; lines carry the
+  sender's speaker id and name (remote speakers are namespaced, e.g.
+  «متحدث 2 (هاتف أحمد)», or mapped by name to a known speaker).
+  Ping/pong clock sync (multi_device `ClockSyncEstimator`) puts both sides
+  on one timeline; echoes of the other side through the loudspeaker are
+  retracted by text similarity + timing (one side only).
+* After the call each device saves one meeting: its microphone recording,
+  the merged transcript ordered by synchronised time, the call log
+  (`live_call_log:<meeting id>`: device names, start / stop and who stopped,
+  mutes, reconnections, safety code); speaker refinement; minutes with the
+  selected engine.
+* While streaming: persistent «يتم البث والتفريغ» bar with one-tap stop (the
+  call screen cannot be left while streaming), Android foreground service
+  (microphone + mediaPlayback) with a «إيقاف البث» notification button; iOS
+  in-app call UI (no CallKit), the call ends with the app.
+* Not done: recording the remote audio as a file (flutter_webrtc gives no
+  raw remote PCM to Dart on any platform — see ARCHITECTURE), group calls
+  (> 2 devices), reconnect through a new ICE restart after a relay loss.
