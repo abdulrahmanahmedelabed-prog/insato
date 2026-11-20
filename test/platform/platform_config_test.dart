@@ -184,8 +184,23 @@ void main() {
         expect(build, isNot(contains(key)), reason: '$key written to a file');
       }
       expect(signing, isNot(contains('key.properties')));
-      expect(signing, isNot(contains('secrets.ANDROID_KEYSTORE_PASSWORD')));
-      expect(signing, isNot(contains('secrets.ANDROID_KEY_PASSWORD')));
+      // The step may test whether a password secret is set (a boolean), but
+      // never receives its value.
+      for (final secret in const [
+        'ANDROID_KEYSTORE_PASSWORD',
+        'ANDROID_KEY_PASSWORD',
+      ]) {
+        expect(
+          signing,
+          isNot(matches(RegExp(r'secrets\.' + secret + r'\s*}}'))),
+          reason: '$secret value passed to the signing step',
+        );
+        for (final m in RegExp(
+          r'secrets\.' + secret + r'\b([^}]*)}}',
+        ).allMatches(signing!)) {
+          expect(m[1]!.trim(), "!= ''", reason: '$secret used as a value');
+        }
+      }
       expect(signing, contains('ANDROID_KEYSTORE_PATH='));
       expect(signing, contains(r'>> "$GITHUB_ENV"'));
       for (final stepName in const ['Build split APKs', 'Build app bundle']) {

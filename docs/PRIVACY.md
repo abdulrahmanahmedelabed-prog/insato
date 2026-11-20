@@ -17,7 +17,7 @@
 | نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى محرك المحضر السحابي الذي تختاره (Google Gemini افتراضياً، أو Anthropic Claude) عند كتابة المحضر؛ لا، مع المحرك المحلي |
 | البصمات الصوتية للمتحدثين | قاعدة البيانات المحلية | **لا، أبداً** |
 | أسماء المتحدثين التي تدخلها | قاعدة البيانات المحلية | ضمن نص التفريغ المرسَل لكتابة المحضر |
-| المحاضر | قاعدة البيانات المحلية | لا، إلا إذا شاركتها أنت |
+| المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك»، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
 | مفاتيح API | المخزن الآمن للنظام | تُرسَل فقط إلى مزوّد الخدمة الخاص بها للمصادقة |
 | الإعدادات | قاعدة البيانات المحلية | لا |
 
@@ -45,8 +45,9 @@
 - **Anthropic Claude (اختياري):** يُرسَل النص إلى واجهة Claude البرمجية لدى
   Anthropic وتخضع معالجته لشروطها وسياسة خصوصيتها:
   <https://www.anthropic.com/legal/privacy>.
-- **المحرك على الجهاز / الخادم المحلي:** لا يغادر النص جهازك (أو شبكتك المحلية
-  في حالة الخادم المحلي).
+- **المحرك على الجهاز / الخادم المحلي:** لا يغادر النص جهازك مع المحرك على الجهاز
+  أو خادم على العنوان المحلي (localhost)؛ أما إذا كان عنوان الخادم جهازاً آخر
+  فيُرسَل النص إلى ذلك الجهاز، وينبّهك التطبيق إلى ذلك.
 
 ملفات المتحدثين (اختيارية لكل متحدث، معطّلة افتراضياً) تُستخرج من النص نفسه
 وتُحفظ على جهازك فقط، ولا تتضمن أي استنتاجات حساسة. وكذلك «الرموز والشيفرات»
@@ -159,7 +160,7 @@ what leaves the device and where it goes.
 | Transcript text | Local database (SQLite) | Yes, to the cloud minutes engine you choose (Google Gemini by default, or Anthropic Claude) when minutes are generated; no with the on-device engine |
 | Speaker voiceprints | Local database | **Never** |
 | Speaker names you enter | Local database | As part of the transcript sent for minutes |
-| Minutes | Local database | Only if you share/export them |
+| Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings, and open tasks with later minutes requests; otherwise only if you share/export them |
 | API keys | OS secure storage | Only to their own provider, for authentication |
 | Settings | Local database | No |
 
@@ -190,8 +191,10 @@ sent.**
 - **Anthropic Claude (optional):** the text is sent to Anthropic's Claude API,
   governed by Anthropic's API terms and privacy policy:
   <https://www.anthropic.com/legal/privacy>.
-- **On-device engine / local server:** the text never leaves your device (or
-  your local network, for a local server).
+- **On-device engine / local server:** with the on-device engine or a server on
+  localhost the text never leaves your device; if the server URL points to
+  another host, the text is sent to that host (the app warns you when this
+  happens).
 
 Speaker profiles (opt-in per speaker, off by default) are derived from the
 same text, stored only on your device, and never contain sensitive

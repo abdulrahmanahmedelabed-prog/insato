@@ -455,8 +455,9 @@ void main() {
           'notes': [
             {
               'kind': 'point',
-              'text': 'بداية الجزء ${ids.isEmpty ? 'x' : ids.first} ' +
-                  'تفاصيل ' * 400,
+              'text':
+                  'بداية الجزء ${ids.isEmpty ? 'x' : ids.first} '
+                  '${'تفاصيل ' * 400}',
               'speakers': <String>[],
               'evidence': [1],
             },
