@@ -5110,6 +5110,331 @@ class CodeFindingsCompanion extends UpdateCompanion<CodeFindingRow> {
   }
 }
 
+class $TaskDismissalsTable extends TaskDismissals
+    with TableInfo<$TaskDismissalsTable, TaskDismissalRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskDismissalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemKeyMeta = const VerificationMeta(
+    'itemKey',
+  );
+  @override
+  late final GeneratedColumn<String> itemKey = GeneratedColumn<String>(
+    'item_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAt =
+      GeneratedColumn<int>(
+        'created_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($TaskDismissalsTable.$convertercreatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [meetingId, kind, itemKey, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_dismissals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskDismissalRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('item_key')) {
+      context.handle(
+        _itemKeyMeta,
+        itemKey.isAcceptableOrUnknown(data['item_key']!, _itemKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemKeyMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {meetingId, kind, itemKey};
+  @override
+  TaskDismissalRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskDismissalRow(
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      itemKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_key'],
+      )!,
+      createdAt: $TaskDismissalsTable.$convertercreatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}created_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $TaskDismissalsTable createAlias(String alias) {
+    return $TaskDismissalsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercreatedAt =
+      const EpochMillisConverter();
+}
+
+class TaskDismissalRow extends DataClass
+    implements Insertable<TaskDismissalRow> {
+  /// Meeting whose minutes proposed the item.
+  final String meetingId;
+
+  /// `task` or `update`.
+  final String kind;
+
+  /// Dismissed item key (see the class comment).
+  final String itemKey;
+
+  /// When it was dismissed (UTC epoch milliseconds in SQL).
+  final DateTime createdAt;
+  const TaskDismissalRow({
+    required this.meetingId,
+    required this.kind,
+    required this.itemKey,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['kind'] = Variable<String>(kind);
+    map['item_key'] = Variable<String>(itemKey);
+    {
+      map['created_at'] = Variable<int>(
+        $TaskDismissalsTable.$convertercreatedAt.toSql(createdAt),
+      );
+    }
+    return map;
+  }
+
+  TaskDismissalsCompanion toCompanion(bool nullToAbsent) {
+    return TaskDismissalsCompanion(
+      meetingId: Value(meetingId),
+      kind: Value(kind),
+      itemKey: Value(itemKey),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory TaskDismissalRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskDismissalRow(
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      itemKey: serializer.fromJson<String>(json['itemKey']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'meetingId': serializer.toJson<String>(meetingId),
+      'kind': serializer.toJson<String>(kind),
+      'itemKey': serializer.toJson<String>(itemKey),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  TaskDismissalRow copyWith({
+    String? meetingId,
+    String? kind,
+    String? itemKey,
+    DateTime? createdAt,
+  }) => TaskDismissalRow(
+    meetingId: meetingId ?? this.meetingId,
+    kind: kind ?? this.kind,
+    itemKey: itemKey ?? this.itemKey,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  TaskDismissalRow copyWithCompanion(TaskDismissalsCompanion data) {
+    return TaskDismissalRow(
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      itemKey: data.itemKey.present ? data.itemKey.value : this.itemKey,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskDismissalRow(')
+          ..write('meetingId: $meetingId, ')
+          ..write('kind: $kind, ')
+          ..write('itemKey: $itemKey, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(meetingId, kind, itemKey, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskDismissalRow &&
+          other.meetingId == this.meetingId &&
+          other.kind == this.kind &&
+          other.itemKey == this.itemKey &&
+          other.createdAt == this.createdAt);
+}
+
+class TaskDismissalsCompanion extends UpdateCompanion<TaskDismissalRow> {
+  final Value<String> meetingId;
+  final Value<String> kind;
+  final Value<String> itemKey;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const TaskDismissalsCompanion({
+    this.meetingId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.itemKey = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskDismissalsCompanion.insert({
+    required String meetingId,
+    required String kind,
+    required String itemKey,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : meetingId = Value(meetingId),
+       kind = Value(kind),
+       itemKey = Value(itemKey),
+       createdAt = Value(createdAt);
+  static Insertable<TaskDismissalRow> custom({
+    Expression<String>? meetingId,
+    Expression<String>? kind,
+    Expression<String>? itemKey,
+    Expression<int>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (kind != null) 'kind': kind,
+      if (itemKey != null) 'item_key': itemKey,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskDismissalsCompanion copyWith({
+    Value<String>? meetingId,
+    Value<String>? kind,
+    Value<String>? itemKey,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return TaskDismissalsCompanion(
+      meetingId: meetingId ?? this.meetingId,
+      kind: kind ?? this.kind,
+      itemKey: itemKey ?? this.itemKey,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (itemKey.present) {
+      map['item_key'] = Variable<String>(itemKey.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(
+        $TaskDismissalsTable.$convertercreatedAt.toSql(createdAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskDismissalsCompanion(')
+          ..write('meetingId: $meetingId, ')
+          ..write('kind: $kind, ')
+          ..write('itemKey: $itemKey, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5127,6 +5452,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SpeakerMeetingNotesTable speakerMeetingNotes =
       $SpeakerMeetingNotesTable(this);
   late final $CodeFindingsTable codeFindings = $CodeFindingsTable(this);
+  late final $TaskDismissalsTable taskDismissals = $TaskDismissalsTable(this);
   late final Index segmentsMeetingIdx = Index(
     'segments_meeting_idx',
     'CREATE INDEX segments_meeting_idx ON segments (meeting_id, idx)',
@@ -5178,6 +5504,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     speakerProfiles,
     speakerMeetingNotes,
     codeFindings,
+    taskDismissals,
     segmentsMeetingIdx,
     segmentsSpeaker,
     glossaryTermsMeeting,
@@ -5273,6 +5600,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('code_findings', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('task_dismissals', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -6226,6 +6560,24 @@ final class $$MeetingsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$TaskDismissalsTable, List<TaskDismissalRow>>
+  _taskDismissalsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.taskDismissals,
+    aliasName: 'meetings__id__task_dismissals__meeting_id',
+  );
+
+  $$TaskDismissalsTableProcessedTableManager get taskDismissalsRefs {
+    final manager = $$TaskDismissalsTableTableManager(
+      $_db,
+      $_db.taskDismissals,
+    ).filter((f) => f.meetingId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_taskDismissalsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$MeetingsTableFilterComposer
@@ -6444,6 +6796,31 @@ class $$MeetingsTableFilterComposer
           }) => $$CodeFindingsTableFilterComposer(
             $db: $db,
             $table: $db.codeFindings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> taskDismissalsRefs(
+    Expression<bool> Function($$TaskDismissalsTableFilterComposer f) f,
+  ) {
+    final $$TaskDismissalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskDismissals,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskDismissalsTableFilterComposer(
+            $db: $db,
+            $table: $db.taskDismissals,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6742,6 +7119,31 @@ class $$MeetingsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> taskDismissalsRefs<T extends Object>(
+    Expression<T> Function($$TaskDismissalsTableAnnotationComposer a) f,
+  ) {
+    final $$TaskDismissalsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.taskDismissals,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TaskDismissalsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.taskDismissals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$MeetingsTableTableManager
@@ -6764,6 +7166,7 @@ class $$MeetingsTableTableManager
             bool taskUpdatesPendingRefs,
             bool speakerMeetingNotesRefs,
             bool codeFindingsRefs,
+            bool taskDismissalsRefs,
           })
         > {
   $$MeetingsTableTableManager(_$AppDatabase db, $MeetingsTable table)
@@ -6857,6 +7260,7 @@ class $$MeetingsTableTableManager
                 taskUpdatesPendingRefs = false,
                 speakerMeetingNotesRefs = false,
                 codeFindingsRefs = false,
+                taskDismissalsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -6867,6 +7271,7 @@ class $$MeetingsTableTableManager
                     if (taskUpdatesPendingRefs) db.taskUpdatesPending,
                     if (speakerMeetingNotesRefs) db.speakerMeetingNotes,
                     if (codeFindingsRefs) db.codeFindings,
+                    if (taskDismissalsRefs) db.taskDismissals,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -6991,6 +7396,26 @@ class $$MeetingsTableTableManager
                           referencedColumn: 'meeting_id',
                           typedResults: items,
                         ),
+                      if (taskDismissalsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          MeetingRow,
+                          $MeetingsTable,
+                          TaskDismissalRow,
+                          $TaskDismissalsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MeetingsTableReferences
+                              ._taskDismissalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MeetingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).taskDismissalsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'meeting_id',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7018,6 +7443,7 @@ typedef $$MeetingsTableProcessedTableManager =
         bool taskUpdatesPendingRefs,
         bool speakerMeetingNotesRefs,
         bool codeFindingsRefs,
+        bool taskDismissalsRefs,
       })
     >;
 typedef $$SegmentsTableCreateCompanionBuilder = SegmentsCompanion Function({
@@ -10226,6 +10652,310 @@ typedef $$CodeFindingsTableProcessedTableManager =
       CodeFindingRow,
       PrefetchHooks Function({bool meetingId, bool speakerId})
     >;
+typedef $$TaskDismissalsTableCreateCompanionBuilder =
+    TaskDismissalsCompanion Function({
+      required String meetingId,
+      required String kind,
+      required String itemKey,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$TaskDismissalsTableUpdateCompanionBuilder =
+    TaskDismissalsCompanion Function({
+      Value<String> meetingId,
+      Value<String> kind,
+      Value<String> itemKey,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$TaskDismissalsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TaskDismissalsTable, TaskDismissalRow> {
+  $$TaskDismissalsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) =>
+      db.meetings.createAlias('task_dismissals__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TaskDismissalsTableFilterComposer
+    extends Composer<_$AppDatabase, $TaskDismissalsTable> {
+  $$TaskDismissalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemKey => $composableBuilder(
+    column: $table.itemKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAt =>
+      $composableBuilder(
+        column: $table.createdAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskDismissalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TaskDismissalsTable> {
+  $$TaskDismissalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemKey => $composableBuilder(
+    column: $table.itemKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskDismissalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TaskDismissalsTable> {
+  $$TaskDismissalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get itemKey =>
+      $composableBuilder(column: $table.itemKey, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TaskDismissalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TaskDismissalsTable,
+          TaskDismissalRow,
+          $$TaskDismissalsTableFilterComposer,
+          $$TaskDismissalsTableOrderingComposer,
+          $$TaskDismissalsTableAnnotationComposer,
+          $$TaskDismissalsTableCreateCompanionBuilder,
+          $$TaskDismissalsTableUpdateCompanionBuilder,
+          (TaskDismissalRow, $$TaskDismissalsTableReferences),
+          TaskDismissalRow,
+          PrefetchHooks Function({bool meetingId})
+        > {
+  $$TaskDismissalsTableTableManager(
+    _$AppDatabase db,
+    $TaskDismissalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskDismissalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskDismissalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskDismissalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> meetingId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> itemKey = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskDismissalsCompanion(
+                meetingId: meetingId,
+                kind: kind,
+                itemKey: itemKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String meetingId,
+                required String kind,
+                required String itemKey,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TaskDismissalsCompanion.insert(
+                meetingId: meetingId,
+                kind: kind,
+                itemKey: itemKey,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskDismissalsTable, TaskDismissalRow>(table),
+                  $$TaskDismissalsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({meetingId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (meetingId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.meetingId,
+                        referencedTable: $$TaskDismissalsTableReferences
+                            ._meetingIdTable(db),
+                        referencedColumn: $$TaskDismissalsTableReferences
+                            ._meetingIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TaskDismissalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TaskDismissalsTable,
+      TaskDismissalRow,
+      $$TaskDismissalsTableFilterComposer,
+      $$TaskDismissalsTableOrderingComposer,
+      $$TaskDismissalsTableAnnotationComposer,
+      $$TaskDismissalsTableCreateCompanionBuilder,
+      $$TaskDismissalsTableUpdateCompanionBuilder,
+      (TaskDismissalRow, $$TaskDismissalsTableReferences),
+      TaskDismissalRow,
+      PrefetchHooks Function({bool meetingId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10250,4 +10980,6 @@ class $AppDatabaseManager {
       $$SpeakerMeetingNotesTableTableManager(_db, _db.speakerMeetingNotes);
   $$CodeFindingsTableTableManager get codeFindings =>
       $$CodeFindingsTableTableManager(_db, _db.codeFindings);
+  $$TaskDismissalsTableTableManager get taskDismissals =>
+      $$TaskDismissalsTableTableManager(_db, _db.taskDismissals);
 }

@@ -9,6 +9,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -632,6 +633,32 @@ class AppSettings {
   /// Settings snapshots, emitted now and after every distinct change.
   Stream<AppSettingsData> watch() =>
       _db.select(_db.settings).watch().map(_fromRows).distinct();
+
+  /// One-time upgrade step for v1.0 users: v1.0 had only the Claude engine
+  /// and never wrote [kMinutesEngine], so its absence would otherwise fall
+  /// back to Gemini and stop automatic minutes for a user whose working
+  /// Claude key is still stored. When the row is absent, writes `claude` if
+  /// an Anthropic key exists, else `gemini` (the default). Writing the row in
+  /// both cases makes this run once only, and an explicit choice is never
+  /// overridden. Never throws: a keystore that cannot be read now (locked
+  /// device) leaves the row absent so the step is retried at next launch.
+  Future<void> migrateV1MinutesEngine(SecureSettings secure) async {
+    try {
+      final row = await (_db.select(_db.settings)
+            ..where((s) => s.key.equals(kMinutesEngine)))
+          .getSingleOrNull();
+      if (row != null) return;
+      final key = await secure.getAnthropicApiKey();
+      await _put(
+        kMinutesEngine,
+        key != null
+            ? AppSettingsData.engineClaude
+            : AppSettingsData.engineGemini,
+      );
+    } catch (e) {
+      debugPrint('migrateV1MinutesEngine failed: $e');
+    }
+  }
 
   /// Persists every field of [data] in one transaction.
   Future<void> save(AppSettingsData data) => _db.transaction(() async {

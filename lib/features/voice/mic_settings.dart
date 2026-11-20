@@ -307,14 +307,24 @@ class MicSettingsSection extends StatelessWidget {
 /// meeting). Tapping opens the device picker; a change applies to the next
 /// recording.
 class MicDeviceChip extends ConsumerWidget {
-  /// Creates the chip.
-  const MicDeviceChip({super.key});
+  /// Creates the chip. With [inUse] set it names that device (the running
+  /// take's actual microphone; `null` key = the default) instead of the
+  /// remembered one; tapping still chooses the device of the next take.
+  const MicDeviceChip({super.key, this.inUse});
+
+  /// Device of the running take, when one is recording.
+  final ({String? key})? inUse;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final remembered = ref.watch(rememberedInputDeviceProvider).value;
-    final parts = parseVoiceDeviceKey(remembered?.key);
-    final label = remembered == null || remembered.isDefault
+    final live = inUse;
+    final parts = parseVoiceDeviceKey(
+      live != null ? live.key : remembered?.key,
+    );
+    final label = live != null
+        ? (parts?.label ?? VoiceStrings.defaultDevice)
+        : remembered == null || remembered.isDefault
         ? VoiceStrings.defaultDevice
         : (parts?.label ?? remembered.label ?? VoiceStrings.defaultDevice);
     final bt = parts != null && isBluetoothInput(parts.type);

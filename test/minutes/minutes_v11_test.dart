@@ -370,6 +370,47 @@ void main() {
       expect(m.agendaCoverage, isEmpty);
     });
 
+    test('a name shared with a non-consenting speaker gets no notes', () {
+      final two = {
+        'a1': speaker('a1', 'أحمد', named: true).copyWith(profileEnabled: true),
+        'a2': speaker('a2', 'أحمد', named: true),
+        's': speaker('s', 'سارة', named: true).copyWith(profileEnabled: true),
+      };
+      final segs = [
+        seg(0, 0, 1000, 'مرحبا', speakerId: 'a1'),
+        seg(1, 1000, 2000, 'أهلا', speakerId: 'a2'),
+        seg(2, 2000, 3000, 'نبدأ', speakerId: 's'),
+      ];
+      final names = optedInSpeakerNames(segs, two);
+      expect(names, ['سارة']);
+      final m = sanitizeMinutes(
+        sampleMinutes().copyWith(
+          speakerNotes: const [
+            MinutesSpeakerNote(speaker: 'أحمد'),
+            MinutesSpeakerNote(speaker: 'سارة'),
+          ],
+        ),
+        MinutesConstraints(
+          segmentIds: const {0, 1, 2},
+          optedInSpeakers: names.toSet(),
+        ),
+      );
+      expect(m.speakerNotes.map((n) => n.speaker), ['سارة']);
+      // A single opted-in «أحمد» is still listed.
+      expect(optedInSpeakerNames(segs.take(1).toList(), two), ['أحمد']);
+      // Unassigned speech under the same label also makes it ambiguous.
+      final unknownNamed = {
+        'u': speaker('u', kUnknownSpeakerName).copyWith(profileEnabled: true),
+      };
+      expect(
+        optedInSpeakerNames([
+          seg(0, 0, 1000, 'أ', speakerId: 'u'),
+          seg(1, 1000, 2000, 'ب'),
+        ], unknownNamed),
+        isEmpty,
+      );
+    });
+
     test('alignAgendaCoverage follows the agenda', () {
       final out = alignAgendaCoverage(
         ['الميزانية', 'التوظيف', 'متفرقات'],

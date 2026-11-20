@@ -37,6 +37,8 @@ import '../data/repositories.dart';
 import '../data/secure_settings.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../features/voice/voice_devices.dart'
+    show knownSpeakerThresholdFor, vadConfigFor;
 import '../speech/asr_outcome.dart';
 import '../speech/cloud_asr_engine.dart';
 import '../speech/model_catalog.dart';
@@ -343,6 +345,7 @@ class SessionEngineRequest {
     required this.whisperModelId,
     this.languageHint,
     this.firstIndex = 0,
+    this.farField = false,
   });
 
   /// Builds a request from the user's settings.
@@ -354,6 +357,7 @@ class SessionEngineRequest {
     whisperModelId: s.whisperModelId,
     languageHint: s.languageHint,
     firstIndex: firstIndex,
+    farField: s.farFieldMode,
   );
 
   /// [AppSettingsData.asrLocal] or [AppSettingsData.asrCloud].
@@ -367,6 +371,10 @@ class SessionEngineRequest {
 
   /// Index of the first segment produced by the segmenter.
   final int firstIndex;
+
+  /// F18 far-field profile ("اجتماع في قاعة"): the VAD is tuned for quieter,
+  /// distant speech ([vadConfigFor]).
+  final bool farField;
 
   /// True when transcription goes to the cloud engine.
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
@@ -553,6 +561,7 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     final segmenter = VadSegmenter(
       modelPath: vadPath,
       firstIndex: request.firstIndex,
+      config: vadConfigFor(farField: request.farField),
     );
     CloudAsrEngine? cloud;
     try {
@@ -941,6 +950,24 @@ abstract class SessionAudioSource {
   Future<Duration> stop();
 }
 
+/// Optional interface of a [SessionAudioSource] that knows which input
+/// device the running take actually captures from (F18): the remembered
+/// microphone may be missing at start, lost mid-meeting, or not used at all
+/// (system-audio takes). The session tags the meeting with this key rather
+/// than the remembered one.
+abstract interface class SessionInputDeviceReporter {
+  /// Key of the device capturing now (`voiceDeviceKey`; null = the system
+  /// default microphone).
+  String? get activeDeviceKey;
+
+  /// [activeDeviceKey] after each change during a take.
+  Stream<String?> get activeDeviceChanges;
+
+  /// Audio source of the running take: `mic`, `system` or `both`
+  /// (`AppSettingsData.audioSource*`).
+  String get activeAudioSource;
+}
+
 /// [SessionAudioSource] over the app's [AudioCaptureService].
 class AudioCaptureSessionSource implements SessionAudioSource {
   /// Wraps [service].
@@ -1215,6 +1242,9 @@ class SessionState {
     this.warningAr,
     this.error,
     this.lastMeetingId,
+    this.inputDeviceKey,
+    this.farField,
+    this.audioSourceInUse,
   });
 
   /// Current phase.
@@ -1273,6 +1303,19 @@ class SessionState {
   /// Meeting finished most recently (to navigate to its details).
   final String? lastMeetingId;
 
+  /// Input device of the running take (`voiceDeviceKey`; null = the default
+  /// microphone, or not known before the take starts). Updated when the
+  /// source falls back to the default microphone.
+  final String? inputDeviceKey;
+
+  /// Whether the running take uses the far-field profile; null before a take
+  /// starts. Settings changed during a take apply to the next one only.
+  final bool? farField;
+
+  /// Audio source of the running take (`AppSettingsData.audioSource*`
+  /// value); null when not known (the settings then apply).
+  final String? audioSourceInUse;
+
   /// Arabic message of [error].
   String? get errorAr => error?.messageAr;
 
@@ -1318,6 +1361,10 @@ class SessionState {
     InsatoException? error,
     bool clearError = false,
     String? lastMeetingId,
+    String? inputDeviceKey,
+    bool clearInputDevice = false,
+    bool? farField,
+    String? audioSourceInUse,
   }) {
     return SessionState(
       phase: phase ?? this.phase,
@@ -1343,6 +1390,11 @@ class SessionState {
       warningAr: clearWarning ? null : (warningAr ?? this.warningAr),
       error: clearError ? null : (error ?? this.error),
       lastMeetingId: lastMeetingId ?? this.lastMeetingId,
+      inputDeviceKey: clearInputDevice
+          ? null
+          : (inputDeviceKey ?? this.inputDeviceKey),
+      farField: farField ?? this.farField,
+      audioSourceInUse: audioSourceInUse ?? this.audioSourceInUse,
     );
   }
 
@@ -1385,6 +1437,7 @@ class _ActiveSession {
   StreamSubscription<double>? levelSub;
   StreamSubscription<AudioCaptureException>? errorsSub;
   StreamSubscription<AudioCaptureState>? statesSub;
+  StreamSubscription<String?>? deviceSub;
   Timer? ticker;
   bool stopping = false;
 
@@ -1414,6 +1467,8 @@ class _ActiveSession {
     await levelSub?.cancel();
     await errorsSub?.cancel();
     await statesSub?.cancel();
+    await deviceSub?.cancel();
+    deviceSub = null;
     framesSub = null;
     levelSub = null;
     errorsSub = null;
@@ -1529,13 +1584,20 @@ class MeetingSessionController extends Notifier<SessionState> {
       final known = (await speakers.getAll())
           .where((s) => isUsableEmbedding(s.centroid))
           .toList();
+      // F18: the microphone of this meeting (the remembered input device
+      // unless the caller names one); voiceprints learned on another
+      // microphone are matched with a slightly relaxed threshold.
+      // Provisional: replaced below by the device the source actually
+      // opened, when it can tell (see [SessionInputDeviceReporter]).
+      var deviceKey =
+          inputDevice ?? await ref.read(sessionInputDeviceProvider)();
       final now = DateTime.now();
       final t = title?.trim();
       meeting = await meetings.create(
         title: (t == null || t.isEmpty) ? defaultSessionTitle(now) : t,
         createdAt: now,
         context: context,
-        inputDevice: inputDevice,
+        inputDevice: deviceKey,
       );
       String? archivePath;
       if (settings.keepAudio) {
@@ -1550,6 +1612,11 @@ class MeetingSessionController extends Notifier<SessionState> {
       final tracker = SpeakerTracker(
         knownSpeakers: known,
         matchThreshold: settings.matchThreshold,
+        knownSpeakerThresholdOf: (sp) => knownSpeakerThresholdFor(
+          sp,
+          sessionDeviceKey: deviceKey,
+          base: settings.matchThreshold,
+        ),
       );
       final pipeline = SessionPipeline(
         meetingId: meeting.id,
@@ -1576,6 +1643,31 @@ class MeetingSessionController extends Notifier<SessionState> {
         meetingTitle: meeting.title,
       );
       await audio.start(archivePath: archivePath);
+      // An explicit [inputDevice] from the caller is kept as given.
+      if (audio is SessionInputDeviceReporter && inputDevice == null) {
+        final reporter = audio as SessionInputDeviceReporter;
+        final actual = reporter.activeDeviceKey;
+        if (actual != deviceKey) {
+          deviceKey = actual; // Read by the tracker's threshold closure.
+          await meetings.setInputDevice(meeting.id, actual);
+        }
+        final id = meeting.id;
+        s.deviceSub = reporter.activeDeviceChanges.listen((key) {
+          // A fallback mid-meeting: the take mixes two microphones; it is
+          // tagged with the device now in use (null = default) rather than
+          // credited to the lost one.
+          if (key == deviceKey) return;
+          deviceKey = key;
+          if (identical(_active, s)) {
+            _set(
+              state.copyWith(inputDeviceKey: key, clearInputDevice: key == null),
+            );
+          }
+          unawaited(
+            meetings.setInputDevice(id, key).then((_) {}, onError: (Object _) {}),
+          );
+        });
+      }
       s.ticker = Timer.periodic(
         const Duration(milliseconds: 500),
         (_) => _onTick(s),
@@ -1588,6 +1680,11 @@ class MeetingSessionController extends Notifier<SessionState> {
           engineDescription: engines.description,
           warningAr: warning,
           lastMeetingId: lastMeeting,
+          inputDeviceKey: deviceKey,
+          farField: request.farField,
+          audioSourceInUse: audio is SessionInputDeviceReporter
+              ? (audio as SessionInputDeviceReporter).activeAudioSource
+              : null,
         ),
       );
       return meeting.id;

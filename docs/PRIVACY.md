@@ -49,7 +49,12 @@
   في حالة الخادم المحلي).
 
 ملفات المتحدثين (اختيارية لكل متحدث، معطّلة افتراضياً) تُستخرج من النص نفسه
-وتُحفظ على جهازك فقط، ولا تتضمن أي استنتاجات حساسة.
+وتُحفظ على جهازك فقط، ولا تتضمن أي استنتاجات حساسة. وكذلك «الرموز والشيفرات»
+تُستخرج مع المحضر وتُحفظ محلياً.
+
+**اسأل اجتماعاتك:** يُرسَل سؤالك مع مقتطفات من نصوص اجتماعاتك ومحاضرها (الأكثر
+صلة بالسؤال فقط) إلى المحرك نفسه المختار للمحضر، وبالموافقة نفسها؛ ولا تُحفظ
+المحادثة بعد إغلاق التطبيق.
 
 ### ب) التفريغ السحابي — Deepgram (اختياري، معطّل افتراضياً)
 إذا اخترت محرك التفريغ السحابي، تُرسَل **مقاطع الصوت** إلى Deepgram عبر
@@ -58,12 +63,18 @@ HTTPS باستخدام مفتاحك لمعالجتها، ويعود النص ف�
 تُستخدم هذه المقاطع في تدريب نماذجها. ومع ذلك فإن مدة احتفاظ Deepgram بالصوت
 والنص وكيفية تعاملها معهما تحكمهما سياسة بياناتها هي، لا إنصاتو:
 <https://deepgram.com/privacy>. مع التفريغ على الجهاز (الافتراضي) لا يُرسَل أي
-صوت.
+صوت. ومع التفريغ السحابي تُرسَل أيضاً مصطلحات القاموس وأسماء الحضور المتوقعين
+والمتحدثين المسمَّين بوصفها «مصطلحات مفتاحية» (keyterms) لتحسين التعرّف عليها.
+
+**صوت النظام على Windows:** عند اختيار «صوت النظام» أو «الاثنان معاً» يُسجَّل ما
+يُشغَّل على الحاسوب (مثل صوت Zoom/Teams) ويُعامَل كتسجيل الميكروفون تماماً: يبقى
+على جهازك. أبلِغ المشاركين عن بُعد بأن الاجتماع يُسجَّل.
 
 ### ج) تنزيل النماذج
 تُنزَّل نماذج الذكاء الاصطناعي مرة واحدة من صفحة إصدارات مشروع sherpa-onnx على
-GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتماعات. قد تسجّل GitHub عنوان IP
-الخاص بالطلب وفق سياستها.
+GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face. هذا تنزيل فقط؛ لا
+تُرسَل أي بيانات اجتماعات. قد تسجّل GitHub وHugging Face عنوان IP الخاص بالطلب
+وفق سياستهما.
 
 ### د) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
@@ -184,7 +195,12 @@ sent.**
 
 Speaker profiles (opt-in per speaker, off by default) are derived from the
 same text, stored only on your device, and never contain sensitive
-inferences.
+inferences. Codes & jargon findings are extracted with the minutes and kept
+locally too.
+
+**Ask your meetings:** your question and the excerpts of your transcripts and
+minutes most relevant to it are sent to the same engine as the minutes,
+under the same consent; the conversation is not kept after the app closes.
 
 ### b) Cloud transcription — Deepgram (optional, off by default)
 If you select the cloud transcription engine, **audio segments** are sent
@@ -194,12 +210,20 @@ back. Every request opts out of Deepgram's Model Improvement Program
 models. How long Deepgram retains the audio and transcript, and how it
 handles them, is still governed by Deepgram's own data policy, not by
 Insato: <https://deepgram.com/privacy>. With on-device transcription (the
-default) no audio is sent anywhere.
+default) no audio is sent anywhere. With cloud transcription, glossary terms
+and the names of expected attendees and named speakers are also sent as
+keyterms to improve their recognition.
+
+**Windows system audio:** with "system audio" or "both", what plays on the
+computer (e.g. Zoom/Teams) is recorded and treated exactly like the
+microphone recording: it stays on your device. Tell remote participants that
+the meeting is recorded.
 
 ### c) Model downloads
 AI models are downloaded once from the sherpa-onnx project's GitHub
-releases. This is a download only; no meeting data is sent. GitHub may log
-the requesting IP address under its own policy.
+releases, and the on-device minutes models (GGUF) from Hugging Face. This is
+a download only; no meeting data is sent. GitHub and Hugging Face may log the
+requesting IP address under their own policies.
 
 ### d) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.

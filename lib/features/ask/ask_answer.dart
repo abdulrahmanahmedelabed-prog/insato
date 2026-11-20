@@ -166,8 +166,15 @@ AskRawAnswer? parseAskEngineOutput(String text) {
 }
 
 final RegExp _group = RegExp(r'\[([^\[\]\n]{1,160})\]');
-final RegExp _ref = RegExp(r'[Mm]\s*(\d+)(?:\s*[#:]\s*(\d+))?|#\s*(\d+)');
+final RegExp _ref = RegExp(r'[Mmم]\s*(\d+)(?:\s*[#:]\s*(\d+))?|#\s*(\d+)');
 final RegExp _separators = RegExp(r'^[\s,،;؛\-–—|و&]*$');
+
+/// A timestamp copied with a reference (`[M3#42 00:12:31]`, the context's
+/// own line format). Only at the start of the group or after a space /
+/// separator, so the `M3:42` form of a reference is never taken for one.
+final RegExp _timestamp = RegExp(
+  r'(?:^|(?<=[\s,،;؛\-–—|]))\d{1,2}:\d{2}(?::\d{2})?(?!\d)',
+);
 final RegExp _spaceBeforePunct = RegExp(r'[ \t]+([.,،؛:!?؟)])');
 final RegExp _multiSpace = RegExp(r'[ \t]{2,}');
 
@@ -208,7 +215,7 @@ AskLinkedAnswer linkAskAnswer(String answer, Map<int, AskMeetingRef> refs) {
 
   var last = 0;
   for (final g in _group.allMatches(text)) {
-    final inner = toWesternDigits(g.group(1)!);
+    final inner = toWesternDigits(g.group(1)!).replaceAll(_timestamp, ' ');
     final matches = _ref.allMatches(inner).toList();
     final hasMeeting = matches.any((m) => m.group(1) != null);
     if (!hasMeeting || !_separators.hasMatch(inner.replaceAll(_ref, ''))) {

@@ -264,8 +264,9 @@ class TaskActions {
     );
   }
 
-  /// Deletes [task] (its pending updates go with it).
-  Future<bool> delete(TrackedTask task) => _tasks.delete(task.id);
+  /// Deletes [task] (its pending updates go with it). A task from a
+  /// meeting's minutes is not re-created when those minutes are regenerated.
+  Future<bool> delete(TrackedTask task) => _tasks.deleteByUser(task);
 
   /// Resolves [view] with the user's choice: [accept] applies a status
   /// change (only when [PendingUpdateView.changesStatus]); every other case

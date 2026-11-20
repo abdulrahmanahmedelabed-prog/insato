@@ -31,13 +31,14 @@ class TasksScreen extends ConsumerStatefulWidget {
 }
 
 class _TasksScreenState extends ConsumerState<TasksScreen> {
-  late final TextEditingController _search = TextEditingController(
-    text: ref.read(taskFilterProvider).query,
-  );
+  // Created in initState: a lazy initializer would first read `ref` in
+  // dispose when the search field was never built (unsafe after unmount).
+  late final TextEditingController _search;
 
   @override
   void initState() {
     super.initState();
+    _search = TextEditingController(text: ref.read(taskFilterProvider).query);
     final id = widget.initialMeetingId;
     if (id != null) {
       // Riverpod forbids state changes during build; initState is before.

@@ -336,6 +336,9 @@ class FakeEnginesFactory implements SessionEnginesFactory {
   FakeAsr asr = FakeAsr();
   int created = 0;
 
+  /// The request of the last [create] call.
+  SessionEngineRequest? lastRequest;
+
   /// Optional custom segmenter builder (e.g. a re-blocking segmenter).
   SpeechSegmenter Function()? segmenterBuilder;
 
@@ -349,6 +352,7 @@ class FakeEnginesFactory implements SessionEnginesFactory {
   Future<SessionEngines> create(SessionEngineRequest request) async {
     await ensureReady(request);
     created++;
+    lastRequest = request;
     final SpeechSegmenter seg;
     final b = segmenterBuilder;
     if (b != null) {
@@ -509,5 +513,32 @@ Future<void> waitUntil(
   while (!condition()) {
     if (sw.elapsed > timeout) throw TimeoutException('condition not met');
     await Future<void>.delayed(const Duration(milliseconds: 2));
+  }
+}
+
+/// [FakeAudioSource] that reports the device it captures from (F18).
+class ReportingFakeAudioSource extends FakeAudioSource
+    implements SessionInputDeviceReporter {
+  /// Device the take "opened" (null = default microphone).
+  String? deviceKey;
+
+  /// Audio source of the take.
+  String source = 'mic';
+
+  final _keys = StreamController<String?>.broadcast();
+
+  @override
+  String? get activeDeviceKey => deviceKey;
+
+  @override
+  Stream<String?> get activeDeviceChanges => _keys.stream;
+
+  @override
+  String get activeAudioSource => source;
+
+  /// The microphone is lost mid-take: capture continues on the default.
+  void fallBack() {
+    deviceKey = null;
+    _keys.add(null);
   }
 }

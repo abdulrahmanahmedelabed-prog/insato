@@ -50,7 +50,9 @@ class SystemAudioConverter {
       tail = flush();
       _rate = sampleRate;
       _channels = channels;
-      _downmixer = InterleavedDownmixer(channels);
+      // Loopback hands over the endpoint mix format (5.1 / 7.1 on some
+      // machines): fold it down as a loudspeaker mix, LFE excluded.
+      _downmixer = InterleavedDownmixer(channels, speakerLayout: true);
       _resampler = StreamingResampler(
         inputRate: sampleRate,
         outputRate: outputRate,

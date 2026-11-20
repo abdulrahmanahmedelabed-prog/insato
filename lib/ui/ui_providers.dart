@@ -4,9 +4,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/secure_settings.dart';
+import '../core/interfaces.dart' show ModelStatus;
+import '../features/local_llm/llm_catalog.dart';
+import '../features/local_llm/local_llm_providers.dart';
 import '../features/local_llm/local_minutes_backends.dart';
+import '../features/local_llm/strings.dart';
 import '../session/providers.dart';
 import 'format.dart';
+import 'strings_ar.dart';
 
 /// Number of distinct meetings each speaker appears in (speaker id → count),
 /// kept live from the segments table.
@@ -48,27 +53,87 @@ final geminiKeyConfiguredProvider = FutureProvider<bool?>(
   (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getGeminiApiKey),
 );
 
-/// Whether the minutes engine selected in Settings can run: its key is
-/// stored (and, for Gemini, the free-tier data notice was accepted; for a
-/// local engine, it is available in this build). Null while unknown (e.g.
-/// a locked keystore). Invalidate [anthropicKeyConfiguredProvider] /
+/// Whether the minutes engine selected in Settings can run, and if not,
+/// why (the Arabic message the minutes tab shows).
+class MinutesEngineReadiness {
+  /// Creates a readiness.
+  const MinutesEngineReadiness({required this.ready, this.messageAr});
+
+  /// The engine can write minutes now.
+  final bool ready;
+
+  /// What the user should do (when not [ready]).
+  final String? messageAr;
+}
+
+/// Readiness of the minutes engine selected in Settings, with a reason
+/// specific to the engine: its key stored (and, for Gemini, the free-tier
+/// data notice accepted), the on-device model downloaded, the server model
+/// chosen. Null while unknown (a locked keystore, model states loading).
+/// Invalidate [anthropicKeyConfiguredProvider] /
 /// [geminiKeyConfiguredProvider] after changing a key.
-final minutesEngineReadyProvider = Provider<bool?>((ref) {
+final minutesEngineReadinessProvider = Provider<MinutesEngineReadiness?>((
+  ref,
+) {
   final s = ref.watch(appSettingsDataProvider).value;
   if (s == null) return null;
   switch (s.minutesEngine) {
     case AppSettingsData.engineClaude:
-      return ref.watch(anthropicKeyConfiguredProvider).value;
+      final key = ref.watch(anthropicKeyConfiguredProvider).value;
+      if (key == null) return null;
+      return MinutesEngineReadiness(
+        ready: key,
+        messageAr: key ? null : S.claudeKeyMissingBody,
+      );
     case AppSettingsData.engineLocal:
-      return ref.watch(localMinutesBackendBuilderProvider) != null;
+      if (ref.watch(localMinutesBackendBuilderProvider) == null) {
+        return const MinutesEngineReadiness(
+          ready: false,
+          messageAr: LS.localUnavailable,
+        );
+      }
+      final model = LocalLlmCatalog.resolve(
+        s.localLlmModelId,
+        desktop: ref.watch(localLlmIsDesktopProvider),
+      );
+      final states = ref.watch(localLlmModelStatesProvider).value;
+      if (states == null) return null;
+      final ready = states[model.id]?.status == ModelStatus.ready;
+      return MinutesEngineReadiness(
+        ready: ready,
+        messageAr: ready ? null : LS.localUnavailable,
+      );
     case AppSettingsData.engineServer:
-      return ref.watch(serverMinutesBackendBuilderProvider) != null;
+      final ready =
+          ref.watch(serverMinutesBackendBuilderProvider) != null &&
+          (s.serverModel?.trim().isNotEmpty ?? false);
+      return MinutesEngineReadiness(
+        ready: ready,
+        messageAr: ready ? null : LS.serverUnavailable,
+      );
     default:
       final key = ref.watch(geminiKeyConfiguredProvider).value;
       if (key == null) return null;
-      return key && s.geminiPrivacyAcknowledged;
+      if (!key) {
+        return const MinutesEngineReadiness(
+          ready: false,
+          messageAr: S.apiKeyMissingBody,
+        );
+      }
+      return MinutesEngineReadiness(
+        ready: s.geminiPrivacyAcknowledged,
+        messageAr: s.geminiPrivacyAcknowledged
+            ? null
+            : S.geminiPrivacyPendingBody,
+      );
   }
 });
+
+/// Whether the minutes engine selected in Settings can run (see
+/// [minutesEngineReadinessProvider]); null while unknown.
+final minutesEngineReadyProvider = Provider<bool?>(
+  (ref) => ref.watch(minutesEngineReadinessProvider)?.ready,
+);
 
 /// Whether a Deepgram API key is stored; null when unknown (see
 /// [anthropicKeyConfiguredProvider]). Invalidate after changing it.

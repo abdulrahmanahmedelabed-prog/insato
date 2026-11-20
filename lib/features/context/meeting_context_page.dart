@@ -11,6 +11,9 @@ import '../../session/providers.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../system_audio/audio_source_selector.dart' show AudioSourceSelector;
+import '../voice/mic_settings.dart' show FarFieldTile, MicDeviceChip;
+import '../voice/strings.dart' show VoiceStrings;
 import 'context_logic.dart';
 import 'glossary_logic.dart';
 import 'glossary_term_dialog.dart';
@@ -268,6 +271,7 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
+                  if (before) ..._audioSection(),
                   ..._agendaSection(theme),
                   ..._attendeesSection(theme, speakers),
                   const SectionHeader(
@@ -295,6 +299,17 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
       ),
     );
   }
+
+  /// Before a recording: the microphone (F18), the far-field profile and,
+  /// on Windows only, the audio source (F13). Stored as settings, so they
+  /// also apply to later recordings.
+  List<Widget> _audioSection() => const [
+    SectionHeader(VoiceStrings.micSection, icon: Icons.mic_rounded),
+    Align(alignment: AlignmentDirectional.centerStart, child: MicDeviceChip()),
+    SizedBox(height: 8),
+    AudioSourceSelector(compact: true),
+    FarFieldTile(),
+  ];
 
   List<Widget> _agendaSection(ThemeData theme) => [
     SectionHeader(

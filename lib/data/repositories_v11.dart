@@ -13,6 +13,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models.dart';
+import '../core/text_normalize.dart';
 import 'database.dart';
 import 'repositories.dart';
 
@@ -43,6 +44,89 @@ List<EvidenceRef> decodeEvidenceRefs(String? json) {
 /// whitespace collapsed, lower-cased.
 String normalizedKey(String s) =>
     s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+/// Matching key of a task text: punctuation removed and the forgiving
+/// Arabic normalisation of search (alef / hamza / ta marbuta forms,
+/// diacritics, digits, case).
+String taskMatchKey(String s) => normalizeForSearch(
+  s.replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' '),
+);
+
+Set<String> _taskTokens(String s) => {
+  for (final w in taskMatchKey(s).split(' '))
+    if (w.isNotEmpty) w.startsWith('ال') && w.length > 3 ? w.substring(2) : w,
+};
+
+/// Whether two task texts (as written by an engine or edited by the user)
+/// describe the same task: the same [taskMatchKey], a word overlap (Jaccard)
+/// of at least 0.6, or one text containing at least 80 % of the other's
+/// words when both have two words or more («إرسال التقرير» ≈ «ارسال التقرير
+/// للإدارة»).
+bool similarTaskText(String a, String b) {
+  final ka = taskMatchKey(a);
+  final kb = taskMatchKey(b);
+  if (ka.isEmpty || kb.isEmpty) return false;
+  if (ka == kb) return true;
+  final x = _taskTokens(a);
+  final y = _taskTokens(b);
+  if (x.isEmpty || y.isEmpty) return false;
+  final inter = x.intersection(y).length;
+  if (inter / x.union(y).length >= 0.6) return true;
+  final small = x.length < y.length ? x.length : y.length;
+  return small >= 2 && inter / small >= 0.8;
+}
+
+/// Kinds of [TaskDismissals] rows.
+abstract final class TaskDismissalKind {
+  /// An action item whose task the user deleted (key: [taskMatchKey]).
+  static const String task = 'task';
+
+  /// A task update the user confirmed or dismissed (key:
+  /// [taskUpdateDecisionKey]).
+  static const String update = 'update';
+}
+
+/// Dismissal key of a task update.
+String taskUpdateDecisionKey(int taskId, TaskStatus status) =>
+    '$taskId|${status.wire}';
+
+/// User decisions about a meeting's minutes kept across regenerations.
+class TaskDismissalRepository {
+  /// Creates the repository over [_db].
+  TaskDismissalRepository(this._db);
+
+  final AppDatabase _db;
+
+  /// Records a decision (idempotent).
+  Future<void> add(
+    String meetingId,
+    String kind,
+    String key, {
+    DateTime? now,
+  }) async {
+    if (key.isEmpty) return;
+    await _db
+        .into(_db.taskDismissals)
+        .insertOnConflictUpdate(
+          TaskDismissalsCompanion.insert(
+            meetingId: meetingId,
+            kind: kind,
+            itemKey: key,
+            createdAt: now ?? DateTime.now(),
+          ),
+        );
+  }
+
+  /// Keys of [kind] recorded for [meetingId].
+  Future<Set<String>> keys(String meetingId, String kind) async => {
+    for (final r
+        in await (_db.select(_db.taskDismissals)..where(
+              (d) => d.meetingId.equals(meetingId) & d.kind.equals(kind),
+            ))
+            .get())
+      r.itemKey,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Glossary (F2 / F3)
@@ -381,8 +465,28 @@ class TaskRepository {
   }
 
   /// Deletes a task (and its pending updates). Returns true if it existed.
+  /// Used for stale untouched tasks of regenerated minutes; a deletion by
+  /// the user goes through [deleteByUser].
   Future<bool> delete(int id) async =>
       await (_db.delete(_db.tasks)..where((t) => t.id.equals(id))).go() > 0;
+
+  /// Deletes [task] at the user's request. When it came from a meeting's
+  /// minutes, its action item is remembered as dismissed so regenerating
+  /// those minutes does not bring it back. Returns true if it existed.
+  Future<bool> deleteByUser(TrackedTask task, {DateTime? now}) =>
+      _db.transaction(() async {
+        final deleted = await delete(task.id);
+        final src = task.sourceMeetingId;
+        if (deleted && src != null) {
+          await TaskDismissalRepository(_db).add(
+            src,
+            TaskDismissalKind.task,
+            taskMatchKey(task.task),
+            now: now,
+          );
+        }
+        return deleted;
+      });
 }
 
 /// Status changes proposed by minutes, awaiting the user's confirmation.
@@ -414,7 +518,8 @@ class PendingTaskUpdateRepository {
     ..orderBy([(u) => OrderingTerm.asc(u.id)]);
 
   /// Replaces every pending update proposed by [meetingId] with [updates]
-  /// (e.g. after the minutes were regenerated).
+  /// (e.g. after the minutes were regenerated), except those the user
+  /// already decided on.
   Future<List<PendingTaskUpdate>> replaceForMeeting(
     String meetingId,
     List<MinutesTaskUpdate> updates, {
@@ -424,8 +529,16 @@ class PendingTaskUpdateRepository {
       _db.taskUpdatesPending,
     )..where((u) => u.meetingId.equals(meetingId))).go();
     final at = now ?? DateTime.now();
+    // Updates the user already confirmed or dismissed are not proposed
+    // again by regenerated minutes (a different status still is).
+    final decided = await TaskDismissalRepository(
+      _db,
+    ).keys(meetingId, TaskDismissalKind.update);
     final out = <PendingTaskUpdate>[];
     for (final u in updates) {
+      if (decided.contains(taskUpdateDecisionKey(u.taskId, u.newStatus))) {
+        continue;
+      }
       final evidence = parseEvidenceIds(u.evidence);
       final id = await _db
           .into(_db.taskUpdatesPending)
@@ -479,6 +592,7 @@ class PendingTaskUpdateRepository {
           _db.taskUpdatesPending,
         )..where((u) => u.id.equals(id))).go();
         final at = now ?? DateTime.now();
+        await _remember(r, at);
         final n =
             await (_db.update(
               _db.tasks,
@@ -495,12 +609,28 @@ class PendingTaskUpdateRepository {
         return TaskRepository.fromRow(row);
       });
 
-  /// Discards the pending update [id]. Returns true if it existed.
-  Future<bool> dismiss(int id) async =>
-      await (_db.delete(
-        _db.taskUpdatesPending,
-      )..where((u) => u.id.equals(id))).go() >
-      0;
+  /// Discards the pending update [id]. Returns true if it existed. The
+  /// decision is remembered: regenerating the minutes does not propose it
+  /// again.
+  Future<bool> dismiss(int id, {DateTime? now}) => _db.transaction(() async {
+    final r = await (_db.select(
+      _db.taskUpdatesPending,
+    )..where((u) => u.id.equals(id))).getSingleOrNull();
+    if (r == null) return false;
+    await (_db.delete(
+      _db.taskUpdatesPending,
+    )..where((u) => u.id.equals(id))).go();
+    await _remember(r, now ?? DateTime.now());
+    return true;
+  });
+
+  Future<void> _remember(PendingTaskUpdateRow r, DateTime at) =>
+      TaskDismissalRepository(_db).add(
+        r.meetingId,
+        TaskDismissalKind.update,
+        taskUpdateDecisionKey(r.taskId, TaskStatus.parse(r.newStatus)),
+        now: at,
+      );
 }
 
 // ---------------------------------------------------------------------------

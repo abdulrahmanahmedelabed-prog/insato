@@ -94,6 +94,12 @@ class FakeMic implements MicCapture {
   /// Sends a capture warning.
   void warn(String message) => _errors.add(AudioCaptureException(message));
 
+  /// Reports a capture state change made by the platform.
+  void pushState(AudioCaptureState s) => _states.add(s);
+
+  /// Holds [hasPermission] until completed (null = answer at once).
+  Future<void>? permissionGate;
+
   @override
   Stream<Float32List> get frames => _frames.stream;
   @override
@@ -106,7 +112,10 @@ class FakeMic implements MicCapture {
   Duration get elapsed =>
       Duration(milliseconds: _samples * 1000 ~/ kSampleRate);
   @override
-  Future<bool> hasPermission({bool request = true}) async => permission;
+  Future<bool> hasPermission({bool request = true}) async {
+    if (permissionGate != null) await permissionGate;
+    return permission;
+  }
   @override
   Future<List<InputDevice>> listInputDevices() async {
     listCalls++;
@@ -164,6 +173,9 @@ class FakeMicFactory {
 
   List<InputDevice> devices;
   bool permission = true;
+
+  /// Gate given to every new mic's [FakeMic.permissionGate].
+  Future<void>? permissionGate;
   final List<FakeMic> made = [];
   final List<AudioCaptureOptions> options = [];
 
@@ -177,7 +189,8 @@ class FakeMicFactory {
 
   MicCapture call(AudioCaptureOptions o) {
     options.add(o);
-    final m = FakeMic(devices: devices, permission: permission);
+    final m = FakeMic(devices: devices, permission: permission)
+      ..permissionGate = permissionGate;
     made.add(m);
     return m;
   }

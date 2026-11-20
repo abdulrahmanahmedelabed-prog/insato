@@ -5,13 +5,18 @@
 //            device-aware source in production), archive included.
 // * both   – the microphone is the clock: every microphone frame takes the
 //            same number of system samples from the [SystemAudioBuffer]
-//            (zeros while nothing plays) and the two are summed through a
-//            soft limiter. The mixed signal is archived here.
+//            and the two are summed through a soft limiter. A small jitter
+//            buffer (80 ms pre-roll, 200 ms latency bound) absorbs the
+//            independent arrival of loopback packets: a frame gets a full
+//            run of real system samples or none, never zeros spliced into
+//            the middle of the remote voice. The mixed signal is archived
+//            here.
 // * system – no microphone; a timer emits system audio paced by wall clock
 //            ([WallClockSilenceFiller]), zeros for silent gaps.
 //
-// On Android / iOS (and anything but Windows) the setting is ignored and the
-// microphone is recorded, as the spec requires.
+// On Android / iOS (and anything but Windows), and on Windows when system
+// audio cannot be captured (old build, no loopback endpoint), the setting is
+// ignored and the microphone is recorded.
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -23,7 +28,8 @@ import '../../audio/wav_writer.dart';
 import '../../core/errors.dart';
 import '../../core/models.dart' show kSampleRate;
 import '../../data/secure_settings.dart';
-import '../../session/meeting_session_controller.dart' show SessionAudioSource;
+import '../../session/meeting_session_controller.dart'
+    show SessionAudioSource, SessionInputDeviceReporter;
 import '../voice/device_aware_audio_source.dart'
     show deviceAwareAudioSourceProvider;
 import '../voice/mic_capture.dart' show capturePlatformProvider;
@@ -44,13 +50,16 @@ enum SessionAudioMode {
 }
 
 /// The mode for the stored [setting] on [platform]: system audio exists only
-/// on Windows; unknown values fall back to the default ([SessionAudioMode.both]
-/// on Windows).
+/// on Windows, and only when it can be captured ([systemSupported]); unknown
+/// values fall back to the default ([SessionAudioMode.both] on Windows).
 SessionAudioMode resolveSessionAudioMode(
   String? setting,
-  CapturePlatform platform,
-) {
-  if (platform != CapturePlatform.windows) return SessionAudioMode.mic;
+  CapturePlatform platform, {
+  bool systemSupported = true,
+}) {
+  if (platform != CapturePlatform.windows || !systemSupported) {
+    return SessionAudioMode.mic;
+  }
   return switch (setting) {
     AppSettingsData.audioSourceMic => SessionAudioMode.mic,
     AppSettingsData.audioSourceSystem => SessionAudioMode.system,
@@ -58,11 +67,23 @@ SessionAudioMode resolveSessionAudioMode(
   };
 }
 
+/// Input-device key of system-only takes (no microphone is used), distinct
+/// from every microphone key so remote voices are never credited to a mic.
+const String kSystemAudioDeviceKey = 'system|loopback';
+
+/// The `AppSettingsData.audioSource*` value of [mode].
+String audioSourceOfMode(SessionAudioMode mode) => switch (mode) {
+  SessionAudioMode.mic => AppSettingsData.audioSourceMic,
+  SessionAudioMode.system => AppSettingsData.audioSourceSystem,
+  SessionAudioMode.both => AppSettingsData.audioSourceBoth,
+};
+
 /// Opens the archive WAV of a mixed take.
 typedef MixedArchiveOpener = Future<WavWriter> Function(String path);
 
 /// [SessionAudioSource] honouring the audio-source setting (F13).
-class MixedSessionAudioSource implements SessionAudioSource {
+class MixedSessionAudioSource
+    implements SessionAudioSource, SessionInputDeviceReporter {
   /// Creates the source. [clock] is a monotonic time source (default: a
   /// [Stopwatch]); [tick] is how often system-only audio is emitted.
   MixedSessionAudioSource({
@@ -99,8 +120,20 @@ class MixedSessionAudioSource implements SessionAudioSource {
   final _level = StreamController<double>.broadcast();
   final _states = StreamController<AudioCaptureState>.broadcast();
   final _errors = StreamController<AudioCaptureException>.broadcast();
+  final _deviceKeys = StreamController<String?>.broadcast();
   final List<StreamSubscription<Object?>> _subs = [];
   final LevelMeter _meter = LevelMeter();
+
+  /// Jitter pre-roll of the 'both' mixer: system audio joins the mix once
+  /// this much is buffered beyond the frame (80 ms).
+  static const int _sysTarget = kSampleRate * 80 ~/ 1000;
+
+  /// Latency bound of the 'both' mixer (200 ms): older system audio beyond
+  /// it is dropped back to [_sysTarget].
+  static const int _sysMax = kSampleRate * 200 ~/ 1000;
+
+  /// Whether the 'both' mixer has its pre-roll.
+  bool _sysPrimed = false;
 
   SessionAudioMode _mode = SessionAudioMode.mic;
   WallClockSilenceFiller? _filler;
@@ -114,6 +147,23 @@ class MixedSessionAudioSource implements SessionAudioSource {
 
   /// Mode of the running (or last) take.
   SessionAudioMode get mode => _mode;
+
+  @override
+  String? get activeDeviceKey => switch (_mode) {
+    SessionAudioMode.system => kSystemAudioDeviceKey,
+    _ => _micReporter?.activeDeviceKey,
+  };
+
+  @override
+  Stream<String?> get activeDeviceChanges => _deviceKeys.stream;
+
+  @override
+  String get activeAudioSource => audioSourceOfMode(_mode);
+
+  SessionInputDeviceReporter? get _micReporter =>
+      _mic is SessionInputDeviceReporter
+          ? _mic as SessionInputDeviceReporter
+          : null;
 
   /// The system-audio source.
   SystemAudioSource get system => _system;
@@ -143,7 +193,11 @@ class MixedSessionAudioSource implements SessionAudioSource {
     } catch (_) {
       setting = null;
     }
-    return resolveSessionAudioMode(setting, _platform);
+    final mode = resolveSessionAudioMode(setting, _platform);
+    if (mode == SessionAudioMode.mic) return mode;
+    // A stored 'system' / 'both' cannot be honoured without loopback
+    // support: record the microphone cleanly (the settings show the same).
+    return await _system.isSupported() ? mode : SessionAudioMode.mic;
   }
 
   void _listen() {
@@ -154,6 +208,17 @@ class MixedSessionAudioSource implements SessionAudioSource {
       ..add(_mic.states.listen(_onMicState))
       ..add(_mic.errors.listen(_addError))
       ..add(_system.warnings.listen(_onSystemWarning));
+    final reporter = _micReporter;
+    if (reporter != null) {
+      _subs.add(
+        reporter.activeDeviceChanges.listen((key) {
+          // System-only takes use no microphone.
+          if (_mode != SessionAudioMode.system && !_deviceKeys.isClosed) {
+            _deviceKeys.add(key);
+          }
+        }),
+      );
+    }
   }
 
   @override
@@ -170,6 +235,7 @@ class MixedSessionAudioSource implements SessionAudioSource {
     _samples = 0;
     _meter.reset();
     _wavFailed = false;
+    _sysPrimed = false;
     _active = true;
     switch (_mode) {
       case SessionAudioMode.mic:
@@ -223,10 +289,15 @@ class MixedSessionAudioSource implements SessionAudioSource {
         await _mic.pause();
         await _pauseSystem();
       case SessionAudioMode.system:
-        if (_filler == null || _filler!.isPaused) return;
-        pumpSystemAudio();
+        final filler = _filler;
+        if (filler == null || filler.isPaused) return;
         _stopTimer();
-        _filler!.pause();
+        // Stop first so the converter tail reaches the buffer, then emit
+        // everything up to now (lag included): the end of the word being
+        // spoken is kept, not discarded with the buffer.
+        if (_systemActive) await _system.stop();
+        _emit(filler.drain(_system.buffer, flush: true));
+        filler.pause();
         await _pauseSystem();
         _setState(AudioCaptureState.paused);
         _emitLevel(0);
@@ -307,6 +378,7 @@ class MixedSessionAudioSource implements SessionAudioSource {
     await _level.close();
     await _states.close();
     await _errors.close();
+    await _deviceKeys.close();
   }
 
   /// Emits the system audio due by wall clock (system-only takes; called by
@@ -327,13 +399,30 @@ class MixedSessionAudioSource implements SessionAudioSource {
         _frames.add(frame);
       case SessionAudioMode.both:
         if (!_active) return;
-        final sys = _systemActive
-            ? _system.buffer.take(frame.length)
-            : Float32List(0);
-        _emit(mixSoftLimited(frame, sys));
+        _emit(mixSoftLimited(frame, _takeSystemFor(frame.length)));
       case SessionAudioMode.system:
         break; // The microphone is not used.
     }
+  }
+
+  /// System samples to mix with a microphone frame of [n] samples ('both'):
+  /// a full run of real samples, or none while the jitter buffer (re)fills.
+  Float32List _takeSystemFor(int n) {
+    if (!_systemActive) return Float32List(0);
+    final buf = _system.buffer;
+    if (!_sysPrimed && buf.length >= _sysTarget + n) _sysPrimed = true;
+    if (!_sysPrimed) return Float32List(0);
+    if (buf.length < n) {
+      // Underrun: hold back (keep the samples) and pre-roll again rather
+      // than splice zeros into the remote voice.
+      _sysPrimed = false;
+      return Float32List(0);
+    }
+    if (buf.length > _sysMax + n) {
+      // Bound the latency: drop the oldest samples back to the target.
+      buf.take(buf.length - _sysTarget - n);
+    }
+    return buf.take(n);
   }
 
   void _onMicLevel(double v) {
@@ -414,6 +503,7 @@ class MixedSessionAudioSource implements SessionAudioSource {
     if (!_systemActive) return;
     await _system.stop();
     _system.buffer.clear();
+    _sysPrimed = false;
     final wav = _wav;
     if (wav != null && !_wavFailed) {
       unawaited(wav.flush().catchError((Object _) {}));
@@ -422,6 +512,7 @@ class MixedSessionAudioSource implements SessionAudioSource {
 
   Future<void> _resumeSystem() async {
     if (!_systemActive) return;
+    _sysPrimed = false;
     try {
       await _system.start();
     } on AudioCaptureException catch (e) {

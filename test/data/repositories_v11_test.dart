@@ -6,6 +6,7 @@ import 'package:insato/data/database.dart';
 import 'package:insato/data/minutes_artifacts.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/repositories_v11.dart';
+import 'package:insato/features/codes/reversed_speech_logic.dart';
 
 Minutes minutesWith({
   List<ActionItem> actionItems = const [],
@@ -365,6 +366,71 @@ void main() {
       expect(findings.last.payload['verbatim'], 'INV-7');
     });
 
+    test('names resolve among the meeting speakers first', () {
+      Speaker sp(String id, String name, {bool opted = false}) => Speaker(
+        id: id,
+        name: name,
+        colorValue: 0,
+        isNamedByUser: true,
+        createdAt: DateTime(2026),
+        profileEnabled: opted,
+      );
+      final all = {
+        'm1': sp('m1', 'محمد', opted: true),
+        'm2': sp('m2', 'محمد'),
+        'r': sp('r', 'ريم'),
+      };
+      // Only m1 speaks in this meeting.
+      final scoped = SpeakerNameResolver.scoped(all, {'m1'});
+      expect(scoped.id('محمد'), 'm1');
+      expect(scoped.id('ريم'), 'r', reason: 'unique library-wide');
+      expect(
+        optedInSpeakerNotes(const [
+          MinutesSpeakerNote(speaker: 'محمد'),
+        ], scoped).keys,
+        ['m1'],
+      );
+      // Both speak: still ambiguous.
+      expect(SpeakerNameResolver.scoped(all, {'m1', 'm2'}).id('محمد'), isNull);
+      // Library-wide only: ambiguous.
+      expect(SpeakerNameResolver(all).id('محمد'), isNull);
+    });
+
+    test('persist scopes names to the meeting speakers', () async {
+      final writer = MinutesArtifactsWriter(db);
+      final m = await meetings.create(title: 'm');
+      final a = await speakers.create(name: 'محمد', isNamedByUser: true);
+      await speakers.create(name: 'محمد', isNamedByUser: true);
+      await speakers.setProfileEnabled(a.id, true);
+      final report = await writer.persist(
+        meetingId: m.id,
+        minutes: minutesWith(
+          actionItems: const [ActionItem(task: 'إرسال العرض', owner: 'محمد')],
+          speakerNotes: const [MinutesSpeakerNote(speaker: 'محمد')],
+          codes: const MinutesCodes(
+            implied: [
+              ImpliedItem(
+                literal: 'ربما',
+                basis: 'نبرة',
+                confidence: HypothesisConfidence.low,
+                speaker: 'محمد',
+              ),
+            ],
+          ),
+        ),
+        speakersById: await speakers.getAllById(),
+        meetingSpeakerIds: {a.id},
+      );
+      expect(report.speakerNotes, 1);
+      final task = (await TaskRepository(db).getAll(sourceMeetingId: m.id))
+          .single;
+      expect(task.ownerSpeakerId, a.id);
+      expect(
+        (await CodeFindingRepository(db).getForMeeting(m.id)).single.speakerId,
+        a.id,
+      );
+    });
+
     test('planTaskSync keeps edited tasks and drops stale untouched ones', () {
       final t0 = DateTime(2026);
       TrackedTask task(
@@ -395,6 +461,146 @@ void main() {
       );
       expect(plan.create.map((a) => a.task), ['new task']);
       expect(plan.deleteIds, [2]);
+    });
+
+    test('planTaskSync matches reworded tasks one to one', () {
+      final t0 = DateTime(2026);
+      TrackedTask task(
+        int id,
+        String text, {
+        TaskStatus status = TaskStatus.open,
+        DateTime? updated,
+        List<int> evidence = const [],
+      }) => TrackedTask(
+        id: id,
+        task: text,
+        status: status,
+        createdAt: t0,
+        updatedAt: updated ?? t0,
+        evidenceSegmentIds: evidence,
+      );
+      // A done task reworded with other spelling: no duplicate.
+      var plan = planTaskSync(
+        [task(1, 'إرسال التقرير', status: TaskStatus.done)],
+        const [ActionItem(task: 'ارسال التقرير للإدارة')],
+      );
+      expect(plan.create, isEmpty);
+      // An edited task found again through its evidence.
+      plan = planTaskSync(
+        [
+          task(
+            1,
+            'تجهيز عرض الميزانية للمجلس',
+            updated: DateTime(2026, 2),
+            evidence: [7],
+          ),
+        ],
+        const [
+          ActionItem(task: 'إعداد الميزانية', evidence: [7]),
+        ],
+      );
+      expect(plan.create, isEmpty);
+      expect(plan.deleteIds, isEmpty);
+      // An unrelated item is created; an untouched reworded task is kept.
+      plan = planTaskSync(
+        [task(1, 'حجز القاعة'), task(2, 'إرسال التقرير')],
+        const [
+          ActionItem(task: 'حجز قاعة'),
+          ActionItem(task: 'مراجعة العقد'),
+        ],
+      );
+      expect(plan.create.map((a) => a.task), ['مراجعة العقد']);
+      expect(plan.deleteIds, [2]);
+      // Two items never consume the same task.
+      plan = planTaskSync(
+        [task(1, 'إرسال التقرير')],
+        const [
+          ActionItem(task: 'إرسال التقرير'),
+          ActionItem(task: 'ارسال التقرير للادارة'),
+        ],
+      );
+      expect(plan.create.map((a) => a.task), ['ارسال التقرير للادارة']);
+      // Dismissed items never come back.
+      plan = planTaskSync(
+        const [],
+        const [
+          ActionItem(task: 'حجز القاعة'),
+          ActionItem(task: 'مراجعة العقد'),
+        ],
+        dismissedKeys: {taskMatchKey('حجز القاعه')},
+      );
+      expect(plan.create.map((a) => a.task), ['مراجعة العقد']);
+      expect(similarTaskText('إرسال', 'إرسال الفاتورة للعميل'), isFalse);
+    });
+
+    test('regenerating never restores a deleted task nor a decided update',
+        () async {
+      final writer = MinutesArtifactsWriter(db);
+      final tasks = TaskRepository(db);
+      final pending = PendingTaskUpdateRepository(db);
+      final m0 = await meetings.create(title: 'earlier');
+      final m = await meetings.create(title: 'm');
+      final earlier = await tasks.create(
+        task: 'تجهيز العرض',
+        sourceMeetingId: m0.id,
+      );
+      final minutes = minutesWith(
+        actionItems: const [
+          ActionItem(task: 'حجز القاعة'),
+          ActionItem(task: 'إرسال التقرير'),
+        ],
+        taskUpdates: [
+          MinutesTaskUpdate(taskId: earlier.id, newStatus: TaskStatus.done),
+        ],
+      );
+      Future<void> persist(Minutes x) => writer.persist(
+        meetingId: m.id,
+        minutes: x,
+        speakersById: const {},
+        openTaskIds: {earlier.id},
+      );
+      await persist(minutes);
+      // The user deletes one task and rejects the proposed update.
+      final room = (await tasks.getAll(sourceMeetingId: m.id)).firstWhere(
+        (t) => t.task == 'حجز القاعة',
+      );
+      expect(await tasks.deleteByUser(room), isTrue);
+      expect(await pending.dismiss((await pending.getAll()).single.id), isTrue);
+
+      await persist(minutes);
+      expect(
+        (await tasks.getAll(sourceMeetingId: m.id)).map((t) => t.task),
+        ['إرسال التقرير'],
+      );
+      expect(await pending.getAll(meetingId: m.id), isEmpty);
+      expect((await tasks.get(earlier.id))!.status, TaskStatus.open);
+
+      // A different status for the same task is still proposed.
+      await persist(
+        minutesWith(
+          taskUpdates: [
+            MinutesTaskUpdate(
+              taskId: earlier.id,
+              newStatus: TaskStatus.cancelled,
+            ),
+          ],
+        ),
+      );
+      expect(
+        (await pending.getAll(meetingId: m.id)).single.newStatus,
+        TaskStatus.cancelled,
+      );
+      // A stale untouched task removed by persist is not remembered.
+      expect(
+        await TaskDismissalRepository(db).keys(m.id, TaskDismissalKind.task),
+        {taskMatchKey('حجز القاعة')},
+      );
+      // Tombstones go with the meeting.
+      await meetings.delete(m.id);
+      expect(
+        await TaskDismissalRepository(db).keys(m.id, TaskDismissalKind.task),
+        isEmpty,
+      );
     });
 
     test('writer persists and regenerating replaces', () async {
@@ -470,6 +676,92 @@ void main() {
         isEmpty,
       );
       expect(await CodeFindingRepository(db).getForMeeting(m.id), isEmpty);
+    });
+
+    test('regenerating keeps reversed-speech results and app findings', () async {
+      final writer = MinutesArtifactsWriter(db);
+      final codes = CodeFindingRepository(db);
+      final m = await meetings.create(title: 'm');
+      final byId = await speakers.getAllById();
+      Minutes coded(List<int> evidence) => minutesWith(
+        codes: MinutesCodes(
+          codedSpeech: [
+            CodedSpeechItem(
+              speaker: 'متحدث 1',
+              character: CodedSpeechCharacter.unknown,
+              description: 'كلام غير مفهوم',
+              evidence: evidence,
+            ),
+          ],
+        ),
+      );
+      await writer.persist(
+        meetingId: m.id,
+        minutes: coded(const [3]),
+        speakersById: byId,
+      );
+      // The user runs reversed speech: the engine finding is enriched and
+      // an app finding is added for segment 9.
+      final engine = (await codes.getForMeeting(m.id)).single;
+      const r3 = ReversedSpeechResult(segment: 3, text: 'نص معكوس');
+      const r9 = ReversedSpeechResult(segment: 9, text: 'كلمة أخرى');
+      await codes.replaceForMeeting(m.id, [
+        CodeFinding(
+          id: 0,
+          meetingId: m.id,
+          kind: CodeFindingKind.speechCoded,
+          segmentIds: engine.segmentIds,
+          payload: enrichPayload(engine.payload, checked: {3}, results: [r3]),
+          createdAt: DateTime(2026),
+        ),
+        CodeFinding(
+          id: 0,
+          meetingId: m.id,
+          kind: CodeFindingKind.speechCoded,
+          segmentIds: const [9],
+          payload: enrichPayload(
+            {
+              ...const CodedSpeechItem(
+                speaker: 'متحدث 1',
+                character: CodedSpeechCharacter.unknown,
+                description: 'app',
+                evidence: [9],
+              ).toJson(),
+              kFindingOriginKey: kOriginApp,
+            },
+            checked: {9},
+            results: [r9],
+          ),
+          createdAt: DateTime(2026),
+        ),
+      ]);
+
+      // Regenerated minutes cite segment 3 again (new wording).
+      await writer.persist(
+        meetingId: m.id,
+        minutes: coded(const [3, 4]),
+        speakersById: byId,
+      );
+      final after = await codes.getForMeeting(m.id);
+      expect(after, hasLength(2));
+      expect(readReversedResults(after[0].payload).map((r) => r.text), [
+        'نص معكوس',
+      ]);
+      expect(readReversedChecked(after[0].payload), {3});
+      expect(after[1].payload[kFindingOriginKey], kOriginApp);
+      expect(readReversedResults(after[1].payload).single.text, 'كلمة أخرى');
+
+      // Now the engine cites segment 9 too: the app finding merges into it.
+      await writer.persist(
+        meetingId: m.id,
+        minutes: coded(const [3, 9]),
+        speakersById: byId,
+      );
+      final merged = await codes.getForMeeting(m.id);
+      expect(merged, hasLength(1));
+      expect(readReversedResults(merged.single.payload).map((r) => r.segment),
+          [3, 9]);
+      expect(merged.single.payload[kFindingOriginKey], isNull);
     });
   });
 }

@@ -144,6 +144,54 @@ void main() {
       );
     });
 
+    test('only open tasks of earlier meetings are given to the engine',
+        () async {
+      final a = await meetings.create(
+        title: 'A',
+        createdAt: DateTime(2026, 3, 1),
+      );
+      final b = await meetings.create(
+        title: 'B',
+        createdAt: DateTime(2026, 3, 5),
+      );
+      final c = await meetings.create(
+        title: 'C',
+        createdAt: DateTime(2026, 3, 10),
+      );
+      final tasks = TaskRepository(db);
+      // A's task row was re-created later (regeneration): still A's date.
+      final ta = await tasks.create(
+        task: 'مهمة أ',
+        sourceMeetingId: a.id,
+        createdAt: DateTime(2026, 4, 1),
+      );
+      final tb = await tasks.create(task: 'مهمة ب', sourceMeetingId: b.id);
+      final tc = await tasks.create(task: 'مهمة ج', sourceMeetingId: c.id);
+      final manual = await tasks.create(
+        task: 'مهمة يدوية',
+        createdAt: DateTime(2026, 3, 3),
+      );
+      final forB = await post.minutesInputsFor(b, const {});
+      expect(forB.openTasks.map((t) => t.id).toSet(), {ta.id, manual.id});
+      expect(forB.taskSourceTitles, {a.id: 'A'});
+      final forA = await post.minutesInputsFor(a, const {});
+      expect(forA.openTasks, isEmpty);
+      final forC = await post.minutesInputsFor(c, const {});
+      expect(forC.openTasks.map((t) => t.id).toSet(), {
+        ta.id,
+        tb.id,
+        manual.id,
+      });
+      expect(forC.openTasks.map((t) => t.id), isNot(contains(tc.id)));
+
+      // Many open tasks of a later meeting never push out earlier ones.
+      for (var i = 0; i < PostProcessor.maxOpenTasksInPrompt + 5; i++) {
+        await tasks.create(task: 'لاحقة $i', sourceMeetingId: c.id);
+      }
+      final again = await post.minutesInputsFor(b, const {});
+      expect(again.openTasks.map((t) => t.id).toSet(), {ta.id, manual.id});
+    });
+
     test('an engine that is not ready is reported with its reason', () async {
       final m = await meetings.create(
         title: 'm',

@@ -4,6 +4,9 @@
 // lines) are shown as they are; everything the UI itself says lives here so
 // the wording stays consistent and reviewable in one place.
 
+import '../core/models.dart' show AgendaItemStatus;
+import '../minutes/export_service.dart' show agendaStatusText;
+
 /// Arabic UI strings.
 abstract final class S {
   // ---------------------------------------------------------------------------
@@ -18,6 +21,12 @@ abstract final class S {
 
   /// Navigation: meetings.
   static const String navMeetings = 'الاجتماعات';
+
+  /// Navigation: tracked tasks (F9).
+  static const String navTasks = 'المهام';
+
+  /// Navigation: "Ask your meetings" (F8), short label.
+  static const String navAsk = 'اسأل';
 
   /// Navigation: voice library.
   static const String navSpeakers = 'المتحدثون';
@@ -448,6 +457,13 @@ abstract final class S {
   /// None.
   static const String noneRecorded = 'لا يوجد.';
 
+  /// Minutes section: agenda coverage (F3).
+  static const String agendaCoverage = 'تغطية جدول الأعمال';
+
+  /// Agenda item coverage label.
+  static String agendaStatusLabel(AgendaItemStatus status) =>
+      agendaStatusText(status);
+
   /// Generate minutes.
   static const String generateMinutes = 'إنشاء المحضر';
 
@@ -470,6 +486,15 @@ abstract final class S {
   static const String apiKeyMissingTitle = 'محرك المحضر غير جاهز';
 
   /// Minutes engine not ready body.
+  /// Claude is selected but its key is not stored.
+  static const String claudeKeyMissingBody =
+      'أضِف مفتاح Claude من الإعدادات ليكتب إنصاتو المحضر.';
+
+  /// Gemini's key is stored but its privacy notice was not accepted.
+  static const String geminiPrivacyPendingBody =
+      'وافِق على إشعار خصوصية Gemini في الإعدادات (محرك كتابة المحضر) ليكتب '
+      'إنصاتو المحضر.';
+
   static const String apiKeyMissingBody =
       'أضِف مفتاح محرك المحضر من الإعدادات ليكتب إنصاتو المحضر؛ مفتاح Gemini '
       'مجاني من Google AI Studio. يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
@@ -725,8 +750,7 @@ abstract final class S {
   static const String geminiPrivacyWithdraw = 'سحب الموافقة';
 
   /// The selected local engine is not available in this build.
-  static const String engineUnavailable =
-      'هذا المحرك غير متاح في هذا الإصدار.';
+  static const String engineUnavailable = 'هذا المحرك غير متاح في هذا الإصدار.';
 
   /// API key label.
   static const String anthropicKey = 'مفتاح Anthropic API (Claude)';
@@ -923,6 +947,9 @@ abstract final class S {
 
   /// Other group.
   static const String otherModels = 'نماذج أخرى';
+
+  /// Models screen: GGUF models of the on-device minutes engine (F14).
+  static const String minutesModels = 'نماذج كتابة المحضر على الجهاز';
 
   /// Download.
   static const String download = 'تنزيل';

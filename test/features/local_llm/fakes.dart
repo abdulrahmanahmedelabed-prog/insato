@@ -31,6 +31,10 @@ class FakeGenerator implements LlmTextGenerator {
   /// Answers, consumed in order.
   final List<String> responses;
 
+  /// Answer texts reported as cut off at the token limit
+  /// ([LlmGeneration.truncated]).
+  final Set<String> truncatedTexts = {};
+
   /// Dynamic answer (used when [responses] is empty).
   String Function(LlmGenerationRequest request)? respond;
 
@@ -73,7 +77,11 @@ class FakeGenerator implements LlmTextGenerator {
           ? responses.removeAt(0)
           : (respond?.call(request) ?? '{}');
       onProgress?.call(LlmStreamPhase.writing, text.length);
-      return LlmGeneration(text: text, model: name);
+      return LlmGeneration(
+        text: text,
+        model: name,
+        truncated: truncatedTexts.contains(text),
+      );
     } finally {
       _running--;
     }

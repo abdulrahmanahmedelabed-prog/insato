@@ -1,4 +1,5 @@
-// "المحضر" tab: rendered minutes with a regenerate button, streaming
+// "المحضر" tab: the meeting context (F3) with its edit button, rendered
+// minutes with playable evidence chips (F5), a regenerate button, streaming
 // generation progress, errors with retry, and the API-key prompt.
 
 import 'dart:async';
@@ -7,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
+import '../../features/context/meeting_context_card.dart';
+import '../../features/evidence/evidence.dart' show EvidenceChips;
 import '../../session/post_processor.dart';
 import '../../session/providers.dart';
 import '../navigation.dart';
@@ -40,14 +43,17 @@ class MeetingMinutesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final job = ref.watch(meetingJobsProvider(meeting.id));
     final session = ref.watch(meetingSessionControllerProvider);
-    final keyConfigured = ref.watch(minutesEngineReadyProvider);
+    final readiness = ref.watch(minutesEngineReadinessProvider);
     final isLive = session.isActive && session.meetingId == meeting.id;
     final minutesJob = job.kind == MeetingJobKind.minutes;
     final generating = minutesJob && job.isRunning;
     final otherJobRunning = job.isRunning && !minutesJob;
     final minutes = meeting.minutes;
 
-    final children = <Widget>[];
+    final children = <Widget>[
+      MeetingContextCard(meeting: meeting),
+      const SizedBox(height: 12),
+    ];
 
     if (generating) {
       children.add(_GeneratingCard(job: job));
@@ -99,14 +105,17 @@ class MeetingMinutesTab extends ConsumerWidget {
       );
     }
 
-    if (keyConfigured == false && minutes == null && !job.needsApiKey) {
+    if (readiness != null &&
+        !readiness.ready &&
+        minutes == null &&
+        !job.needsApiKey) {
       children.add(
         Padding(
           padding: const EdgeInsets.only(top: 12),
           child: ErrorBanner(
             severity: BannerSeverity.warning,
             title: S.apiKeyMissingTitle,
-            message: S.apiKeyMissingBody,
+            message: readiness.messageAr ?? S.apiKeyMissingBody,
             extraAction: FilledButton.tonal(
               onPressed: () => _openSettings(context, ref),
               child: const Text(S.addApiKey),
@@ -143,7 +152,14 @@ class MeetingMinutesTab extends ConsumerWidget {
         ),
       );
       children.add(const SizedBox(height: 12));
-      children.add(MinutesView(meeting: meeting, minutes: minutes));
+      children.add(
+        MinutesView(
+          meeting: meeting,
+          minutes: minutes,
+          evidenceBuilder: (ids) =>
+              EvidenceChips(meetingId: meeting.id, evidence: ids),
+        ),
+      );
     } else if (!generating) {
       children.add(
         Padding(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -280,6 +281,39 @@ void main() {
       expect(mic.disposed, isTrue);
     });
 
+    test('closing the screen while the mic starts releases it', () async {
+      final gate = Completer<void>();
+      env.mics.permissionGate = gate.future;
+      final starting = ctrl().start();
+      await settle();
+      keep.close(); // The screen goes away: the provider is disposed.
+      await settle();
+      gate.complete();
+      await starting;
+      await settle();
+      expect(env.mics.made, isNotEmpty);
+      expect(env.mics.made.every((m) => m.disposed), isTrue);
+      expect(env.mics.made.any((m) => m.started), isFalse);
+      keep = env.container.listen(voiceEnrollmentControllerProvider, (_, _) {});
+    });
+
+    test('a take ended by the platform is analysed', () async {
+      await ctrl().start();
+      final mic = env.mics.recording!;
+      mic.emit(readingTake());
+      await settle();
+      mic.pushState(AudioCaptureState.paused);
+      await settle();
+      expect(st().warningAr, VoiceStrings.capturePaused);
+      mic.pushState(AudioCaptureState.recording);
+      await settle();
+      expect(st().warningAr, isNull);
+      mic.pushState(AudioCaptureState.idle);
+      await waitUntil(() => st().phase == EnrollmentPhase.review);
+      expect(st().analysis, isNotNull);
+      expect(mic.disposed, isTrue);
+    });
+
     test('capture warnings are shown without stopping', () async {
       await ctrl().start();
       env.mics.recording!.warn('تحذير');
@@ -319,6 +353,23 @@ void main() {
       await ctrl().stopMonitor();
       expect(st().phase, MicTestPhase.idle);
       expect(mic.disposed, isTrue);
+    });
+
+    test('a capture ended by the platform ends the test', () async {
+      await ctrl().startMonitor();
+      final mic = env.mics.recording!;
+      mic.pushState(AudioCaptureState.idle);
+      await waitUntil(() => st().phase == MicTestPhase.error);
+      expect(st().errorAr, VoiceStrings.captureEnded);
+      expect(mic.disposed, isTrue);
+
+      await ctrl().recordTest();
+      final take = env.mics.recording!;
+      take.emit(join([noise(500), tone(1500)]));
+      await settle();
+      take.pushState(AudioCaptureState.idle);
+      await waitUntil(() => st().phase == MicTestPhase.recorded);
+      expect(st().result, isNotNull);
     });
 
     test('5 s test: records, summarises, plays and cleans up', () async {

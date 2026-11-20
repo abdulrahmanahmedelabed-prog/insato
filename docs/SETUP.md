@@ -9,7 +9,7 @@ the release process. For the design see [ARCHITECTURE.md](ARCHITECTURE.md).
 |---|---|
 | Flutter | **3.50.0**, stable channel (Dart 3.14) — the version CI uses |
 | Android | JDK 17, Android SDK platform 36, NDK 28.2 (installed by the Flutter Gradle plugin on first build), Gradle 9.5 via wrapper, AGP 9.3 |
-| iOS | macOS with a recent Xcode (iOS 15.0 deployment target), CocoaPods **not** required (Swift Package Manager, see §4.2) |
+| iOS | macOS with a recent Xcode (iOS 16.4 deployment target), CocoaPods **not** required (Swift Package Manager, see §4.2) |
 | Windows | Windows 10 1903+ / 11, Visual Studio 2022 with the *Desktop development with C++* workload |
 
 ```bash
@@ -119,8 +119,8 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 
 ### 4.2 iOS
 
-- Deployment target **iOS 15.0** (plugins need ≥ 13.0; Flutter's default is
-  15.0).
+- Deployment target **iOS 16.4**: the floor of `llamadart` (llama.cpp, the
+  on-device minutes engine, F14); the other plugins need ≥ 13.0.
 - Plugins are integrated with **Swift Package Manager** (enabled by default
   in Flutter 3.50; every plugin Insato uses ships a `Package.swift`), so the
   project has no `Podfile`.

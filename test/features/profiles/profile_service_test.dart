@@ -239,6 +239,46 @@ void main() {
     expect(await service.updateAfterMeeting(m1.id), isEmpty);
   });
 
+  test('deleting a profile removes its notes from stored minutes', () async {
+    Minutes minutes(List<MinutesSpeakerNote> notes) => Minutes(
+      title: 'محضر',
+      summary: 's',
+      attendees: const [],
+      topics: const [],
+      decisions: const [],
+      actionItems: const [],
+      openQuestions: const [],
+      languagesDetected: const [],
+      generatedAt: DateTime(2026, 11, 1),
+      model: 'm',
+      speakerNotes: notes,
+    );
+    await service.setEnabled(sara.id, true);
+    await meetings.saveMinutes(
+      m1.id,
+      minutes(const [
+        MinutesSpeakerNote(speaker: 'سارة', summary: 'عن سارة'),
+        MinutesSpeakerNote(speaker: 'عمر', summary: 'عن عمر'),
+      ]),
+      markReady: false,
+    );
+    await meetings.setError(m1.id, 'خطأ سابق');
+    final m2 = await addMeeting('m2', DateTime(2026, 11, 1), [
+      (omar.id, 0, 5000, 'نعم', 'ar'),
+    ]);
+    await meetings.saveMinutes(
+      m2.id,
+      minutes(const [MinutesSpeakerNote(speaker: 'عمر', summary: 'عن عمر')]),
+    );
+    await service.deleteProfile(sara.id);
+    final after1 = (await meetings.get(m1.id))!;
+    expect(after1.minutes!.speakerNotes.map((n) => n.speaker), ['عمر']);
+    expect(after1.status, MeetingStatus.failed, reason: 'status kept');
+    final after2 = (await meetings.get(m2.id))!;
+    expect(after2.minutes!.speakerNotes.map((n) => n.speaker), ['عمر']);
+    expect(after2.status, MeetingStatus.ready);
+  });
+
   test('updateProfileAfterMeeting works through providers', () async {
     final container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(db)],

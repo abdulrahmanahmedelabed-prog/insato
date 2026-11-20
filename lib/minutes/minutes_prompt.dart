@@ -612,18 +612,37 @@ List<SpeakerStat> speakerStats(
 }
 
 /// Names (as rendered in the transcript) of the speakers in [segments] who
-/// opted in to speaker profiles (F16), by first appearance.
+/// opted in to speaker profiles (F16), by first appearance. An opted-in
+/// speaker whose name is shared with another speaker in the meeting (or
+/// with unassigned speech shown under the same label) gets no notes,
+/// because the engine cannot tell them apart and would mix in what a
+/// non-consenting person said (F16 privacy).
 List<String> optedInSpeakerNames(
   List<TranscriptSegment> segments,
   Map<String, Speaker> speakersById,
 ) {
+  const unknownId = '\u0000unknown';
+  final sorted = segments.where((s) => s.hasContent).toList()..sort(_byTime);
+  final idsByName = <String, Set<String>>{};
+  for (final s in sorted) {
+    final id = s.speakerId != null && speakersById.containsKey(s.speakerId)
+        ? s.speakerId!
+        : unknownId;
+    final key = speakerDisplayName(
+      s.speakerId,
+      speakersById,
+    ).replaceAll(RegExp(r'\s+'), ' ').trim();
+    idsByName.putIfAbsent(key, () => {}).add(id);
+  }
   final out = <String>[];
   final seen = <String>{};
-  final sorted = segments.where((s) => s.hasContent).toList()..sort(_byTime);
   for (final s in sorted) {
     final sp = s.speakerId == null ? null : speakersById[s.speakerId];
     if (sp == null || !sp.profileEnabled || !seen.add(sp.id)) continue;
-    out.add(speakerDisplayName(sp.id, speakersById));
+    final name = speakerDisplayName(sp.id, speakersById);
+    final key = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if ((idsByName[key]?.length ?? 0) != 1) continue;
+    out.add(name);
   }
   return out;
 }

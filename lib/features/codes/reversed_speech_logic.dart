@@ -356,3 +356,81 @@ ReversedFindingsPlan planReversedFindings({
   }
   return ReversedFindingsPlan(updates: updates, created: created);
 }
+
+/// Carries the stored reversed-speech state of a meeting over a
+/// regeneration of its minutes, which replaces every code finding:
+///
+/// * every new coded-speech finding of [engine] that cites a segment
+///   already re-recognised in reverse (in any [previous] finding) gets
+///   that segment's results and checked mark ([enrichPayload]);
+/// * app findings (`origin: app`) of [previous] are kept unless every one
+///   of their segments is now cited by a new coded-speech finding (which
+///   then carries their results, so nothing is duplicated).
+///
+/// Returns the engine findings followed by the kept app findings.
+List<CodeFinding> carryOverReversedFindings({
+  required List<CodeFinding> previous,
+  required List<CodeFinding> engine,
+}) {
+  final resultsBySeg = <int, List<ReversedSpeechResult>>{};
+  final checkedSegs = <int>{};
+  for (final f in previous) {
+    if (f.kind != CodeFindingKind.speechCoded) continue;
+    checkedSegs.addAll(readReversedChecked(f.payload));
+    for (final r in readReversedResults(f.payload)) {
+      final list = resultsBySeg.putIfAbsent(r.segment, () => []);
+      if (!list.any((x) => x.text == r.text)) list.add(r);
+    }
+  }
+  final keptApp = [
+    for (final f in previous)
+      if (f.kind == CodeFindingKind.speechCoded &&
+          f.payload[kFindingOriginKey] == kOriginApp)
+        f,
+  ];
+  if (checkedSegs.isEmpty && resultsBySeg.isEmpty && keptApp.isEmpty) {
+    return engine;
+  }
+  final covered = <int>{};
+  final out = <CodeFinding>[];
+  for (final f in engine) {
+    if (f.kind != CodeFindingKind.speechCoded) {
+      out.add(f);
+      continue;
+    }
+    final item = CodedSpeechItem.fromJson(f.payload);
+    final ids = {...item.evidence, ...f.segmentIds};
+    final mine = ids
+        .where((i) => checkedSegs.contains(i) || resultsBySeg.containsKey(i))
+        .toSet();
+    if (mine.isEmpty) {
+      out.add(f);
+      continue;
+    }
+    covered.addAll(mine);
+    out.add(
+      CodeFinding(
+        id: f.id,
+        meetingId: f.meetingId,
+        kind: f.kind,
+        speakerId: f.speakerId,
+        segmentIds: f.segmentIds,
+        payload: enrichPayload(
+          f.payload,
+          checked: mine,
+          results: [
+            for (final i in mine) ...?resultsBySeg[i],
+          ],
+        ),
+        createdAt: f.createdAt,
+      ),
+    );
+  }
+  for (final f in keptApp) {
+    if (f.segmentIds.isNotEmpty && f.segmentIds.every(covered.contains)) {
+      continue;
+    }
+    out.add(f);
+  }
+  return out;
+}

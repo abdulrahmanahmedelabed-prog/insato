@@ -29,16 +29,24 @@ Map<String, dynamic>? decodeJsonObjectTolerant(String text) {
       .firstMatch(trimmed);
   if (fence != null) candidates.add(fence.group(1)!);
   final start = trimmed.indexOf('{');
+  // Text after the last `}` that still looks like JSON (a key, a value
+  // separator) means the answer was cut off inside an object: closing the
+  // whole text keeps the last, partial item, which the text cut at the
+  // last `}` would drop.
+  var truncated = false;
   if (start >= 0) {
     final end = trimmed.lastIndexOf('}');
-    if (end > start) candidates.add(trimmed.substring(start, end + 1));
+    if (end > start) {
+      candidates.add(trimmed.substring(start, end + 1));
+      truncated = RegExp(r'["\[:,]').hasMatch(trimmed.substring(end + 1));
+    }
     candidates.add(trimmed.substring(start));
   }
   for (final c in candidates) {
     final d = tryDecode(c);
     if (d != null) return d;
   }
-  for (final c in candidates) {
+  for (final c in truncated ? candidates.reversed : candidates) {
     final repaired = repairJson(c);
     if (repaired == null) continue;
     final d = tryDecode(repaired);

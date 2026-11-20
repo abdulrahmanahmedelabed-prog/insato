@@ -201,6 +201,14 @@ void main() {
         'يستحق الترقية',
         'نبرة صوته حادة',
         'يبدو من صوته أنه متعب',
+        'كان عصبياً في النقاش',
+        'بدا سعيداً بالقرار',
+        'يعاني من المرض',
+        'متأثر نفسياً',
+        'كان متحمساً',
+        'يبدو مرهقاً',
+        'بدا منفعلاً',
+        'He seemed upset',
       ]) {
         expect(violatesProfileGuardrails(bad), isTrue, reason: bad);
       }
@@ -214,6 +222,11 @@ void main() {
         'لخّص النقاط المتفق عليها في نهاية الاجتماع',
         'Explained the deployment pipeline step by step',
         'تحسين الأداء التقني للتطبيق',
+        'قدّم سعيد العرض',
+        'ضيق الوقت أخّر البند',
+        'عرض خطة المعرض',
+        'رحّب سعادة المدير بالحضور',
+        'نسّقت فرح جدول الأعمال',
       ]) {
         expect(violatesProfileGuardrails(ok), isFalse, reason: ok);
       }
@@ -221,6 +234,7 @@ void main() {
 
     test('knowledge is checked for scores only', () {
       expect(violatesKnowledgeGuardrails('شرح أعراض المرض وعلاجه'), isFalse);
+      expect(violatesKnowledgeGuardrails('خبرة في الطب النفسي'), isFalse);
       expect(violatesKnowledgeGuardrails('مستواه 8/10 في المالية'), isTrue);
     });
 

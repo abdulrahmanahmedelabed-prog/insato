@@ -36,6 +36,17 @@ abstract final class LS {
       'نافذة السياق في النموذج أصغر من أن تتسع للتعليمات والنص. اختر نموذجاً '
       'أكبر، أو زِد طول السياق في إعدادات الخادم (LM Studio: Context Length).';
 
+  /// The final answer hit the token limit before it was complete.
+  static const String answerTruncated =
+      'توقف النموذج قبل إكمال المحضر لأن الناتج تجاوز الحد الأقصى للطول. '
+      'اختر نموذجاً بسياق أكبر، أو اختر «موجز» في مستوى تفصيل المحضر.';
+
+  /// Part of a long meeting could not be summarised in full (shown in the
+  /// minutes notes). [range] is a list of `hh:mm:ss–hh:mm:ss` ranges.
+  static String partOmitted(String range) =>
+      'تعذّر على النموذج المحلي تلخيص الاجتماع كاملًا لصغر سعة السياق، فقد '
+      'لا يغطي المحضر الفترة $range تغطية كاملة.';
+
   /// The notes of one transcript part could not be read (shown in minutes
   /// notes through the final step).
   static const String chunkNotesUnreadable =

@@ -39,16 +39,21 @@ String normalizeProfileText(String text) {
 const List<String> kSensitiveAttributeStems = [
   // Emotions / mood (never inferred from voice or words).
   'غاضب', 'غضب', 'متوتر', 'توتر', 'قلق', 'حزين', 'حزن', 'منزعج', 'انزعاج',
-  'بعصبيه', 'متعصب', 'انفعال', 'مزاج', 'مكتئب', 'اكتئاب', 'محبط', 'احباط',
-  'خائف', 'خوف', 'مشاعر', 'عاطف', 'مستاء', 'مرتبك', 'ارتباك', 'خجول',
+  // «عصبيا» / «عصبي »: not «العصبية» of neural networks.
+  'عصبيا', 'عصبي ', 'بعصبيه', 'متعصب', 'انفعل', 'منفعل', 'انفعال', 'مزاج', 'مكتئب', 'اكتئاب',
+  'محبط', 'احباط', 'خائف', 'خوف', 'مشاعر', 'عاطف', 'مستاء', 'مرتبك',
+  'ارتباك', 'خجول', 'متحمس', 'حماس', 'مرهق', 'ارهاق', 'متضايق', 'ضايق',
+  // Positive emotions too. Not the bare names «سعيد» / «فرح» nor the title
+  // «سعادة»: the adjective / noun forms only.
+  'سعيدا', 'سعيده ب', 'بسعاده', 'فرحا', 'فرحه', 'فرحان', 'مسرور', 'مبتهج',
   // Inferences from the voice itself (tone, pitch), not from what was said.
   'نبره', 'من صوته', 'من صوتها', 'صوته يدل', 'صوتها يدل',
   // Psychology / diagnosis / personality labels.
-  'نفسيه', ' نفسي ', 'اضطراب', 'تشخيص', 'شخصيته', 'شخصيتها', 'نرجس',
+  'نفسيه', 'نفسيا', 'نفسي ', 'اضطراب', 'تشخيص', 'شخصيته', 'شخصيتها', 'نرجس',
   'انطوائي', 'عدواني', ' غبي', 'كسول', 'متعجرف', 'مغرور', 'ثقته بنفسه',
   'ثقتها بنفسها',
   // Health.
-  ' مرض', 'مريض', 'صحته', 'صحتها', 'حالته الصحيه', 'حالتها الصحيه', 'اعاقه',
+  'مرض', 'مريض', 'تعبان', 'صحته', 'صحتها', 'حالته الصحيه', 'حالتها الصحيه', 'اعاقه',
   // Religion / politics / ethnicity / origin.
   'متدين', 'تدين', ' ديني', 'مذهب', 'طائفي', 'طائفه', 'توجهه السياسي',
   'توجهها السياسي', 'ميوله', 'ميولها', 'انتماؤه', 'انتماوه', 'انتماوها',
@@ -59,6 +64,7 @@ const List<String> kSensitiveAttributeStems = [
   'متزوج', 'مطلق', 'حياته الخاصه', 'حياتها الخاصه',
   // English fallbacks (engines occasionally answer in English).
   'emotion', 'angry', 'anxious', 'nervous', 'depress', ' mood', 'personality',
+  'upset', 'happy', 'excited', 'frustrat', 'stress', 'tired', ' sick',
   'psycholog', 'diagnos', ' health', 'religio', ' politic', 'ethnic',
   ' race ', 'nationality', ' age ', ' years old',
 ];

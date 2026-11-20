@@ -128,6 +128,30 @@ void main() {
       },
     );
 
+    test('a timestamp copied from the context line is dropped', () {
+      final linked = linkAskAnswer('قال [M1#3 00:00:30].', refs);
+      expect(linked.parts, hasLength(3));
+      expect(linked.parts[0], const AskTextPart('قال'));
+      final c = (linked.parts[1] as AskCitationPart).citation;
+      expect((c.meetingId, c.segmentIndex), ('m-a', 3));
+      expect(linked.parts[2], const AskTextPart('.'));
+      expect(linked.sources, hasLength(1));
+      expect(linked.modelText, 'قال [M1#3].');
+      expect(linkAskAnswer('أ [M1#3، 00:00:30]', refs).sources, hasLength(1));
+      expect(
+        linkAskAnswer('أ [M2#7 01:02:03]', refs).sources.single.segmentIndex,
+        7,
+      );
+      expect(linkAskAnswer('أ [م1#3]', refs).sources.single.segmentIndex, 3);
+    });
+
+    test('the colon form still links; a bare time stays text', () {
+      expect(linkAskAnswer('أ [M1:3]', refs).sources.single.segmentIndex, 3);
+      final bare = linkAskAnswer('عند [00:12:31] تقريباً', refs);
+      expect(bare.sources, isEmpty);
+      expect(bare.plainText, 'عند [00:12:31] تقريباً');
+    });
+
     test('leaves brackets that are not references as text', () {
       final linked = linkAskAnswer('القائمة [1] و[ملاحظة] و[#5]', refs);
       expect(linked.sources, isEmpty);

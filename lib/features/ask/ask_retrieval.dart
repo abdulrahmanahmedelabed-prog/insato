@@ -189,6 +189,26 @@ String _clip(String text, int max) {
   return '${t.substring(0, max).trimRight()}…';
 }
 
+/// The indices `0..n-1` ordered so that every prefix spreads evenly over the
+/// range: the first, then the middle, then the quarters, and so on.
+List<int> spreadOrder(int n) {
+  if (n <= 0) return const [];
+  final out = <int>[0];
+  final seen = <int>{0};
+  for (var parts = 2; out.length < n; parts *= 2) {
+    for (var j = 1; j < parts; j += 2) {
+      final k = (j * n / parts).floor();
+      if (k < n && seen.add(k)) out.add(k);
+    }
+    if (parts >= n) {
+      for (var k = 0; k < n; k++) {
+        if (seen.add(k)) out.add(k);
+      }
+    }
+  }
+  return out;
+}
+
 /// Assigns aliases to [meetings] not in [previous]: oldest meeting first,
 /// numbers continuing after the largest one used.
 Map<String, int> assignAskAliases(
@@ -415,14 +435,13 @@ AskPackedContext runAskRetrieval(AskRetrievalJob job) {
       ranges[m]?.any((r) => pos >= r.$1 && pos <= r.$2) ?? false;
 
   var lines = 0;
-  for (final h in hits) {
-    if (budget - used < 200) break;
-    final d = docs[h.doc];
-    if (d.kind != AskDocKind.transcript) continue;
-    final m = d.meeting;
+
+  /// Adds segments [first]..[last] of meeting [m] when they fit within
+  /// [limit] (defaults to the whole budget). Returns whether they were added
+  /// (also true when already covered).
+  bool addWindow(int m, int first, int last, {int? limit}) {
     final src = meetings[m];
-    final first = math.max(0, d.first - 1);
-    final last = math.min(src.segments.length - 1, d.last + 1);
+    final cap = math.min(limit ?? budget, budget);
     var cost = 0;
     var fresh = 0;
     for (var p = first; p <= last; p++) {
@@ -431,13 +450,13 @@ AskPackedContext runAskRetrieval(AskRetrievalJob job) {
         fresh++;
       }
     }
-    if (fresh == 0) continue;
+    if (fresh == 0) return true;
     final introducing = !headers.containsKey(m);
     final headerCost = introducing
         ? '<meeting id="${tag(m)}" title="${_clip(src.title, 80)}">\n'.length +
               40
         : 0;
-    if (used + cost + headerCost + 8 > budget) continue;
+    if (used + cost + headerCost + 8 > cap) return false;
     if (introducing) {
       headers[m] =
           '<meeting id="${tag(m)}" title="${_clip(src.title, 80)}" '
@@ -460,6 +479,42 @@ AskPackedContext runAskRetrieval(AskRetrievalJob job) {
       }
     }
     ranges[m] = merged;
+    return true;
+  }
+
+  for (final h in hits) {
+    if (budget - used < 200) break;
+    final d = docs[h.doc];
+    if (d.kind != AskDocKind.transcript) continue;
+    final last = meetings[d.meeting].segments.length - 1;
+    addWindow(d.meeting, math.max(0, d.first - 1), math.min(last, d.last + 1));
+  }
+
+  // No keyword match: the latest meetings were included as a fallback. Those
+  // without a minutes overview would otherwise carry no content at all, so
+  // give each an even share of the remaining budget, filled with transcript
+  // windows spread evenly through the meeting (opening first).
+  if (!hasMatches) {
+    final bare = [
+      for (final m in detailed)
+        if (minutesBlocks[m] == null && meetings[m].segments.isNotEmpty) m,
+    ];
+    for (var i = 0; i < bare.length; i++) {
+      final m = bare[i];
+      final share = ((budget - used) / (bare.length - i)).floor();
+      if (share < 200) break;
+      final limit = used + share;
+      final windows = [
+        for (final d in docs)
+          if (d.meeting == m && d.kind == AskDocKind.transcript) d,
+      ];
+      if (windows.isEmpty) continue;
+      // Start, middle, quarters, …: a small share still spans the meeting.
+      for (final k in spreadOrder(windows.length)) {
+        if (limit - used < 120) break;
+        addWindow(m, windows[k].first, windows[k].last, limit: limit);
+      }
+    }
   }
 
   // ---- Rendering -----------------------------------------------------------

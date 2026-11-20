@@ -292,4 +292,71 @@ void main() {
     expect(long, ['x' * 300, 'short']);
     expect(groupNoteLines('', maxChars: 10), isEmpty);
   });
+
+  group('fitting notes', () {
+    ChunkNotes block(int i, int n, int lines) => ChunkNotes(
+      index: i,
+      total: n,
+      startMs: (i - 1) * 600000,
+      endMs: i * 600000 - 1000,
+      notes: [
+        for (var l = 0; l < lines; l++)
+          ChunkNote(kind: 'point', text: 'ملاحظة $l من الجزء $i ${'نص ' * 10}'),
+      ],
+    );
+
+    test('fitChunkNotes keeps every part, not only the first', () {
+      final blocks = [for (var i = 1; i <= 4; i++) block(i, 4, 20)];
+      final fitted = fitChunkNotes(blocks, 1600);
+      expect(fitted.text.length, lessThanOrEqualTo(1600));
+      for (var i = 1; i <= 4; i++) {
+        expect(fitted.text, contains('Part $i of 4'));
+        expect(fitted.text, contains('ملاحظة 0 من الجزء $i'));
+      }
+      // All four consecutive blocks were cut: one merged range.
+      expect(fitted.shortened, [(0, 4 * 600000 - 1000)]);
+      expect(fitted.shortenedRanges, '00:00:00–00:39:59');
+    });
+
+    test('fitChunkNotes gives unused room to longer parts', () {
+      final blocks = [block(1, 2, 1), block(2, 2, 80)];
+      final fitted = fitChunkNotes(blocks, 2000);
+      expect(fitted.text, contains(renderChunkNotes([blocks[0]])));
+      expect(fitted.shortened, [(600000, 2 * 600000 - 1000)]);
+      expect(fitted.text.length, greaterThan(1500));
+    });
+
+    test('fitChunkNotes leaves notes that fit unchanged', () {
+      final blocks = [block(1, 1, 2)];
+      final fitted = fitChunkNotes(blocks, 10000);
+      expect(fitted.text, renderChunkNotes(blocks));
+      expect(fitted.shortened, isEmpty);
+    });
+
+    test('groupChunkNotes keeps time ranges and every note', () {
+      final blocks = [for (var i = 1; i <= 3; i++) block(i, 3, 6)];
+      final groups = groupChunkNotes(blocks, maxChars: 700);
+      expect(groups.length, greaterThan(1));
+      for (final g in groups) {
+        expect(renderChunkNotes(g).length, lessThanOrEqualTo(700));
+      }
+      final notes = [
+        for (final g in groups)
+          for (final b in g) ...b.notes.map((n) => n.text),
+      ];
+      expect(notes, [
+        for (final b in blocks) ...b.notes.map((n) => n.text),
+      ]);
+    });
+
+    test('appendMinutesNote appends to existing notes', () {
+      expect(
+        appendMinutesNote('{"title":"t","notes":"قديم"}', 'جديد'),
+        '{"title":"t","notes":"قديم\\nجديد"}',
+      );
+      expect(appendMinutesNote('{"title":"t"}', 'جديد'),
+          '{"title":"t","notes":"جديد"}');
+      expect(appendMinutesNote('not json', 'x'), 'not json');
+    });
+  });
 }

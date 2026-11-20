@@ -44,6 +44,7 @@ import '../data/secure_settings.dart';
 import '../diarization/clustering.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../features/voice/voice_devices.dart' show knownSpeakerThresholdFor, voiceDeviceAfterLearning;
 import 'meeting_session_controller.dart';
 import 'providers.dart';
 
@@ -652,6 +653,8 @@ class PostProcessor {
     this._paths,
     bool Function(String meetingId)? isMeetingActive,
     RefinementRunner? runRefinement,
+    this._onMinutesSaved,
+    this._onMeetingDeleted,
   }) : _minutesFactory = minutesEngineFactory,
        _isActive = isMeetingActive ?? ((_) => false),
        _runRefinement = runRefinement ?? runRefinementInBackground;
@@ -666,6 +669,16 @@ class PostProcessor {
   final AppPaths? _paths;
   final bool Function(String meetingId) _isActive;
   final RefinementRunner _runRefinement;
+
+  /// Runs after new minutes (and their artifacts) were saved: the speaker
+  /// profiles (F16) of opted-in speakers are merged with the meeting's
+  /// notes. Best-effort: a failure never fails the minutes.
+  final Future<void> Function(String meetingId)? _onMinutesSaved;
+
+  /// Runs after a meeting was deleted: drops it from the stored speaker
+  /// profiles (F16), so its content no longer shows in anyone's profile.
+  /// Best-effort: a failure never fails the delete (profiles can be rebuilt).
+  final Future<void> Function(String meetingId)? _onMeetingDeleted;
 
   // -------------------------------------------------------------------------
   // Refinement
@@ -846,6 +859,7 @@ class PostProcessor {
       final segs = await _segments.getForMeeting(meetingId);
       final speakers = await _speakers.getAllById();
       final ledger = await _loadLedger(meetingId);
+      final meetingDevice = (await _meetings.get(meetingId))?.inputDevice;
       final speechMs = <String, int>{};
       for (final s in segs) {
         final sid = s.speakerId;
@@ -904,6 +918,17 @@ class PostProcessor {
             cap: kMaxVoiceprintEmbeddingCount,
           );
           await _speakers.updateVoiceprint(id, c, n);
+          // F18: the voiceprint remembers the microphone it has adapted to.
+          final hadVoice = centroid != null && isUsableEmbedding(centroid);
+          final device = voiceDeviceAfterLearning(
+            currentDevice: hadVoice ? sp.voiceDevice : null,
+            sessionDeviceKey: meetingDevice,
+            previousCount: hadVoice ? count : 0,
+            learnedCount: add.length,
+          );
+          if (device != sp.voiceDevice) {
+            await _speakers.setVoiceDevice(id, device);
+          }
         } else if (centroid == null) {
           // forgetVoice turns this speaker's entries in every stored ledger
           // into tombstones; do the same in the in-memory ledger, or saving
@@ -1042,6 +1067,13 @@ class PostProcessor {
         // The row is gone; never fail the user's delete because of the file.
       }
     }
+    if (deleted) {
+      try {
+        await _onMeetingDeleted?.call(meetingId);
+      } catch (_) {
+        // Profiles are best-effort; the user can rebuild them.
+      }
+    }
     return deleted;
   }
 
@@ -1134,7 +1166,9 @@ class PostProcessor {
   static const int maxOpenTasksInPrompt = 60;
 
   /// The v1.1 engine inputs of [meeting]: the effective glossary (global +
-  /// meeting terms + named speakers) and the open tasks of other meetings.
+  /// meeting terms + named speakers) and the open tasks of earlier meetings
+  /// (source meeting created before this one; manual tasks by their own
+  /// creation time), newest first, up to [maxOpenTasksInPrompt].
   Future<MinutesInputs> minutesInputsFor(
     Meeting meeting,
     Map<String, Speaker> speakersById,
@@ -1142,15 +1176,32 @@ class PostProcessor {
     final glossary = await GlossaryRepository(
       _db,
     ).getEffective(meeting.id, speakers: speakersById.values);
-    final open = (await TaskRepository(_db).getOpen())
-        .where((t) => t.sourceMeetingId != meeting.id)
-        .take(maxOpenTasksInPrompt)
-        .toList(growable: false);
-    final titles = <String, String>{};
-    for (final id in {for (final t in open) ?t.sourceMeetingId}) {
-      final m = await _meetings.get(id);
-      if (m != null) titles[id] = m.title;
+    // Only tasks that existed before this meeting: regenerating an older
+    // meeting must not propose updates for tasks of later meetings. A task
+    // is dated by its source meeting (regeneration re-creates task rows with
+    // a fresh timestamp), a manual task (or one whose meeting was deleted)
+    // by its own creation time. Filtered before the cap, newest first.
+    final meetingsById = <String, Meeting?>{};
+    final open = <TrackedTask>[];
+    for (final t in await TaskRepository(_db).getOpen()) {
+      final src = t.sourceMeetingId;
+      if (src == meeting.id) continue;
+      DateTime origin = t.createdAt;
+      if (src != null) {
+        final m = meetingsById.containsKey(src)
+            ? meetingsById[src]
+            : (meetingsById[src] = await _meetings.get(src));
+        if (m != null) origin = m.createdAt;
+      }
+      if (!origin.isBefore(meeting.createdAt)) continue;
+      open.add(t);
+      if (open.length >= maxOpenTasksInPrompt) break;
     }
+    final titles = <String, String>{
+      for (final t in open)
+        if (t.sourceMeetingId case final id?)
+          if (meetingsById[id] case final m?) id: m.title,
+    };
     return MinutesInputs(
       glossary: glossary,
       openTasks: open,
@@ -1182,8 +1233,14 @@ class PostProcessor {
           minutes: minutes,
           speakersById: await _speakers.getAllById(),
           openTaskIds: {for (final t in inputs.openTasks) t.id},
+          meetingSpeakerIds: {for (final s in segs) ?s.speakerId},
         );
       });
+      try {
+        await _onMinutesSaved?.call(meeting.id);
+      } catch (_) {
+        // Profiles are best-effort; the user can rebuild them.
+      }
       return minutes;
     } catch (e) {
       final err = e is InsatoException
@@ -1281,6 +1338,11 @@ class PostProcessor {
       tracker: SpeakerTracker(
         knownSpeakers: known,
         matchThreshold: settings.matchThreshold,
+        knownSpeakerThresholdOf: (sp) => knownSpeakerThresholdFor(
+          sp,
+          sessionDeviceKey: meeting.inputDevice,
+          base: settings.matchThreshold,
+        ),
       ),
       speakers: _speakers,
       segments: _segments,

@@ -90,11 +90,39 @@ lib/
     export_service.dart          Minutes → Markdown / PDF / share text
   session/
     meeting_session_controller.dart  orchestrates a live recording session
+    minutes_engines.dart         engine selection (Gemini / Claude / local / server)
+    post_processor.dart          refinement, voiceprint learning, minutes + artifacts
+    providers.dart               Riverpod wiring of the whole app
+  features/                      v1.1 features (one folder each, see below)
   ui/
-    theme.dart, strings_ar.dart
-    screens/ home, recording, meeting_detail, speakers, settings, models
+    theme.dart, strings_ar.dart, navigation.dart, actions.dart
+    screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
     widgets/ level_meter, transcript_view, speaker_chip, minutes_view, …
 ```
+
+## v1.1 features and where they are wired
+
+Each feature lives in `lib/features/<name>/` with its own Arabic strings and
+tests (`docs/V11-CONTRACTS.md` lists the shared contracts). The shared
+layers wire them in:
+
+| Feature | Folder | Wired in |
+|---|---|---|
+| F1 voice enrollment, F18 microphones | `voice/` | Voice library FAB «إضافة شخص بصوته» and «تحسين البصمة» menus (library, meeting speakers tab); Settings «الميكروفون» (device, far field, mic test); microphone chip on the context form and recording screen; `sessionAudioSourceProvider` → device-aware source; far field → `SessionEngineRequest.farField` → `vadConfigFor`; `Meeting.inputDevice` from `sessionInputDeviceProvider`; voiceprints learned on another microphone match with `knownSpeakerThresholdFor` (`SpeakerTracker.knownSpeakerThresholdOf`) and are re-tagged with `voiceDeviceAfterLearning` after learning |
+| F2 glossary, F3 context | `context/` | «اجتماع جديد» (`startNewMeeting` → `startNewMeetingWithContext`: consent, context form with «تخطٍّ وابدأ»); context card + edit on the minutes tab and in the meeting menu; Settings → «قاموس المصطلحات»; Deepgram keyterms via `resolveSessionKeyterms` (includes the upcoming meeting's terms and attendees) |
+| F5 evidence | `evidence/` | `EvidenceScope` around the meeting tabs (docked player); `EvidenceChips` under agenda items, topics, decisions and action items (`MinutesView.evidenceBuilder`), tasks and pending updates; `EvidenceTranscriptTab` as the transcript tab |
+| F8 ask | `ask/` | Shell destination «اسأل» (`AskMeetingsScreen(embedded: true)`) |
+| F9 tasks | `tasks/` | Shell destination «المهام»; meeting tab «المهام» (`MeetingTasksPanel` with pending updates to confirm); `OpenTasksBanner` on the recording screen |
+| F12 Word | `export_docx/` | Meeting menu «تصدير المحضر ومشاركته» → `ExportShareSheet` (Word / PDF / Markdown / print) |
+| F13 system audio | `system_audio/` + `windows/runner/` | `sessionAudioSourceProvider` → `mixedSessionAudioSourceProvider` (Windows: mic / system / both; elsewhere the microphone); `AudioSourceSelector` in Settings and on the context form (renders nothing off Windows) |
+| F14 local engines | `local_llm/` | Settings engine selector (builders from `local_minutes_backends.dart`); GGUF downloads in Settings and on the models screen |
+| F16 profiles | `profiles/` | «ملف المتحدث» from the voice library and the meeting speakers tab; `PostProcessor.onMinutesSaved` → `SpeakerProfileService.updateAfterMeeting` after every saved minutes |
+| F17 codes | `codes/` | Meeting tab «الرموز والشيفرات»; codes section in Markdown / text exports (`renderCodesSection`) |
+
+Navigation (D1): the same five destinations on every platform — meetings,
+tasks, ask, voice library, settings (`ShellTab`) — in a bottom
+`NavigationBar` on phones and a `NavigationRail` with list / detail panes
+from 840 px.
 
 Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
 `diarization/`, `minutes/minutes_prompt.dart`, `minutes/claude_client.dart`

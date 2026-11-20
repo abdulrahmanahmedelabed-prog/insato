@@ -1,7 +1,8 @@
 // On-device models: the ones the current settings need (VAD, speaker
 // model, chosen Whisper) with sizes, download progress, cancel, delete and
-// the recommendation; other models below. Also the first-run onboarding
-// target when models are missing.
+// the recommendation; other models below; then the GGUF models of the
+// on-device minutes engine (F14). Also the first-run onboarding target when
+// models are missing.
 
 import 'dart:async';
 
@@ -10,6 +11,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/errors.dart';
 import '../../core/interfaces.dart';
+import '../../features/local_llm/local_engine_settings.dart'
+    show LocalEngineSettings;
 import '../../session/providers.dart';
 import '../../speech/model_catalog.dart';
 import '../../speech/model_manager.dart';
@@ -100,6 +103,11 @@ class ModelsScreen extends ConsumerWidget {
                         inUse: false,
                         selectedWhisper: settings.whisperModelId,
                       ),
+                    const SectionHeader(
+                      S.minutesModels,
+                      icon: Icons.auto_awesome_outlined,
+                    ),
+                    const LocalEngineSettings(),
                   ],
                 ),
               ),

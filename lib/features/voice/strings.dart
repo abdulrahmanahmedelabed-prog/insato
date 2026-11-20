@@ -231,6 +231,15 @@ abstract final class VoiceStrings {
   /// Loading devices.
   static const String loadingDevices = 'جارٍ البحث عن الميكروفونات…';
 
+  /// The system paused the microphone during a take.
+  static const String capturePaused =
+      'توقّف الميكروفون مؤقتًا بسبب النظام؛ سيُستأنف التسجيل تلقائيًا، أو '
+      'أوقفه الآن.';
+
+  /// The system ended the microphone capture during a test.
+  static const String captureEnded =
+      'أوقف النظام الميكروفون أثناء الاختبار. أعد المحاولة.';
+
   /// Remembered device not connected.
   static String rememberedMissing(String label) =>
       'الميكروفون المحفوظ «$label» غير متصل الآن؛ سيُستخدم الافتراضي.';

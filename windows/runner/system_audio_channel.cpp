@@ -104,13 +104,19 @@ void SystemAudioChannel::HandleMethodCall(
     }
     result->Success(EncodableValue(capture_->Start()));
   } else if (method == "stop") {
-    StopCapture();
+    // Join the capture thread (it flushes its last batch), then hand every
+    // queued packet to Dart before the reply: the Dart side still listens
+    // until the reply arrives, so the end of the take is not lost.
+    capture_->Stop();
+    DeliverPendingEvents();
     result->Success();
   } else {
     result->NotImplemented();
   }
 }
 
+// Stops capture and drops what was not delivered (stream cancelled or
+// teardown: nobody listens any more).
 void SystemAudioChannel::StopCapture() {
   capture_->Stop();
   std::lock_guard<std::mutex> lock(mutex_);

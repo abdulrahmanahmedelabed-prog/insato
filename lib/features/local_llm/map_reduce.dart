@@ -11,6 +11,7 @@
 // Everything here is pure (no I/O) and unit-tested.
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../../core/models.dart';
 import '../../core/time_format.dart';
@@ -409,4 +410,171 @@ List<String> groupNoteLines(String notesText, {required int maxChars}) {
     groups.add(current.toString().trimRight());
   }
   return groups;
+}
+
+/// Groups consecutive note [blocks] (in time order) for one condense round so
+/// that each group's rendering (`renderChunkNotes`) stays within [maxChars].
+/// A block too long on its own is split into several blocks with the same
+/// time range (whole notes; a single note longer than [maxChars] stays
+/// alone). Every note appears exactly once, in order.
+List<List<ChunkNotes>> groupChunkNotes(
+  List<ChunkNotes> blocks, {
+  required int maxChars,
+}) {
+  int size(List<ChunkNotes> g) => renderChunkNotes(g).length;
+  final pieces = <ChunkNotes>[];
+  for (final b in blocks) {
+    if (size([b]) <= maxChars || b.notes.length <= 1) {
+      pieces.add(b);
+      continue;
+    }
+    var current = <ChunkNote>[];
+    for (final n in b.notes) {
+      final next = [...current, n];
+      if (current.isNotEmpty && size([_withNotes(b, next)]) > maxChars) {
+        pieces.add(_withNotes(b, current));
+        current = [n];
+      } else {
+        current = next;
+      }
+    }
+    if (current.isNotEmpty) pieces.add(_withNotes(b, current));
+  }
+  final groups = <List<ChunkNotes>>[];
+  var current = <ChunkNotes>[];
+  for (final p in pieces) {
+    if (current.isNotEmpty && size([...current, p]) > maxChars) {
+      groups.add(current);
+      current = [p];
+    } else {
+      current = [...current, p];
+    }
+  }
+  if (current.isNotEmpty) groups.add(current);
+  return groups;
+}
+
+ChunkNotes _withNotes(ChunkNotes b, List<ChunkNote> notes) => ChunkNotes(
+  index: b.index,
+  total: b.total,
+  startMs: b.startMs,
+  endMs: b.endMs,
+  notes: notes,
+);
+
+/// Result of [fitChunkNotes].
+class FittedChunkNotes {
+  /// Creates a result.
+  const FittedChunkNotes({required this.text, required this.shortened});
+
+  /// Rendered notes within the limit.
+  final String text;
+
+  /// Time ranges (`startMs`, `endMs`) of the blocks whose notes were cut
+  /// (consecutive blocks merged into one range).
+  final List<(int, int)> shortened;
+
+  /// Shortened ranges as `hh:mm:ss–hh:mm:ss, …` (empty when none).
+  String get shortenedRanges => [
+    for (final (s, e) in shortened)
+      '${formatTimestamp(s)}–${formatTimestamp(e)}',
+  ].join('، ');
+}
+
+/// Renders [blocks] within [maxChars] characters, sharing the room evenly
+/// across the whole meeting (never only its beginning): every block keeps
+/// its header and as many whole note lines as its share allows; room a
+/// short block does not need goes to the others. Blocks that lose notes are
+/// listed in [FittedChunkNotes.shortened].
+FittedChunkNotes fitChunkNotes(List<ChunkNotes> blocks, int maxChars) {
+  final full = renderChunkNotes(blocks);
+  if (full.length <= maxChars || blocks.isEmpty) {
+    return FittedChunkNotes(text: full, shortened: const []);
+  }
+  final rendered = [
+    for (final b in blocks) renderChunkNotes([b]),
+  ];
+  // Water-filling: blocks shorter than the even share keep everything.
+  final shares = List<int>.filled(blocks.length, 0);
+  var room = math.max(0, maxChars - (blocks.length - 1)); // '\n' separators
+  final order = List<int>.generate(blocks.length, (i) => i)
+    ..sort((a, b) => rendered[a].length.compareTo(rendered[b].length));
+  var left = blocks.length;
+  for (final i in order) {
+    final share = room ~/ left;
+    shares[i] = math.min(share, rendered[i].length);
+    room -= shares[i];
+    left--;
+  }
+  final out = <String>[];
+  final shortened = <(int, int)>[];
+  var lastShortened = -2;
+  for (var i = 0; i < blocks.length; i++) {
+    final r = rendered[i];
+    if (r.length <= shares[i]) {
+      out.add(r);
+      continue;
+    }
+    // Consecutive shortened blocks are reported as one range.
+    if (lastShortened == i - 1 && shortened.isNotEmpty) {
+      shortened.last = (shortened.last.$1, blocks[i].endMs);
+    } else {
+      shortened.add((blocks[i].startMs, blocks[i].endMs));
+    }
+    lastShortened = i;
+    final lines = r.split('\n');
+    final kept = StringBuffer();
+    var keptLines = 0;
+    for (final line in lines) {
+      final add = kept.isEmpty ? line.length : line.length + 1;
+      if (kept.length + add > shares[i]) {
+        // Only the header fits whole: keep the start of the first note,
+        // cut at a word end, rather than no note at all.
+        final room = shares[i] - kept.length - 1;
+        if (keptLines == 1 && room >= 40) {
+          var cut = line.substring(0, room - 1);
+          final sp = cut.lastIndexOf(' ');
+          if (sp > room ~/ 2) cut = cut.substring(0, sp);
+          kept
+            ..write('\n')
+            ..write(cut)
+            ..write('…');
+        }
+        break;
+      }
+      if (kept.isNotEmpty) kept.write('\n');
+      kept.write(line);
+      keptLines++;
+    }
+    if (kept.isEmpty) {
+      // Not even the header fits: keep what does of it.
+      out.add(
+        lines.first.substring(0, math.min(lines.first.length, shares[i])),
+      );
+    } else {
+      out.add(kept.toString());
+    }
+  }
+  return FittedChunkNotes(
+    text: out.where((s) => s.isNotEmpty).join('\n'),
+    shortened: shortened,
+  );
+}
+
+/// Note line telling the reduce step that the notes of [ranges] were cut.
+String omittedNotesMarker(String ranges) =>
+    '- [other] IMPORTANT: notes for $ranges were shortened or omitted because '
+    'the on-device model context is too small; say in `notes` that the '
+    'minutes may not fully cover that part of the meeting.';
+
+/// [minutesJson] with [message] appended to its `notes` field (on its own
+/// line). Returns [minutesJson] unchanged when it is not a JSON object.
+String appendMinutesNote(String minutesJson, String message) {
+  final json = decodeJsonObjectTolerant(minutesJson);
+  if (json == null) return minutesJson;
+  final existing = json['notes'];
+  json['notes'] = existing is String && existing.trim().isNotEmpty
+      ? '${existing.trim()}\n$message'
+      : message;
+  return jsonEncode(json);
 }

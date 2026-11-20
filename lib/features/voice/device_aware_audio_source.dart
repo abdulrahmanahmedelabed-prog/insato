@@ -17,7 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../audio/audio_capture_service.dart';
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
-import '../../session/meeting_session_controller.dart' show SessionAudioSource;
+import '../../session/meeting_session_controller.dart'
+    show SessionAudioSource, SessionInputDeviceReporter;
 import 'mic_capture.dart';
 import 'strings.dart';
 import 'voice_devices.dart';
@@ -52,7 +53,8 @@ class MicDeviceEvent {
 }
 
 /// [SessionAudioSource] with device selection, far field and fallback.
-class DeviceAwareSessionAudioSource implements SessionAudioSource {
+class DeviceAwareSessionAudioSource
+    implements SessionAudioSource, SessionInputDeviceReporter {
   /// Creates the source.
   DeviceAwareSessionAudioSource({
     required MicCaptureFactory captureFactory,
@@ -76,6 +78,7 @@ class DeviceAwareSessionAudioSource implements SessionAudioSource {
   final _states = StreamController<AudioCaptureState>.broadcast();
   final _errors = StreamController<AudioCaptureException>.broadcast();
   final _events = StreamController<MicDeviceEvent>.broadcast();
+  final _deviceKeys = StreamController<String?>.broadcast();
 
   MicCapture? _capture;
   String? _optionsKey;
@@ -92,7 +95,14 @@ class DeviceAwareSessionAudioSource implements SessionAudioSource {
   Stream<MicDeviceEvent> get deviceEvents => _events.stream;
 
   /// Key of the device capturing now (null = system default).
+  @override
   String? get activeDeviceKey => _activeKey;
+
+  @override
+  Stream<String?> get activeDeviceChanges => _deviceKeys.stream;
+
+  @override
+  String get activeAudioSource => AppSettingsData.audioSourceMic;
 
   /// Whether the running (or last) take uses the far-field profile.
   bool get farField => _farField;
@@ -188,6 +198,7 @@ class DeviceAwareSessionAudioSource implements SessionAudioSource {
     _requested = resolution.device;
     await capture.start(archivePath: archivePath);
     _activeKey = voiceDeviceKey(resolution.device);
+    _deviceKeys.add(_activeKey);
     if (resolution.missing) {
       final label = remembered.label ?? VoiceStrings.defaultDevice;
       _errors.add(AudioCaptureException(VoiceStrings.micMissingAtStart(label)));
@@ -237,6 +248,7 @@ class DeviceAwareSessionAudioSource implements SessionAudioSource {
     await _states.close();
     await _errors.close();
     await _events.close();
+    await _deviceKeys.close();
   }
 
   void _onState(AudioCaptureState s) {
@@ -273,6 +285,7 @@ class DeviceAwareSessionAudioSource implements SessionAudioSource {
       if (isDevicePresent(devices, requested)) return;
       _fellBack = true;
       _activeKey = null;
+      if (!_deviceKeys.isClosed) _deviceKeys.add(null);
       _stopPolling();
       final label = requested.label.isEmpty ? requested.id : requested.label;
       _errors.add(AudioCaptureException(VoiceStrings.micDisconnected(label)));

@@ -187,6 +187,58 @@ void main() {
     });
   });
 
+  group('loudspeaker downmix (loopback)', () {
+    Float32List frame(int channels, Map<int, double> values, {int frames = 4}) {
+      final out = Float32List(channels * frames);
+      for (var f = 0; f < frames; f++) {
+        values.forEach((c, v) => out[f * channels + c] = v);
+      }
+      return out;
+    }
+
+    double mono(int channels, Map<int, double> values) =>
+        InterleavedDownmixer(channels, speakerLayout: true)
+            .process(frame(channels, values))
+            .first;
+
+    test('5.1 / 7.1: front voice keeps its level, LFE is excluded', () {
+      expect(mono(6, {0: 0.5, 1: 0.5}), closeTo(0.5, 1e-6));
+      expect(mono(6, {2: 0.5}), closeTo(0.3536, 1e-4));
+      expect(mono(8, {3: 0.9}), 0);
+      expect(mono(8, {0: 0.5, 1: 0.5}), closeTo(0.5, 1e-6));
+    });
+
+    test('mono and stereo are unchanged', () {
+      expect(mono(2, {0: 0.5, 1: 0.1}), closeTo(0.3, 1e-6));
+      expect(mono(1, {0: 0.4}), closeTo(0.4, 1e-6));
+      expect(speakerDownmixWeights(2), [0.5, 0.5]);
+    });
+
+    test('chunk boundaries carry over with six channels', () {
+      final interleaved = frame(6, {0: 0.2, 1: 0.2, 2: 0.4, 4: 0.1}, frames: 50);
+      final whole = InterleavedDownmixer(6, speakerLayout: true)
+          .process(interleaved);
+      final mixer = InterleavedDownmixer(6, speakerLayout: true);
+      final parts = <Float32List>[];
+      for (var i = 0; i < interleaved.length; i += 7) {
+        parts.add(
+          mixer.process(
+            Float32List.sublistView(
+              interleaved,
+              i,
+              math.min(i + 7, interleaved.length),
+            ),
+          ),
+        );
+      }
+      final got = concat(parts);
+      expect(got.length, whole.length);
+      for (var k = 0; k < got.length; k++) {
+        expect(got[k], closeTo(whole[k], 1e-6));
+      }
+    });
+  });
+
   group('resampling', () {
     test('passthrough when rates match', () {
       final s = sine(440, 16000, 100);

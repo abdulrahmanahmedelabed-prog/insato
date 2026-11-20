@@ -11,7 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../../audio/audio_capture_service.dart' show InputDevice;
+import '../../audio/audio_capture_service.dart'
+    show AudioCaptureState, InputDevice;
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
 import '../../ui/strings_ar.dart';
@@ -191,6 +192,7 @@ class MicTestController extends Notifier<MicTestState> {
   final LiveLevelMonitor _monitor = LiveLevelMonitor();
   Timer? _ticker;
   final List<Float32List> _take = [];
+  bool _closing = false;
   int _takeSamples = 0;
   String? _testPath;
   TestPlayback? _player;
@@ -361,7 +363,8 @@ class MicTestController extends Notifier<MicTestState> {
           mic.errors.listen((e) {
             if (ref.mounted) _set(state.copyWith(warningAr: e.messageAr));
           }),
-        );
+        )
+        ..add(mic.states.listen(_onCaptureState));
       await mic.start(archivePath: archivePath);
       if (!ref.mounted) {
         await _close();
@@ -389,6 +392,36 @@ class MicTestController extends Notifier<MicTestState> {
       _fail(e is InsatoException ? e.messageAr : S.unexpectedError);
     } finally {
       _transition = false;
+    }
+  }
+
+  /// The platform can end or pause the capture on its own (an error, a
+  /// phone call, a route change).
+  void _onCaptureState(AudioCaptureState s) {
+    if (!ref.mounted || _transition || _closing) return;
+    final phase = state.phase;
+    if (phase != MicTestPhase.monitoring &&
+        phase != MicTestPhase.recordingTest) {
+      return;
+    }
+    switch (s) {
+      case AudioCaptureState.idle || AudioCaptureState.stopping:
+        if (phase == MicTestPhase.recordingTest) {
+          // Judge what was recorded so far.
+          unawaited(_finishTest());
+        } else {
+          unawaited(
+            _close().then((_) => _fail(VoiceStrings.captureEnded)),
+          );
+        }
+      case AudioCaptureState.paused:
+        _set(state.copyWith(warningAr: VoiceStrings.capturePaused));
+      case AudioCaptureState.recording:
+        if (state.warningAr == VoiceStrings.capturePaused) {
+          _set(state.copyWith(clearWarning: true));
+        }
+      case AudioCaptureState.starting:
+        break;
     }
   }
 
@@ -462,21 +495,26 @@ class MicTestController extends Notifier<MicTestState> {
   }
 
   Future<void> _close() async {
+    _closing = true;
     _ticker?.cancel();
     _ticker = null;
     final mic = _mic;
     _mic = null;
-    if (mic != null) {
-      try {
-        await mic.stop();
-      } catch (_) {
-        // Disposed below.
-      }
-    }
     final subs = [..._subs];
     _subs.clear();
-    for (final s in subs) {
-      await s.cancel();
+    try {
+      if (mic != null) {
+        try {
+          await mic.stop();
+        } catch (_) {
+          // Disposed below.
+        }
+      }
+      for (final s in subs) {
+        await s.cancel();
+      }
+    } finally {
+      _closing = false;
     }
     if (mic != null) await mic.dispose().catchError((Object _) {});
   }

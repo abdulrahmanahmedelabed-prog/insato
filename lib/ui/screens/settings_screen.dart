@@ -1,8 +1,9 @@
 // Settings: minutes engine (Gemini free tier by default with its privacy
 // notice, key and model; Claude key and model; local engines when
 // available) and minutes detail, transcription engine (on-device Whisper or Deepgram with key),
-// Whisper model, language hint, keep-audio, speaker matching sensitivity,
-// models, privacy and about.
+// Whisper model, language hint, keep-audio, custom vocabulary (F2),
+// microphone (F18: device, far field, test) and audio source (F13, Windows
+// only), speaker matching sensitivity, models, privacy and about.
 
 import 'dart:async';
 
@@ -11,7 +12,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
+import '../../features/context/glossary_screen.dart' show GlossaryScreen;
+import '../../features/context/strings.dart' show CS;
 import '../../features/local_llm/local_minutes_backends.dart';
+import '../../features/system_audio/audio_source_selector.dart'
+    show AudioSourceSelector;
+import '../../features/voice/mic_settings.dart' show MicSettingsSection;
 import '../../minutes/claude_client.dart';
 import '../../minutes/gemini_client.dart';
 import '../../speech/model_catalog.dart';
@@ -172,6 +178,23 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text(S.keepAudio),
                 subtitle: const Text(S.keepAudioHelper),
               ),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.menu_book_rounded),
+                  title: const Text(CS.glossaryTitle),
+                  subtitle: const Text(CS.glossarySubtitle),
+                  trailing: const Icon(Icons.chevron_left_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const GlossaryScreen(),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ------------------------------------- Microphone & source
+              const MicSettingsSection(),
+              const AudioSourceSelector(),
 
               // -------------------------------------------------- Speakers
               const SectionHeader(
@@ -690,11 +713,38 @@ class MinutesEngineSettings extends ConsumerWidget {
       children: [
         Semantics(
           label: S.minutesEngine,
-          child: SegmentedButton<String>(
-            segments: engines,
-            selected: {s.minutesEngine},
-            onSelectionChanged: (v) =>
-                save(context, () => store.setMinutesEngine(v.first)),
+          child: LayoutBuilder(
+            builder: (context, c) {
+              // Four segments with icons need ~140 px each; below that each
+              // label would wrap to a glyph or two per line. Narrow screens
+              // drop the icons and scroll sideways (like the audio-source
+              // selector), so every label stays on one line.
+              final narrow = c.maxWidth < 140.0 * engines.length;
+              final button = SegmentedButton<String>(
+                segments: narrow
+                    ? [
+                        for (final e in engines)
+                          ButtonSegment<String>(
+                            value: e.value,
+                            label: e.label,
+                            tooltip: e.tooltip,
+                          ),
+                      ]
+                    : engines,
+                selected: {s.minutesEngine},
+                showSelectedIcon: !narrow,
+                onSelectionChanged: (v) =>
+                    save(context, () => store.setMinutesEngine(v.first)),
+              );
+              if (!narrow) return button;
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: button,
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 4),

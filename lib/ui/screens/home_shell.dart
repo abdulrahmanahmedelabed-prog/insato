@@ -1,12 +1,16 @@
 // App shell: bottom NavigationBar on phones, NavigationRail with a
-// two-pane meetings list / detail on wide screens, a "recording in
-// progress" bar, and the Ctrl+N shortcut for a new meeting.
+// two-pane meetings list / detail on wide screens (the same destinations
+// and widgets on every platform: meetings, tasks, ask your meetings, voice
+// library, settings), a "recording in progress" bar, and the Ctrl+N
+// shortcut for a new meeting (with the optional meeting-context form).
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/time_format.dart';
+import '../../features/ask/ask.dart' show AskMeetingsScreen;
+import '../../features/tasks/tasks.dart' show TasksScreen;
 import '../../session/meeting_session_controller.dart';
 import '../../session/providers.dart';
 import '../actions.dart';
@@ -29,6 +33,16 @@ class HomeShell extends ConsumerWidget {
       icon: Icons.event_note_outlined,
       selectedIcon: Icons.event_note_rounded,
       label: S.navMeetings,
+    ),
+    (
+      icon: Icons.task_alt_outlined,
+      selectedIcon: Icons.task_alt_rounded,
+      label: S.navTasks,
+    ),
+    (
+      icon: Icons.question_answer_outlined,
+      selectedIcon: Icons.question_answer_rounded,
+      label: S.navAsk,
     ),
     (
       icon: Icons.record_voice_over_outlined,
@@ -86,8 +100,10 @@ class HomeShell extends ConsumerWidget {
     }
 
     final body = switch (index) {
-      1 => const SpeakersScreen(),
-      2 => const SettingsScreen(),
+      ShellTab.tasks => const TasksScreen(),
+      ShellTab.ask => const AskMeetingsScreen(embedded: true),
+      ShellTab.speakers => const SpeakersScreen(),
+      ShellTab.settings => const SettingsScreen(),
       _ => meetingsPane(),
     };
 

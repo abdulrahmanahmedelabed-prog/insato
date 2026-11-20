@@ -1,6 +1,8 @@
-// Rendered Arabic minutes: summary, attendees, topics, decisions, action
-// items (table on wide layouts, cards on phones), open questions, next
-// meeting and notes.
+// Rendered Arabic minutes: summary, attendees, agenda coverage (F3),
+// topics, decisions, action items (table on wide layouts, cards on phones),
+// open questions, next meeting and notes. Items with evidence (F5) show the
+// widget built by [MinutesView.evidenceBuilder] (the meeting screen passes
+// the playable evidence chips).
 
 import 'package:material_ui/material_ui.dart';
 
@@ -10,17 +12,35 @@ import '../format.dart';
 import '../strings_ar.dart';
 import 'common.dart';
 
+/// Builds the evidence links of one minutes item (cited
+/// `TranscriptSegment.index` values, never empty).
+typedef MinutesEvidenceBuilder = Widget Function(List<int> evidence);
+
 /// Full rendering of [minutes] for [meeting]. Not scrollable itself: place
 /// it in a scroll view.
 class MinutesView extends StatelessWidget {
   /// Creates the view.
-  const MinutesView({super.key, required this.meeting, required this.minutes});
+  const MinutesView({
+    super.key,
+    required this.meeting,
+    required this.minutes,
+    this.evidenceBuilder,
+  });
 
   /// The meeting.
   final Meeting meeting;
 
   /// Its minutes.
   final Minutes minutes;
+
+  /// Evidence links under topics, decisions, action items and agenda items
+  /// (null: none shown).
+  final MinutesEvidenceBuilder? evidenceBuilder;
+
+  Widget? _evidence(List<int> ids) {
+    final b = evidenceBuilder;
+    return b == null || ids.isEmpty ? null : b(ids);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +73,26 @@ class MinutesView extends StatelessWidget {
             ],
           ),
         ],
+        if (m.agendaCoverage.isNotEmpty) ...[
+          const SectionHeader(
+            S.agendaCoverage,
+            icon: Icons.format_list_numbered_rounded,
+          ),
+          for (var i = 0; i < m.agendaCoverage.length; i++)
+            _AgendaItemRow(
+              number: i + 1,
+              item: m.agendaCoverage[i],
+              evidence: _evidence(m.agendaCoverage[i].evidence),
+            ),
+        ],
         if (m.topics.isNotEmpty) ...[
           const SectionHeader(S.topics, icon: Icons.forum_rounded),
           for (var i = 0; i < m.topics.length; i++)
-            _TopicCard(index: i + 1, topic: m.topics[i]),
+            _TopicCard(
+              index: i + 1,
+              topic: m.topics[i],
+              evidence: _evidence(m.topics[i].evidence),
+            ),
         ],
         const SectionHeader(S.decisions, icon: Icons.gavel_rounded),
         if (m.decisions.isEmpty)
@@ -69,12 +105,16 @@ class MinutesView extends StatelessWidget {
               footnote: m.decisions[i].proposedBy == null
                   ? null
                   : S.proposedBy(m.decisions[i].proposedBy!),
+              evidence: _evidence(m.decisions[i].evidence),
             ),
         const SectionHeader(S.actionItems, icon: Icons.task_alt_rounded),
         if (m.actionItems.isEmpty)
           const _Muted(S.noneRecorded)
         else
-          ActionItemsView(items: m.actionItems),
+          ActionItemsView(
+            items: m.actionItems,
+            evidenceBuilder: evidenceBuilder,
+          ),
         if (m.openQuestions.isNotEmpty) ...[
           const SectionHeader(
             S.openQuestions,
@@ -254,16 +294,84 @@ class _Bullet extends StatelessWidget {
   }
 }
 
+class _AgendaItemRow extends StatelessWidget {
+  const _AgendaItemRow({
+    required this.number,
+    required this.item,
+    this.evidence,
+  });
+
+  final int number;
+  final MinutesAgendaItem item;
+  final Widget? evidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (icon, color) = switch (item.status) {
+      AgendaItemStatus.discussed => (
+        Icons.check_circle_rounded,
+        scheme.primary,
+      ),
+      AgendaItemStatus.partiallyDiscussed => (
+        Icons.timelapse_rounded,
+        scheme.tertiary,
+      ),
+      AgendaItemStatus.notDiscussed => (
+        Icons.radio_button_unchecked_rounded,
+        scheme.onSurfaceVariant,
+      ),
+    };
+    final note = item.note?.trim() ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$number. ${item.item}', style: theme.textTheme.bodyLarge),
+                Text(
+                  S.agendaStatusLabel(item.status),
+                  style: theme.textTheme.labelMedium?.copyWith(color: color),
+                ),
+                if (note.isNotEmpty)
+                  Text(
+                    note,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ?evidence,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _NumberedItem extends StatelessWidget {
   const _NumberedItem({
     required this.number,
     required this.text,
     this.footnote,
+    this.evidence,
   });
 
   final int number;
   final String text;
   final String? footnote;
+  final Widget? evidence;
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +406,7 @@ class _NumberedItem extends StatelessWidget {
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
+                ?evidence,
               ],
             ),
           ),
@@ -308,10 +417,11 @@ class _NumberedItem extends StatelessWidget {
 }
 
 class _TopicCard extends StatelessWidget {
-  const _TopicCard({required this.index, required this.topic});
+  const _TopicCard({required this.index, required this.topic, this.evidence});
 
   final int index;
   final MinutesTopic topic;
+  final Widget? evidence;
 
   @override
   Widget build(BuildContext context) {
@@ -340,6 +450,7 @@ class _TopicCard extends StatelessWidget {
                   ),
                 ),
               ],
+              ?evidence,
             ],
           ),
         ),
@@ -351,10 +462,18 @@ class _TopicCard extends StatelessWidget {
 /// Action items as a table (wide) or cards (narrow).
 class ActionItemsView extends StatelessWidget {
   /// Creates the view.
-  const ActionItemsView({super.key, required this.items});
+  const ActionItemsView({super.key, required this.items, this.evidenceBuilder});
 
   /// Items.
   final List<ActionItem> items;
+
+  /// Evidence links under each task (null: none shown).
+  final MinutesEvidenceBuilder? evidenceBuilder;
+
+  Widget? _evidence(ActionItem a) {
+    final b = evidenceBuilder;
+    return b == null || a.evidence.isEmpty ? null : b(a.evidence);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +522,19 @@ class ActionItemsView extends StatelessWidget {
               ),
               children: [
                 cell('${i + 1}'),
-                cell(items[i].task),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(items[i].task, style: theme.textTheme.bodyMedium),
+                      ?_evidence(items[i]),
+                    ],
+                  ),
+                ),
                 cell(items[i].owner ?? S.notSpecified),
                 cell(items[i].dueDate ?? S.notSpecified),
               ],
@@ -454,6 +585,7 @@ class ActionItemsView extends StatelessWidget {
                               ),
                             ],
                           ),
+                          ?_evidence(a),
                         ],
                       ),
                     ),

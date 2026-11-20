@@ -296,6 +296,7 @@ class LocalLlmMinutesBackend implements MinutesBackend {
     }
 
     var rounds = 0;
+    var blocks = parts;
     var notesTokens = await gen.countTokens(notesText);
     while (notesTokens > notesBudget && rounds < budget.maxCondenseRounds) {
       rounds++;
@@ -306,40 +307,62 @@ class LocalLlmMinutesBackend implements MinutesBackend {
           budget.templateOverheadTokens +
           64;
       final groupBudget = ctx - condenseFixed - mapAnswer;
-      final groups = groupNoteLines(
-        notesText,
+      // Groups keep their time range, so the reduce step (and any later
+      // cut) can still date every note.
+      final groups = groupChunkNotes(
+        blocks,
         maxChars: math.max(400, (groupBudget * cpt * 0.9).floor()),
       );
       steps += groups.length;
-      final merged = <String>[];
-      for (final g in groups) {
+      final merged = <ChunkNotes>[];
+      for (var gi = 0; gi < groups.length; gi++) {
+        final g = groups[gi];
         report(0);
         final notes = await _notes(
           gen,
           system: kCondenseNotesSystemPrompt,
-          user: buildCondenseUserMessage(g),
+          user: buildCondenseUserMessage(renderChunkNotes(g)),
           maxTokens: mapAnswer,
           onChars: (chars) => report(chars / mapChars),
         );
-        merged.add(notes.map(renderChunkNote).join('\n'));
+        merged.add(
+          ChunkNotes(
+            index: gi + 1,
+            total: groups.length,
+            startMs: g.map((b) => b.startMs).reduce(math.min),
+            endMs: g.map((b) => b.endMs).reduce(math.max),
+            notes: notes,
+          ),
+        );
         done++;
       }
-      notesText = merged.where((m) => m.isNotEmpty).join('\n');
+      blocks = merged;
+      notesText = renderChunkNotes(blocks);
       notesTokens = await gen.countTokens(notesText);
     }
+    var omitted = '';
     if (notesTokens > notesBudget) {
-      final keep = (notesBudget * cpt * 0.9).floor();
-      // Keep the first notes that fit, cut at a line end when one is near.
-      var kept = notesText.substring(0, math.min(keep, notesText.length));
-      final nl = kept.lastIndexOf('\n');
-      if (nl > keep ~/ 2) kept = kept.substring(0, nl);
-      notesText = kept;
+      // Still too long: share the room evenly across the whole meeting
+      // (never just its beginning) and say what was shortened.
+      final room = (notesBudget * cpt * 0.9).floor();
+      var reserve = omittedNotesMarker('').length + 40;
+      var fitted = fitChunkNotes(blocks, math.max(0, room - reserve));
+      for (var i = 0; i < 3; i++) {
+        final need = omittedNotesMarker(fitted.shortenedRanges).length + 1;
+        if (fitted.text.length + need <= room) break;
+        reserve = need;
+        fitted = fitChunkNotes(blocks, math.max(0, room - reserve));
+      }
+      omitted = fitted.shortenedRanges;
+      notesText = omitted.isEmpty
+          ? fitted.text
+          : '${fitted.text}\n${omittedNotesMarker(omitted)}';
       notesTokens = await gen.countTokens(notesText);
     }
 
     report(0);
     final reduceChars = answer * cpt;
-    return _structured(
+    final text = await _structured(
       gen,
       system: request.system,
       user: buildReduceUserMessage(context: context, notesText: notesText),
@@ -350,6 +373,10 @@ class LocalLlmMinutesBackend implements MinutesBackend {
       ),
       onChars: (phase, chars) => report(chars / reduceChars),
     );
+    // Do not rely on the model alone to tell the user.
+    return omitted.isEmpty
+        ? text
+        : appendMinutesNote(text, LS.partOmitted(omitted));
   }
 
   Future<List<ChunkNote>> _notes(
@@ -397,6 +424,16 @@ class LocalLlmMinutesBackend implements MinutesBackend {
       ),
       onProgress: onChars,
     );
+    if (out.truncated) {
+      // A cut-off final answer is missing its later topics, decisions and
+      // action items; repairing it would store partial minutes as complete
+      // (and the task sync would then delete tasks "no longer" in them).
+      throw MinutesGenerationException(
+        LS.answerTruncated,
+        debugDetails:
+            'local finish=length chars=${out.text.length} maxTokens=$maxTokens',
+      );
+    }
     if (conformsToSchemaKeys(out.text, schema)) return out.text;
     final repaired = await _repair(gen, out.text, schema, maxTokens);
     if (conformsToSchemaKeys(repaired, schema)) return repaired;

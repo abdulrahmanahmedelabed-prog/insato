@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:insato/core/models.dart';
 import 'package:insato/data/repositories.dart';
+import 'package:insato/features/codes/strings.dart';
 import 'package:insato/ui/screens/meeting_detail_screen.dart';
 import 'package:insato/ui/screens/meeting_transcript_tab.dart';
 import 'package:insato/ui/strings_ar.dart';
@@ -65,6 +67,8 @@ void main() {
     expect(find.text(S.addApiKey), findsOneWidget);
 
     // Generating without a key fails with the Arabic message.
+    await t.ensureVisible(find.text(S.generateMinutes));
+    await t.pump();
     await t.tap(find.text(S.generateMinutes));
     await settle(t, rounds: 10);
     expect(find.textContaining('مفتاح محرك المحضر غير مضبوط'), findsOneWidget);
@@ -167,6 +171,42 @@ void main() {
     await settle(t, rounds: 10);
     expect(env.share.sharedTexts, hasLength(1));
     expect(env.share.sharedTexts.single, contains('اعتماد ميزانية التسويق'));
+    await env.dispose(t);
+  });
+
+  testWidgets('shared codes are checked against the transcript', (t) async {
+    setScreenSize(t, kPhone);
+    final env = UiTestEnv();
+    final seeded = await env.run(t, () async {
+      final s = await seedMeeting(env);
+      final meetings = MeetingRepository(env.db);
+      final m = (await meetings.get(s.meeting.id))!;
+      await meetings.saveMinutes(
+        m.id,
+        m.minutes!.copyWith(
+          codes: const MinutesCodes(
+            references: [
+              ReferenceItem(
+                kind: ReferenceKind.other,
+                verbatim: 'marketing budget',
+                normalized: 'marketing budget',
+                context: 'الميزانية',
+                speaker: 'سارة',
+                evidence: [1],
+              ),
+            ],
+          ),
+        ),
+      );
+      return s;
+    });
+    await pumpScreen(t, env, MeetingDetailScreen(meetingId: seeded.meeting.id));
+    await t.tap(find.byTooltip(S.shareText));
+    await settle(t, rounds: 10);
+    final text = env.share.sharedTexts.single;
+    expect(text, contains('00:00:05'));
+    expect(text, isNot(contains(KS.noEvidenceToVerify)));
+    expect(text, contains(KS.verified));
     await env.dispose(t);
   });
 }

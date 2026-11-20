@@ -180,7 +180,8 @@ void main() {
 
   group('MeetingContextPage', () {
     testWidgets('builds a setup: agenda, attendees, notes, terms', (t) async {
-      setScreenSize(t, const Size(500, 1400));
+      // Tall enough for the whole form, microphone section included.
+      setScreenSize(t, const Size(500, 1800));
       final env = UiTestEnv();
       await env.run(t, () async {
         await SpeakerRepository(env.db).create(name: 'سارة');
@@ -224,6 +225,8 @@ void main() {
       expect(find.text(CS.attendeeDuplicate), findsOneWidget);
 
       await t.enterText(field(CS.notesLabel), 'متابعة العقد');
+      // Let the field's scroll-into-view animation finish first.
+      await settle(t);
 
       await t.ensureVisible(find.text(CS.addMeetingTerm));
       await t.tap(find.text(CS.addMeetingTerm));

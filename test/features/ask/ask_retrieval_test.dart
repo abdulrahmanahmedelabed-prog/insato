@@ -185,6 +185,55 @@ void main() {
       expect(r.text, contains('الملخص: نوقشت ميزانية'));
     });
 
+    test('fallback includes transcript of recent meetings without minutes', () {
+      final r = run('What was discussed?');
+      expect(r.hasMatches, isFalse);
+      expect(r.detailedMeetings.first, 'm-launch');
+      // m-launch has no minutes: its transcript is what the model gets.
+      expect(r.text, contains('<transcript_excerpts>'));
+      expect(r.text, contains('صباح الخير جميعاً'));
+      expect(r.excerptLines, greaterThan(0));
+      expect(r.refs.values.any((ref) => ref.segmentStartMs.isNotEmpty), isTrue);
+    });
+
+    test('fallback excerpts span a long meeting within the budget', () {
+      final long = [
+        source(
+          'long',
+          'اجتماع طويل',
+          DateTime(2026, 11, 20),
+          lines([
+            for (var i = 0; i < 300; i++) ('سارة', 'جملة رقم $i ${'ك' * 60}'),
+          ]),
+        ),
+        ...corpus(),
+      ];
+      for (final budget in [3000, 8000, 20000]) {
+        final r = run('zzzz qqqq', budget: budget, meetings: long);
+        expect(r.hasMatches, isFalse);
+        expect(r.text.length, lessThanOrEqualTo(budget), reason: '$budget');
+        expect(r.text, contains('جملة رقم 0 '), reason: '$budget');
+      }
+      final r = run('zzzz qqqq', budget: 8000, meetings: long);
+      // Not only the opening: later parts of the meeting are sampled too.
+      final nums = RegExp(r'جملة رقم (\d+)')
+          .allMatches(r.text)
+          .map((m) => int.parse(m.group(1)!))
+          .toList();
+      expect(nums.reduce((a, b) => a > b ? a : b), greaterThan(100));
+    });
+
+    test('spreadOrder covers every index, spreading prefixes', () {
+      expect(spreadOrder(0), isEmpty);
+      expect(spreadOrder(1), [0]);
+      for (final n in [2, 3, 5, 8, 13, 100]) {
+        final o = spreadOrder(n);
+        expect(o.toSet(), {for (var i = 0; i < n; i++) i}, reason: '$n');
+        expect(o.length, n);
+      }
+      expect(spreadOrder(8).take(4), [0, 4, 2, 6]);
+    });
+
     test('puts the latest meeting first for recency questions', () {
       final r = run('ما قرارات الميزانية في آخر اجتماع؟');
       expect(r.detailedMeetings.first, 'm-launch');

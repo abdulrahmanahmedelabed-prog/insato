@@ -130,6 +130,34 @@ void main() {
       await env.dispose(t);
     });
 
+    testWidgets('engine labels stay on one line at phone width', (t) async {
+      setScreenSize(t, const Size(360, 800));
+      final env = UiTestEnv();
+      await pumpScreen(t, env, const SettingsScreen());
+      Finder inButton(String l) => find.descendant(
+        of: find.byType(SegmentedButton<String>).first,
+        matching: find.text(l),
+      );
+      final labels = [
+        S.engineGemini,
+        S.engineClaude,
+        S.engineLocal,
+        S.engineServer,
+      ].where((l) => inButton(l).evaluate().isNotEmpty).toList();
+      expect(labels.length, greaterThanOrEqualTo(2));
+      for (final l in labels) {
+        final style = DefaultTextStyle.of(t.element(inButton(l))).style;
+        final line = (style.fontSize ?? 14) * (style.height ?? 1.5);
+        expect(
+          t.getSize(inButton(l)).height,
+          lessThan(line * 1.6),
+          reason: '$l wraps',
+        );
+      }
+      expect(t.takeException(), isNull);
+      await env.dispose(t);
+    });
+
     testWidgets('minutes engine readiness follows key and notice', (t) async {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();

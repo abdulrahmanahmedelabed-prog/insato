@@ -2,11 +2,13 @@
 // after the minutes are saved (see `PostProcessor`):
 //
 // * action items → `tasks` (F9; re-generating the minutes keeps tasks the
-//   user touched and replaces untouched ones);
+//   user touched, replaces untouched ones and never re-creates a task the
+//   user deleted);
 // * `task_updates` → `task_updates_pending` (F9; applied only after the user
 //   confirms);
 // * `speaker_notes` of opted-in speakers → `speaker_meeting_notes` (F16);
-// * `codes` → `code_findings` (F17).
+// * `codes` → `code_findings` (F17; reversed-speech results and app
+//   findings of an earlier run are carried over).
 //
 // The mapping is pure (unit-tested); [MinutesArtifactsWriter] applies it in
 // one transaction.
@@ -14,6 +16,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models.dart';
+import '../features/codes/reversed_speech_logic.dart';
 import 'database.dart';
 import 'repositories.dart';
 import 'repositories_v11.dart';
@@ -27,18 +30,45 @@ String speakerNameKey(String name) =>
 /// Resolves speaker names (as written in minutes) to speaker ids. Names that
 /// several speakers share are ambiguous and resolve to null.
 class SpeakerNameResolver {
-  /// Builds the resolver over [speakersById].
-  SpeakerNameResolver(Map<String, Speaker> speakersById) {
-    final counts = <String, int>{};
-    for (final s in speakersById.values) {
+  /// Builds the resolver over the whole [speakersById] (every name is
+  /// matched library-wide).
+  SpeakerNameResolver(Map<String, Speaker> speakersById)
+    : this.scoped(speakersById, const {});
+
+  /// Names resolve first among [meetingSpeakerIds] (the speakers who appear
+  /// in the meeting): two library speakers called «محمد» from different
+  /// meetings do not make the name ambiguous in a meeting where only one of
+  /// them speaks. A name no meeting speaker uses falls back to the whole
+  /// [speakersById]. A name shared inside a scope resolves to null.
+  SpeakerNameResolver.scoped(
+    Map<String, Speaker> speakersById,
+    Set<String> meetingSpeakerIds,
+  ) {
+    final global = _uniqueByName(speakersById.values);
+    final local = _uniqueByName([
+      for (final id in meetingSpeakerIds) ?speakersById[id],
+    ]);
+    _byName
+      ..addAll(global.$1)
+      ..removeWhere((k, _) => local.$2.contains(k))
+      ..addAll(local.$1);
+  }
+
+  /// (unique name → speaker, every name key seen).
+  static (Map<String, Speaker>, Set<String>) _uniqueByName(
+    Iterable<Speaker> speakers,
+  ) {
+    final by = <String, Speaker>{};
+    final seen = <String>{};
+    final dup = <String>{};
+    for (final s in speakers) {
       final k = speakerNameKey(s.name);
       if (k.isEmpty) continue;
-      counts[k] = (counts[k] ?? 0) + 1;
-      _byName[k] = s;
+      if (!seen.add(k)) dup.add(k);
+      by[k] = s;
     }
-    counts.forEach((k, n) {
-      if (n > 1) _byName.remove(k);
-    });
+    by.removeWhere((k, _) => dup.contains(k));
+    return (by, seen);
   }
 
   final Map<String, Speaker> _byName = {};
@@ -137,29 +167,63 @@ class TaskSyncPlan {
   final List<int> deleteIds;
 }
 
-/// Plans the task sync of a meeting: an action item whose text matches an
-/// existing task of the meeting (whitespace / case-insensitive) is kept as
-/// is; new items are created; untouched (`updatedAt == createdAt`), still
-/// open tasks that disappeared from the minutes are deleted. Tasks the user
-/// edited or closed are never deleted.
+/// Whether action item [a] is the same task as the stored [t]: similar
+/// text ([similarTaskText], forgiving Arabic spelling and rewording), or
+/// overlapping evidence with at least one shared word (the user may have
+/// reworded the task, but it still cites the same moment).
+bool sameTask(TrackedTask t, ActionItem a) {
+  if (similarTaskText(t.task, a.task)) return true;
+  if (t.evidenceSegmentIds.isEmpty || a.evidence.isEmpty) return false;
+  if (t.evidenceSegmentIds.toSet().intersection(a.evidence.toSet()).isEmpty) {
+    return false;
+  }
+  final x = taskMatchKey(t.task).split(' ').toSet();
+  final y = taskMatchKey(a.task).split(' ').toSet();
+  return x.intersection(y).any((w) => w.length > 2);
+}
+
+bool _untouchedOpen(TrackedTask t) =>
+    t.status == TaskStatus.open && t.updatedAt.isAtSameMomentAs(t.createdAt);
+
+/// Plans the task sync of a meeting. Each action item is matched to at most
+/// one existing task of the meeting ([sameTask]; tasks the user touched —
+/// edited, done, cancelled — are tried first) and then kept as is; an item
+/// matching no task is created, unless it matches an item whose task the
+/// user deleted ([dismissedKeys], `taskMatchKey` values), which never comes
+/// back. Untouched (`updatedAt == createdAt`), still open tasks that no item
+/// matches any more are deleted; tasks the user edited or closed never are.
 TaskSyncPlan planTaskSync(
   List<TrackedTask> existing,
-  List<ActionItem> actionItems,
-) {
-  final existingKeys = {for (final t in existing) normalizedKey(t.task)};
-  final itemKeys = <String>{};
+  List<ActionItem> actionItems, {
+  Set<String> dismissedKeys = const {},
+}) {
+  final ordered = [
+    ...existing.where((t) => !_untouchedOpen(t)),
+    ...existing.where(_untouchedOpen),
+  ];
+  final matched = <int>{};
+  final seen = <String>{};
   final create = <ActionItem>[];
   for (final a in actionItems) {
-    final k = normalizedKey(a.task);
-    if (k.isEmpty || !itemKeys.add(k)) continue;
-    if (!existingKeys.contains(k)) create.add(a);
+    final k = taskMatchKey(a.task);
+    if (k.isEmpty || !seen.add(k)) continue;
+    TrackedTask? hit;
+    for (final t in ordered) {
+      if (!matched.contains(t.id) && sameTask(t, a)) {
+        hit = t;
+        break;
+      }
+    }
+    if (hit != null) {
+      matched.add(hit.id);
+    } else if (!dismissedKeys.contains(k) &&
+        !dismissedKeys.any((d) => similarTaskText(d, a.task))) {
+      create.add(a);
+    }
   }
   final deleteIds = [
     for (final t in existing)
-      if (!itemKeys.contains(normalizedKey(t.task)) &&
-          t.status == TaskStatus.open &&
-          t.updatedAt.isAtSameMomentAs(t.createdAt))
-        t.id,
+      if (!matched.contains(t.id) && _untouchedOpen(t)) t.id,
   ];
   return TaskSyncPlan(create: create, deleteIds: deleteIds);
 }
@@ -208,20 +272,32 @@ class MinutesArtifactsWriter {
 
   /// Persists [minutes] of [meetingId] (one transaction). [openTaskIds] are
   /// the ids of the open tasks given to the engine (other task ids in
-  /// `taskUpdates` are ignored).
+  /// `taskUpdates` are ignored). [meetingSpeakerIds] (the speakers in the
+  /// meeting's segments) scope name matching first
+  /// ([SpeakerNameResolver.scoped]).
   Future<MinutesArtifactsReport> persist({
     required String meetingId,
     required Minutes minutes,
     required Map<String, Speaker> speakersById,
     Set<int> openTaskIds = const {},
+    Set<String>? meetingSpeakerIds,
     DateTime? now,
   }) {
     final at = now ?? DateTime.now();
-    final names = SpeakerNameResolver(speakersById);
+    final names = SpeakerNameResolver.scoped(
+      speakersById,
+      meetingSpeakerIds ?? const {},
+    );
     return _db.transaction(() async {
       // Tasks (F9).
       final existing = await _tasks.getAll(sourceMeetingId: meetingId);
-      final plan = planTaskSync(existing, minutes.actionItems);
+      final plan = planTaskSync(
+        existing,
+        minutes.actionItems,
+        dismissedKeys: await TaskDismissalRepository(
+          _db,
+        ).keys(meetingId, TaskDismissalKind.task),
+      );
       for (final id in plan.deleteIds) {
         await _tasks.delete(id);
       }
@@ -250,12 +326,17 @@ class MinutesArtifactsWriter {
       final notes = optedInSpeakerNotes(minutes.speakerNotes, names);
       await _notes.replaceForMeeting(meetingId, notes);
 
-      // Codes (F17).
-      final findings = codeFindingsFromMinutes(
-        meetingId,
-        minutes.codes,
-        names,
-        now: at,
+      // Codes (F17). Reversed-speech results (user-run, slow) and app
+      // findings survive the replacement.
+      final previous = await _codes.getForMeeting(meetingId);
+      final findings = carryOverReversedFindings(
+        previous: previous,
+        engine: codeFindingsFromMinutes(
+          meetingId,
+          minutes.codes,
+          names,
+          now: at,
+        ),
       );
       await _codes.replaceForMeeting(meetingId, findings, now: at);
 

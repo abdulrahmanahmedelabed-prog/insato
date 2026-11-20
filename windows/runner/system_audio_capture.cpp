@@ -282,11 +282,16 @@ void SystemAudioCapture::Run() {
         if (outcome == Outcome::kStopped) {
           break;
         }
-        const DWORD delay =
-            outcome == Outcome::kRestart ? kRestartDelayMs : kRetryDelayMs;
-        // A failed device is retried after a while, or as soon as the
-        // default device changes; a stop request ends the loop.
-        const DWORD woke = ::WaitForMultipleObjects(2, waits, FALSE, delay);
+        // After a restart, wait briefly so the new default endpoint can settle
+        // and repeated notifications collapse into one restart (the top of
+        // the loop clears restart_event_; it is manual-reset and still set
+        // here, so waiting on it would not delay at all). A failed device is
+        // retried after a while, or as soon as the default device changes. A
+        // stop request ends the loop (stop_event_ is waits[0]).
+        const bool restart = outcome == Outcome::kRestart;
+        const DWORD woke =
+            restart ? ::WaitForSingleObject(stop_event_, kRestartDelayMs)
+                    : ::WaitForMultipleObjects(2, waits, FALSE, kRetryDelayMs);
         if (woke == WAIT_OBJECT_0) {
           break;
         }
@@ -483,9 +488,9 @@ SystemAudioCapture::Outcome SystemAudioCapture::CaptureOnce(
     }
   }
   client->Stop();
-  // Frames read before a device change still belong to the recording.
-  if (outcome != Outcome::kStopped) {
-    flush();
-  }
+  // Frames already read belong to the recording, whatever ended the loop (a
+  // device change, a failure, or a stop: the channel delivers the queued
+  // packets before it answers "stop").
+  flush();
   return outcome;
 }

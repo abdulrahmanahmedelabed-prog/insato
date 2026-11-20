@@ -116,6 +116,7 @@ void main() {
     await source.start(archivePath: null);
     await Future<void>.delayed(Duration.zero);
     expect(factory.recording!.startedWith, isNull);
+    expect(source.activeDeviceKey, isNull, reason: 'the default is used');
     expect(errors.single.messageAr, contains('Buds'));
     expect(events.single.kind, MicDeviceEventKind.missingAtStart);
     await source.stop();
@@ -124,10 +125,13 @@ void main() {
   test('a device lost mid-take is reported once; capture goes on', () async {
     remembered = RememberedInputDevice(id: '17', key: voiceDeviceKey(usb));
     source = make();
+    final keys = <String?>[];
+    source.activeDeviceChanges.listen(keys.add);
     await source.start(archivePath: null);
     final mic = factory.recording!;
     await source.checkDevice();
     expect(source.fellBack, isFalse);
+    expect(source.activeAudioSource, 'mic');
     mic.devices = const [builtIn];
     await source.checkDevice();
     await source.checkDevice();
@@ -138,6 +142,7 @@ void main() {
     expect(errors, hasLength(1));
     expect(errors.single.messageAr, contains('Jabra'));
     expect(events.last.kind, MicDeviceEventKind.fellBack);
+    expect(keys, ['usb|Jabra', null]);
     await source.stop();
   });
 

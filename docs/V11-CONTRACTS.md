@@ -139,14 +139,18 @@ Speaker deletion cascades profile and notes; tasks / findings get
 runs automatically right after minutes are saved (same transaction), so
 features only **read** these tables:
 
-* action items → `tasks` (re-generation keeps tasks the user touched, adds
-  new ones, deletes untouched stale ones — `planTaskSync`);
-* `taskUpdates` → `task_updates_pending` (only ids of open tasks of *other*
-  meetings that were given to the engine);
+* action items → `tasks` (re-generation matches reworded items to existing
+  tasks — Arabic-normalised text or shared evidence —, keeps tasks the user
+  touched, adds new ones, deletes untouched stale ones, and never re-creates
+  items the user deleted (`task_dismissals`, schema v4) — `planTaskSync`);
+* `taskUpdates` → `task_updates_pending` (only ids of open tasks of *earlier*
+  meetings that were given to the engine; updates the user already
+  confirmed or dismissed are not proposed again);
 * `speakerNotes` → `speaker_meeting_notes` (only speakers with
   `profileEnabled`; others are never stored);
 * `codes` → `code_findings` (payload = the item's `toJson()`, speaker
-  resolved by name).
+  resolved by name — among the meeting's own speakers first; reversed-speech
+  results and app findings of an earlier run are carried over).
 
 ---
 
@@ -237,8 +241,9 @@ abstract class MinutesBackend {
   backend, parses tolerantly, sanitizes). `ClaudeMinutesEngine` is a
   compatibility subclass.
 * `MinutesEngine.generate(..., inputs: MinutesInputs)` — `PostProcessor`
-  passes the effective glossary and up to 60 open tasks of other meetings
-  (`PostProcessor.minutesInputsFor`).
+  passes the effective glossary and up to 60 open tasks of earlier meetings
+  (source meeting created before this one; manual tasks by their own
+  creation time), newest first (`PostProcessor.minutesInputsFor`).
 
 Engine selection (`lib/session/minutes_engines.dart` +
 `lib/session/providers.dart`):

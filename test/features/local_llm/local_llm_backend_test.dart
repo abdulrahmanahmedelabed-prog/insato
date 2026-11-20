@@ -165,6 +165,23 @@ void main() {
       },
     );
 
+    test('a cut-off final answer fails instead of being repaired', () async {
+      const cut = '{"title": "x", "summary": "مل';
+      final gen = FakeGenerator(responses: [cut, _minutes])
+        ..truncatedTexts.add(cut);
+      await expectLater(
+        _backend(gen).generateStructured(_minutesRequest(_segments(3))),
+        throwsA(
+          isA<MinutesGenerationException>().having(
+            (e) => e.messageAr,
+            'messageAr',
+            LS.answerTruncated,
+          ),
+        ),
+      );
+      expect(gen.requests, hasLength(1), reason: 'no repair request');
+    });
+
     test('a failing repair request keeps the original answer', () async {
       final gen = FakeGenerator(responses: ['not json']);
       gen.respond = (_) => throw const MinutesGenerationException('x');
@@ -400,10 +417,73 @@ void main() {
         gen,
         budget: budget,
       ).generateStructured(_minutesRequest(segs));
-      expect(out.text, _minutes);
+      expect((jsonDecode(out.text) as Map)['title'], 'محضر');
+      expect(
+        (jsonDecode(out.text) as Map)['notes'],
+        contains('تعذّر على النموذج المحلي'),
+      );
       _expectWithinContext(gen, budget);
       // The beginning of the notes is kept, not just a part header.
       expect(gen.requests.last.user, contains('[point] نص طويل نص طويل'));
+    });
+
+    test('a cut-off reduce answer fails instead of being repaired', () async {
+      const cut = '{"title": "x", "topics": [{"t';
+      final gen = FakeGenerator(contextTokens: 4096)..truncatedTexts.add(cut);
+      gen.respond = (r) => r.system.startsWith(_system) ? cut : _notesFor(r);
+      await expectLater(
+        _backend(gen).generateStructured(_minutesRequest(_segments(120))),
+        throwsA(isA<MinutesGenerationException>()),
+      );
+      expect(gen.requests.last.system, _system);
+      expect(
+        gen.requests.where((r) => r.system.startsWith(kJsonRepairSystemPrompt)),
+        isEmpty,
+      );
+    });
+
+    test('notes cut to fit cover the whole meeting and say so', () async {
+      const budget = LocalLlmBudget(maxCondenseRounds: 1);
+      final segs = _segments(400);
+      final gen = FakeGenerator(contextTokens: 4096);
+      gen.respond = (r) {
+        if (r.system.startsWith(_system)) return _minutes;
+        // Map and condense notes never shrink.
+        final ids = RegExp(r'\[#(\d+) ').allMatches(r.user).map((m) => m[1]!);
+        final last = ids.isEmpty ? 'x' : ids.last;
+        return jsonEncode({
+          'notes': [
+            {
+              'kind': 'point',
+              'text': 'بداية الجزء ${ids.isEmpty ? 'x' : ids.first} ' +
+                  'تفاصيل ' * 400,
+              'speakers': <String>[],
+              'evidence': [1],
+            },
+            {
+              'kind': 'decision',
+              'text': 'نهاية الجزء $last',
+              'speakers': <String>[],
+              'evidence': [1],
+            },
+          ],
+        });
+      };
+      final out = await _backend(
+        gen,
+        budget: budget,
+      ).generateStructured(_minutesRequest(segs));
+      _expectWithinContext(gen, budget);
+      final reduce = gen.requests.last;
+      expect(reduce.system, _system);
+      // The last part of the meeting is still represented.
+      final parts = RegExp(r'Part (\d+) of (\d+)').allMatches(reduce.user);
+      expect(parts, isNotEmpty);
+      expect(parts.last[1], parts.last[2]);
+      expect(reduce.user, contains('IMPORTANT: notes for'));
+      final notes = (jsonDecode(out.text) as Map)['notes'] as String;
+      expect(notes, contains('تعذّر على النموذج المحلي تلخيص الاجتماع كاملًا'));
+      expect(notes, matches(RegExp(r'\d\d:\d\d:\d\d–\d\d:\d\d:\d\d')));
     });
 
     test('unreadable notes of a part are replaced by a marker', () async {

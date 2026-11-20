@@ -44,6 +44,19 @@ void main() {
     expect(decodeJsonObjectTolerant(r'{"a": "x\'), {'a': 'x'});
   });
 
+  test('a cut-off list keeps its last, partial item', () {
+    expect(decodeJsonObjectTolerant('{"items": [{"t": "a"}, {"t": "b'), {
+      'items': [
+        {'t': 'a'},
+        {'t': 'b'},
+      ],
+    });
+    // Prose after a complete object is still dropped.
+    expect(decodeJsonObjectTolerant('{"a": {"b": 1}, } and "more" text'), {
+      'a': {'b': 1},
+    });
+  });
+
   test('strings containing brackets and escaped quotes are untouched', () {
     expect(decodeJsonObjectTolerant(r'{"code": "f(x) { return \"}\"; }",}'), {
       'code': 'f(x) { return "}"; }',

@@ -8,10 +8,13 @@
 // this file only defines the schema, the connection and the migration
 // strategy ([AppDatabase.migration], tested from a v1 fixture).
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+
+import '../core/models.dart' show ActionItem;
 
 part 'database.g.dart';
 
@@ -273,6 +276,33 @@ class TaskUpdatesPending extends Table {
   IntColumn get createdAt => integer().map(const EpochMillisConverter())();
 }
 
+/// v4 (F9): what the user already decided about a meeting's minutes, so a
+/// regeneration does not undo it: action items whose task the user deleted
+/// (`kind = task`, key = normalised task text) and task updates the user
+/// rejected or acknowledged (`kind = update`, key = `taskId|newStatus`).
+/// Deleted with the meeting.
+@DataClassName('TaskDismissalRow')
+class TaskDismissals extends Table {
+  @override
+  String get tableName => 'task_dismissals';
+
+  /// Meeting whose minutes proposed the item.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// `task` or `update`.
+  TextColumn get kind => text()();
+
+  /// Dismissed item key (see the class comment).
+  TextColumn get itemKey => text()();
+
+  /// When it was dismissed (UTC epoch milliseconds in SQL).
+  IntColumn get createdAt => integer().map(const EpochMillisConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {meetingId, kind, itemKey};
+}
+
 /// v2 (F16): aggregated speaker profiles (opt-in speakers only).
 @DataClassName('SpeakerProfileRow')
 class SpeakerProfiles extends Table {
@@ -368,6 +398,7 @@ class Settings extends Table {
   SpeakerProfiles,
   SpeakerMeetingNotes,
   CodeFindings,
+  TaskDismissals,
 ])
 class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database file `insato.sqlite` in the application
@@ -395,8 +426,9 @@ class AppDatabase extends _$AppDatabase {
   /// `NativeDatabase.memory()` in tests.
   AppDatabase.forExecutor(super.executor);
 
-  /// Current schema version (v1.1 = 2, speaker confidence = 3).
-  static const int currentSchemaVersion = 3;
+  /// Current schema version (v1.1 = 2, speaker confidence = 3, task
+  /// dismissals = 4).
+  static const int currentSchemaVersion = 4;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -408,6 +440,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) await _migrateV1ToV2(m);
           if (from < 3 && to >= 3) {
             await m.addColumn(segments, segments.speakerConfidence);
+          }
+          if (from < 4 && to >= 4) {
+            await m.createTable(taskDismissals);
           }
         },
         beforeOpen: (details) async {
@@ -446,6 +481,65 @@ class AppDatabase extends _$AppDatabase {
       codeFindingsMeeting,
     ]) {
       await m.createIndex(index);
+    }
+    await _backfillTasksFromV1Minutes();
+  }
+
+  /// v1 minutes already list action items, but tasks (F9) are otherwise
+  /// filled only when minutes are generated: without this the Tasks screen,
+  /// the open-tasks banner and the next meeting's prompt would ignore every
+  /// past meeting. Creates one open task per distinct action item of each
+  /// meeting with minutes, dated at the meeting's creation (`updatedAt ==
+  /// createdAt`, so a later regeneration treats them like generated,
+  /// untouched tasks). The owner is linked when exactly one speaker has
+  /// that name. Raw SQL reads, so later schema changes do not affect it; a
+  /// corrupt minutes row is skipped and never fails the migration.
+  Future<void> _backfillTasksFromV1Minutes() async {
+    String key(String s) =>
+        s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    final ownerIds = <String, String?>{};
+    for (final r in await customSelect('SELECT id, name FROM speakers').get()) {
+      final k = key(r.read<String>('name'));
+      if (k.isEmpty) continue;
+      ownerIds[k] = ownerIds.containsKey(k) ? null : r.read<String>('id');
+    }
+    final rows = await customSelect(
+      'SELECT id, minutes_json, created_at FROM meetings '
+      'WHERE minutes_json IS NOT NULL',
+    ).get();
+    for (final r in rows) {
+      final List<ActionItem> items;
+      try {
+        final json = jsonDecode(r.read<String>('minutes_json'));
+        final raw = json is Map ? json['action_items'] : null;
+        if (raw is! List) continue;
+        items = [
+          for (final a in raw)
+            if (a is Map) ActionItem.fromJson(a.cast<String, dynamic>()),
+        ];
+      } on Object catch (_) {
+        continue; // FormatException / TypeError: corrupt row.
+      }
+      final at = const EpochMillisConverter().fromSql(r.read<int>('created_at'));
+      final seen = <String>{};
+      for (final a in items) {
+        final k = key(a.task);
+        if (k.isEmpty || !seen.add(k)) continue;
+        final owner = a.owner;
+        await into(tasks).insert(
+          TasksCompanion.insert(
+            task: a.task.trim(),
+            ownerSpeakerId: Value(owner == null ? null : ownerIds[key(owner)]),
+            ownerText: Value(owner),
+            dueText: Value(a.dueDate),
+            status: const Value('open'),
+            sourceMeetingId: Value(r.read<String>('id')),
+            evidenceSegmentIds: Value(jsonEncode(a.evidence)),
+            createdAt: at,
+            updatedAt: at,
+          ),
+        );
+      }
     }
   }
 }

@@ -1,11 +1,16 @@
 // "المتحدثون" tab: speakers of one meeting with their share of the talk
-// time, and rename / merge / "not the same person" actions.
+// time, and rename / merge / "not the same person" actions, "improve voice"
+// (F1) and the speaker profile (F16).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
 import '../../core/time_format.dart';
+import '../../features/profiles/profile_screen.dart' show openSpeakerProfile;
+import '../../features/profiles/strings.dart' show PS;
+import '../../features/voice/voice.dart'
+    show ImproveVoiceMenuTile, openVoiceEnrollment;
 import '../../session/providers.dart';
 import '../actions.dart';
 import '../format.dart';
@@ -179,7 +184,7 @@ class SpeakerTalkCard extends ConsumerWidget {
   }
 }
 
-enum _SpeakerAction { rename, merge, forget }
+enum _SpeakerAction { profile, improve, rename, merge, forget }
 
 class _SpeakerMenu extends ConsumerWidget {
   const _SpeakerMenu({required this.speaker});
@@ -192,6 +197,10 @@ class _SpeakerMenu extends ConsumerWidget {
       tooltip: S.speakerActions,
       onSelected: (a) {
         switch (a) {
+          case _SpeakerAction.profile:
+            openSpeakerProfile(context, speaker.id);
+          case _SpeakerAction.improve:
+            openVoiceEnrollment(context, speaker: speaker);
           case _SpeakerAction.rename:
             renameSpeakerFlow(context, ref, speaker);
           case _SpeakerAction.merge:
@@ -201,6 +210,17 @@ class _SpeakerMenu extends ConsumerWidget {
         }
       },
       itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: _SpeakerAction.profile,
+          child: ListTile(
+            leading: Icon(Icons.badge_outlined),
+            title: Text(PS.screenTitle),
+          ),
+        ),
+        const PopupMenuItem(
+          value: _SpeakerAction.improve,
+          child: ImproveVoiceMenuTile(),
+        ),
         const PopupMenuItem(
           value: _SpeakerAction.rename,
           child: ListTile(

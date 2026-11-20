@@ -9,12 +9,15 @@ import 'package:intl/intl.dart' as intl;
 
 import '../core/interfaces.dart';
 import '../core/models.dart';
+import '../core/text_normalize.dart';
 import '../core/time_format.dart';
 import '../data/repositories.dart' show parseAutoSpeakerNumber;
 import '../data/secure_settings.dart';
 import '../session/meeting_session_controller.dart'
     show SessionEngineRequest, requiredModelIds;
 import 'strings_ar.dart';
+
+export '../core/text_normalize.dart' show normalizeForSearch;
 
 /// Unicode LEFT-TO-RIGHT ISOLATE.
 const String kLri = '\u2066';
@@ -185,22 +188,6 @@ List<SpeakerTalkTime> computeTalkTimes(List<TranscriptSegment> segments) {
   ];
   list.sort((a, b) => b.speakingMs.compareTo(a.speakingMs));
   return list;
-}
-
-final RegExp _arabicDiacritics = RegExp('[ؐ-ًؚ-ٰٟۖ-ۭـ]');
-
-/// Normalises [text] for forgiving Arabic search: removes diacritics and
-/// tatweel, unifies alef / ya / ta marbuta / hamza forms, converts
-/// Arabic-Indic digits and lower-cases Latin letters.
-String normalizeForSearch(String text) {
-  var t = toWesternDigits(text).toLowerCase().replaceAll(_arabicDiacritics, '');
-  t = t
-      .replaceAll(RegExp('[إأآٱ]'), 'ا')
-      .replaceAll('ى', 'ي')
-      .replaceAll('ة', 'ه')
-      .replaceAll('ؤ', 'و')
-      .replaceAll('ئ', 'ي');
-  return t.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 /// True when every word of [query] occurs in [meeting]'s title, minutes

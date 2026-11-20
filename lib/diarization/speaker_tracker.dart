@@ -252,6 +252,9 @@ class SpeakerTracker {
   /// * [matchThreshold]: minimum cosine similarity to join a local cluster.
   /// * [knownSpeakerThreshold]: minimum similarity to a global voiceprint
   ///   (defaults to [matchThreshold]).
+  /// * [knownSpeakerThresholdOf]: per-voiceprint override of
+  ///   [knownSpeakerThreshold] (F18: relaxed for a voiceprint learned on
+  ///   another microphone than the meeting's).
   /// * [ambiguityMargin]: required score gap between best and runner-up.
   /// * [localPreference]: score bonus for local clusters over voiceprints.
   /// * [newSpeakerMinDurationMs]: shorter segments never open/update clusters.
@@ -278,6 +281,7 @@ class SpeakerTracker {
     required List<Speaker> knownSpeakers,
     this.matchThreshold = 0.55,
     double? knownSpeakerThreshold,
+    this.knownSpeakerThresholdOf,
     this.ambiguityMargin = 0.05,
     this.localPreference = 0.03,
     this.newSpeakerMinDurationMs = 1000,
@@ -313,6 +317,15 @@ class SpeakerTracker {
 
   /// Minimum cosine similarity to match a global voiceprint.
   final double knownSpeakerThreshold;
+
+  /// Per-voiceprint threshold (null: [knownSpeakerThreshold] for all).
+  final double Function(Speaker speaker)? knownSpeakerThresholdOf;
+
+  double _thresholdOf(_Candidate c) {
+    if (c.isLocal) return matchThreshold;
+    final of = knownSpeakerThresholdOf;
+    return of == null ? knownSpeakerThreshold : of(c.speaker!);
+  }
 
   /// Required gap between best and second-best candidate scores.
   final double ambiguityMargin;
@@ -504,12 +517,12 @@ class SpeakerTracker {
         : best.score - secondScore;
 
     final bestQualifies = best != null &&
-        best.sim >= (best.isLocal ? matchThreshold : knownSpeakerThreshold);
+        best.sim >= _thresholdOf(best);
 
     if (bestQualifies) {
       final clear = margin == null || margin >= ambiguityMargin;
       if (clear) {
-        final threshold = best.isLocal ? matchThreshold : knownSpeakerThreshold;
+        final threshold = _thresholdOf(best);
         final conf = _matchConfidence(best.sim, margin ?? 1, threshold);
         if (best.isLocal) {
           final c = best.cluster!;

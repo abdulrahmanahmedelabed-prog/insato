@@ -9,7 +9,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models.dart';
-import '../../data/minutes_artifacts.dart' show SpeakerNameResolver;
+import '../../data/minutes_artifacts.dart'
+    show SpeakerNameResolver, speakerNameKey;
 import '../../data/repositories.dart'
     show MeetingRepository, SegmentRepository, SpeakerRepository;
 import '../../data/secure_settings.dart';
@@ -73,12 +74,17 @@ class SpeakerProfileService {
     final speaker = await _speakers.get(speakerId);
     if (speaker == null || !speaker.profileEnabled) return null;
     final meetings = await _meetings.getAll();
-    final names = SpeakerNameResolver(await _speakers.getAllById());
+    final all = await _speakers.getAllById();
     final perMeeting = <MeetingSpeakerStats>[];
     for (final m in meetings) {
+      final segments = await _segments.getForMeeting(m.id);
+      // Names resolve among the meeting's own speakers first.
+      final names = SpeakerNameResolver.scoped(all, {
+        for (final s in segments) ?s.speakerId,
+      });
       final stats = computeMeetingSpeakerStats(
         meeting: m,
-        segments: await _segments.getForMeeting(m.id),
+        segments: segments,
         speakerId: speakerId,
         decisions: decisionsProposedBy(m.minutes, speakerId, names),
       );
@@ -139,7 +145,10 @@ class SpeakerProfileService {
       for (final n in await _notes.getForMeeting(meetingId)) n.speakerId,
     };
     final spoke = {for (final s in segments) ?s.speakerId};
-    final names = SpeakerNameResolver(await _speakers.getAllById());
+    final names = SpeakerNameResolver.scoped(
+      await _speakers.getAllById(),
+      spoke,
+    );
     Map<String, Meeting>? meetingsById;
     final updated = <String>[];
     for (final speaker in enabled) {
@@ -208,6 +217,44 @@ class SpeakerProfileService {
   Future<void> _deleteData(String speakerId) async {
     await _profiles.delete(speakerId);
     await _notes.deleteForSpeaker(speakerId);
+    await _scrubMinutesNotes(speakerId);
+  }
+
+  /// Removes the notes about [speakerId] from the stored minutes of every
+  /// meeting (`Minutes.speakerNotes`), so a deleted profile leaves nothing
+  /// about the person behind. Names resolve among each meeting's speakers
+  /// first; a note under the speaker's name that cannot be attributed to
+  /// one person (shared name) is removed too. The meeting status is kept.
+  /// Idempotent: a later call finishes an interrupted scrub.
+  Future<void> _scrubMinutesNotes(String speakerId) async {
+    final all = await _speakers.getAllById();
+    final self = all[speakerId];
+    final selfKey = self == null ? null : speakerNameKey(self.name);
+    for (final m in await _meetings.getAll()) {
+      final minutes = m.minutes;
+      if (minutes == null || minutes.speakerNotes.isEmpty) continue;
+      final names = SpeakerNameResolver.scoped(all, {
+        for (final s in await _segments.getForMeeting(m.id)) ?s.speakerId,
+      });
+      bool aboutSpeaker(MinutesSpeakerNote n) {
+        final id = names.id(n.speaker);
+        if (id != null) return id == speakerId;
+        return selfKey != null &&
+            selfKey.isNotEmpty &&
+            speakerNameKey(n.speaker) == selfKey;
+      }
+
+      final kept = [
+        for (final n in minutes.speakerNotes)
+          if (!aboutSpeaker(n)) n,
+      ];
+      if (kept.length == minutes.speakerNotes.length) continue;
+      await _meetings.saveMinutes(
+        m.id,
+        minutes.copyWith(speakerNotes: kept),
+        markReady: false,
+      );
+    }
   }
 }
 

@@ -13,7 +13,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../audio/audio_capture_service.dart' show InputDevice;
+import '../../audio/audio_capture_service.dart'
+    show AudioCaptureState, InputDevice;
 import '../../core/errors.dart';
 import '../../core/models.dart';
 import '../../data/repositories.dart';
@@ -271,6 +272,9 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
           resolution = const InputDeviceResolution();
         }
       }
+      // The screen may have closed while the settings / devices loaded: no
+      // microphone is opened then.
+      if (!ref.mounted) return;
       final mic = factory(
         micCaptureOptions(
           farField: _farField,
@@ -284,6 +288,12 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
           'يحتاج إنصاتو إلى إذن الميكروفون لتسجيل البصمة الصوتية. اسمح به من '
           'إعدادات الجهاز ثم أعد المحاولة.',
         );
+      }
+      if (!ref.mounted) {
+        // Disposed meanwhile (onDispose ran before _mic was set or while it
+        // was awaited): release here, nothing else will.
+        await _release();
+        return;
       }
       mic.selectDevice(resolution.device);
       _subs
@@ -299,9 +309,20 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
           mic.errors.listen((e) {
             if (ref.mounted) _set(state.copyWith(warningAr: e.messageAr));
           }),
-        );
+        )
+        ..add(mic.states.listen(_onCaptureState));
       await mic.start();
-      if (!ref.mounted) return;
+      if (!ref.mounted) {
+        // The screen closed while the microphone was starting: stop and
+        // release it, or it would keep capturing with no owner.
+        try {
+          await mic.stop();
+        } catch (_) {
+          // Released below.
+        }
+        await _release();
+        return;
+      }
       _set(
         state.copyWith(
           phase: EnrollmentPhase.recording,
@@ -319,6 +340,25 @@ class VoiceEnrollmentController extends Notifier<EnrollmentState> {
     } catch (e) {
       await _release();
       _fail(e is InsatoException ? e.messageAr : VoiceStrings.analysisFailed);
+    }
+  }
+
+  /// The platform can end or pause the take on its own (an error, a phone
+  /// call, a route change): frames stop, so the auto-stop would never fire.
+  void _onCaptureState(AudioCaptureState s) {
+    if (!ref.mounted || !state.isRecording || _stopping) return;
+    switch (s) {
+      case AudioCaptureState.idle || AudioCaptureState.stopping:
+        // Ended by the platform: analyse what was captured.
+        unawaited(stop());
+      case AudioCaptureState.paused:
+        _set(state.copyWith(warningAr: VoiceStrings.capturePaused));
+      case AudioCaptureState.recording:
+        if (state.warningAr == VoiceStrings.capturePaused) {
+          _set(state.copyWith(clearWarning: true));
+        }
+      case AudioCaptureState.starting:
+        break;
     }
   }
 

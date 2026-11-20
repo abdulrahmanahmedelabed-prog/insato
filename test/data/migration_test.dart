@@ -106,6 +106,15 @@ void main() {
     await db.close();
   });
 
+  test('v3 → v4 and v1 → v4 produce exactly the v4 schema', () async {
+    for (final from in [1, 2, 3]) {
+      final schema = await verifier.schemaAt(from);
+      final db = AppDatabase.forExecutor(schema.newConnection());
+      await verifier.migrateAndValidate(db, 4);
+      await db.close();
+    }
+  });
+
   test('a fresh database is created at the current version', () async {
     final schema = await verifier.schemaAt(AppDatabase.currentSchemaVersion);
     final db = AppDatabase.forExecutor(schema.newConnection());
@@ -146,7 +155,17 @@ void main() {
     expect(sp.lowConfidence, isFalse);
     expect(sp.voiceDevice, isNull);
 
-    // The new tables exist, are empty and usable with foreign keys on.
+    // v1 action items became open, untouched tasks of their meeting.
+    final backfilled = (await TaskRepository(db).getAll()).single;
+    expect(backfilled.task, 'مهمة');
+    expect(backfilled.sourceMeetingId, 'm1');
+    expect(backfilled.ownerSpeakerId, 'sp1');
+    expect(backfilled.ownerText, 'أحمد');
+    expect(backfilled.status, TaskStatus.open);
+    expect(backfilled.createdAt, meeting.createdAt);
+    expect(backfilled.updatedAt, backfilled.createdAt);
+
+    // The new tables exist and are usable with foreign keys on.
     expect(await GlossaryRepository(db).getGlobal(), isEmpty);
     final task = await TaskRepository(db)
         .create(task: 'متابعة', ownerSpeakerId: 'sp1', sourceMeetingId: 'm1');
@@ -154,6 +173,46 @@ void main() {
     await MeetingRepository(db)
         .updateContext('m1', const MeetingContext(agenda: ['بند 1']));
     expect((await MeetingRepository(db).get('m1'))!.context.agenda, ['بند 1']);
+  });
+
+  test('the task backfill dedupes and skips corrupt minutes', () async {
+    final schema = await verifier.schemaAt(1);
+    final raw = schema.rawDatabase;
+    seedV1(raw);
+    final minutes = jsonEncode({
+      'title': 'ت',
+      'summary': 'م',
+      'action_items': [
+        {'task': 'إرسال التقرير', 'owner': 'سارة', 'evidence': [1]},
+        {'task': ' إرسال  التقرير ', 'owner': null},
+        {'task': 'حجز القاعة', 'due': 'الأحد'},
+        {'task': '  '},
+      ],
+    });
+    raw.execute(
+      'INSERT INTO meetings (id, title, created_at, duration_ms, status, '
+      'audio_path, minutes_json, error_message) '
+      'VALUES (?, ?, ?, 0, ?, NULL, ?, NULL)',
+      ['m2', 'ثان', 1700000500000, 'ready', minutes],
+    );
+    raw.execute(
+      'INSERT INTO meetings (id, title, created_at, duration_ms, status, '
+      'audio_path, minutes_json, error_message) '
+      'VALUES (?, ?, ?, 0, ?, NULL, ?, NULL)',
+      ['m3', 'تالف', 1700000600000, 'ready', '{not json'],
+    );
+    final db = AppDatabase.forExecutor(schema.newConnection());
+    addTearDown(db.close);
+    final tasks = await TaskRepository(db).getAll(sourceMeetingId: 'm2');
+    expect(tasks.map((t) => t.task).toSet(), {'إرسال التقرير', 'حجز القاعة'});
+    final m2 = (await MeetingRepository(db).get('m2'))!;
+    expect(tasks.every((t) => t.createdAt == m2.createdAt), isTrue);
+    expect(tasks.firstWhere((t) => t.task == 'حجز القاعة').dueText, 'الأحد');
+    expect(
+      tasks.firstWhere((t) => t.task == 'إرسال التقرير').evidenceSegmentIds,
+      [1],
+    );
+    expect(await TaskRepository(db).getAll(sourceMeetingId: 'm3'), isEmpty);
   });
 
   test('an on-disk v1 file is upgraded when opened by the app', () async {
