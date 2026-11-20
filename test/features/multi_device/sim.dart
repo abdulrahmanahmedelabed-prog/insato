@@ -16,7 +16,8 @@ Float32List syntheticSpeech(int samples, {int seed = 1, double gain = 0.3}) {
     for (var k = 0; k < len && i + k < samples; k++) {
       final env = math.sin(math.pi * k / len);
       final t = (i + k) / 16000;
-      final h = math.sin(2 * math.pi * f0 * t) +
+      final h =
+          math.sin(2 * math.pi * f0 * t) +
           0.5 * math.sin(4 * math.pi * f0 * t) +
           0.3 * (r.nextDouble() * 2 - 1);
       out[i + k] = (amp * env * h).toDouble();

@@ -26,7 +26,10 @@ void main() {
   for (final lagMs in [-180.0, -37.5, 0.0, 12.25, 95.0, 240.0]) {
     test('measures a ${lagMs}ms lag through noise and gain differences', () {
       final d = (lagMs * 16).round();
-      final ref = mixSignals([(1, speech), (1, noise(speech.length))], speech.length);
+      final ref = mixSignals([
+        (1, speech),
+        (1, noise(speech.length)),
+      ], speech.length);
       final sig = mixSignals([
         (0.3, _delayed(speech, d)),
         (1, noise(speech.length, seed: 99, level: 0.004)),

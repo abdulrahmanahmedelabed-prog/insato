@@ -382,4 +382,65 @@ void main() {
       expect(ofl, contains('SIL OPEN FONT LICENSE Version 1.1'));
     });
   });
+
+  group('v1.2 C multi-device recording', () {
+    test('Android: LAN, mDNS and camera permissions; camera optional', () {
+      final manifest = _read('android/app/src/main/AndroidManifest.xml');
+      for (final p in const [
+        'INTERNET',
+        'ACCESS_NETWORK_STATE',
+        'ACCESS_WIFI_STATE',
+        'CHANGE_WIFI_MULTICAST_STATE',
+        'CAMERA',
+      ]) {
+        expect(
+          manifest,
+          contains('<uses-permission android:name="android.permission.$p" />'),
+          reason: '$p is missing',
+        );
+      }
+      expect(
+        RegExp(
+          r'<uses-feature\s+android:name="android\.hardware\.camera"\s+'
+          r'android:required="false"\s*/>',
+        ).hasMatch(manifest),
+        isTrue,
+      );
+      final activity = _read(
+        'android/app/src/main/kotlin/app/insato/insato/MainActivity.kt',
+      );
+      expect(activity, contains('"insato/battery"'));
+      expect(activity, contains('BATTERY_PROPERTY_CAPACITY'));
+    });
+
+    test('iOS: local network, Bonjour service, camera; battery channel', () {
+      final plist = _read('ios/Runner/Info.plist');
+      expect(
+        _plistValue(plist, 'NSLocalNetworkUsageDescription'),
+        contains('الشبكة المحلية'),
+      );
+      expect(
+        _plistValue(plist, 'NSBonjourServices'),
+        contains('<string>_insato._tcp</string>'),
+      );
+      expect(
+        _plistValue(plist, 'NSCameraUsageDescription'),
+        contains('الكاميرا'),
+      );
+      final delegate = _read('ios/Runner/AppDelegate.swift');
+      expect(delegate, contains('"insato/battery"'));
+      expect(delegate, contains('isBatteryMonitoringEnabled'));
+    });
+
+    test('Windows: battery channel is built and registered (ASCII source)', () {
+      final cmake = _read('windows/runner/CMakeLists.txt');
+      expect(cmake, contains('"battery_channel.cpp"'));
+      final window = _read('windows/runner/flutter_window.cpp');
+      expect(window, contains('std::make_unique<BatteryChannel>'));
+      final channel = _read('windows/runner/battery_channel.cpp');
+      expect(channel, contains('"insato/battery"'));
+      expect(channel, contains('GetSystemPowerStatus'));
+      expect(channel.codeUnits.every((c) => c < 0x80), isTrue);
+    });
+  });
 }

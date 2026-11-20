@@ -78,7 +78,15 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 - Permissions declared in `android/app/src/main/AndroidManifest.xml`:
   `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` (headset mic routing), `INTERNET`,
   `WAKE_LOCK`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MICROPHONE`,
-  `POST_NOTIFICATIONS`.
+  `POST_NOTIFICATIONS`; for v1.2 multi-device meetings also
+  `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`
+  (mDNS discovery through `bonsoir` / NSD) and `CAMERA` (QR scanning with
+  `mobile_scanner`; `android.hardware.camera` is declared *not required*).
+  The guest's battery is read by `MainActivity.kt` (MethodChannel
+  `insato/battery`).
+- Multi-device meetings use plain `ws://` sockets on the LAN (all payloads
+  are encrypted end to end by the app). Dart's own socket stack is not
+  subject to `usesCleartextTraffic="false"`, which stays as is.
 - The `flutter_foreground_task` service is declared with
   `foregroundServiceType="microphone"`. Android 14+ only allows starting it
   **while the app is visible and after `RECORD_AUDIO` has been granted** —
@@ -127,6 +135,19 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 - `Info.plist` contains `NSMicrophoneUsageDescription` (Arabic + English),
   `UIBackgroundModes = [audio]` (recording continues with the screen locked),
   display name **إنصاتو**, and `CFBundleLocalizations = [ar, en]`.
+- v1.2 multi-device meetings: `NSLocalNetworkUsageDescription` (iOS asks
+  for local-network access the first time a host advertises / a guest
+  browses or connects), `NSBonjourServices = [_insato._tcp]` (required for
+  Bonjour advertising and browsing since iOS 14) and
+  `NSCameraUsageDescription` (QR scanning). If the user refuses local
+  network access, discovery finds nothing and connections fail: re-enable it
+  under *Settings → Privacy & Security → Local Network → إنصاتو*.
+- `ITSAppUsesNonExemptEncryption` is `false`. The multi-device link uses
+  standard ChaCha20-Poly1305 / HKDF / PBKDF2 (package:cryptography) to
+  protect the user's own data; confirm the export-compliance answer for
+  your distribution before submitting to the App Store.
+- `AppDelegate.swift` also registers the `insato/battery` MethodChannel
+  (UIDevice battery level) for guest devices.
 - **permission_handler** compiles each permission in only when enabled. With
   SwiftPM this is automatic: its `Package.swift` reads `Info.plist` and enables
   `PERMISSION_MICROPHONE` because `NSMicrophoneUsageDescription` is present.
@@ -192,6 +213,27 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
   generic and may belong to other apps); new exports go to LocalAppData.
 - The release output is the whole folder `build\windows\x64\runner\Release\`
   (exe + DLLs + `data\`); distribute it as one unit.
+- **Firewall (v1.2 multi-device meetings).** The host listens for guests on
+  a TCP port chosen at random (shown on the hosting screen) and advertises it
+  over mDNS (UDP 5353). The first time a Windows PC hosts, Windows Defender
+  Firewall asks whether to allow `insato.exe`: allow it on **private**
+  networks, otherwise phones cannot connect (joining *from* Windows needs no
+  rule). To fix a refused prompt: *Windows Security → Firewall & network
+  protection → Allow an app through firewall → insato.exe → Private*, or in
+  an elevated shell:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "Insato multi-device" -Direction Inbound `
+    -Program "C:\path\to\insato.exe" -Action Allow -Profile Private
+  ```
+
+  The Wi-Fi network must be set to *Private* (a *Public* profile blocks
+  inbound connections), and networks with client isolation (guest Wi-Fi,
+  some hotels) do not let devices reach each other at all — use a phone
+  hotspot instead. Windows has no camera QR scanner in Insato: guests on
+  Windows type the code and address shown by the host.
+- `windows/runner/battery_channel.cpp` serves the `insato/battery`
+  MethodChannel (`GetSystemPowerStatus`).
 
 ## 5. Continuous integration
 

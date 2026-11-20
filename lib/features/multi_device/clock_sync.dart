@@ -75,7 +75,11 @@ class CaptureTimestamper {
   /// Records that the frame ending at sample index [endIndex] arrived at
   /// [arrivalUs]; returns the CPU time of sample [endIndex] − [length]
   /// (the frame's first sample).
-  int stamp({required int endIndex, required int length, required int arrivalUs}) {
+  int stamp({
+    required int endIndex,
+    required int length,
+    required int arrivalUs,
+  }) {
     final candidate = arrivalUs - endIndex * kUsPerSample;
     final a = anchorUs;
     if (a != null && candidate - a > resetJumpUs) {

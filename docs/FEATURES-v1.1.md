@@ -238,7 +238,7 @@ width** so it uses a large Windows window well.
 Goal: Insato becomes *the* app for official Arabic minutes. Scheduled after
 v1.1 is verified on real devices.
 
-## Status (v1.2 A + B + D, 2026-11-20)
+## Status (v1.2 A + B + C + D, 2026-11-20)
 
 | Item | State | Reachable from |
 |---|---|---|
@@ -262,7 +262,16 @@ v1.1 is verified on real devices.
 | D actions | Dismiss; «تم الإلغاء رسمياً» → annotation of the earlier resolution (`resolution_annotations`) shown on its meeting (minutes tab and official screen) — never an edit, so approved minutes keep their content, version and hash; task findings «تأكيد»; undo | Tab «التناقضات»; earlier meeting's minutes tab / «المحضر الرسمي» |
 | D live mode | Off by default (Settings → «فحص التناقضات أثناء التسجيل»); every 4 minutes while the recording screen is open, the latest lines + related earlier items go to the selected engine **only if it is a cloud engine already accepted**; subtle banner + details sheet; nothing stored | Recording screen |
 | D not done | Annotations are not printed in exports (PDF / Word) yet; live checks pause while the recording screen is not shown | — |
-| C | Not started | — |
+| C entry points | Host: devices menu above the meetings list → «اجتماع متعدد الأجهزة» (lobby: QR + 12-character code + LAN address, joined devices, «بدء الاجتماع» runs the normal new-meeting flow). Guest: same menu → «الانضمام كجهاز إضافي» (QR scan on Android / iOS via mobile_scanner; Windows: code + address typed; nearby hosts via mDNS) → minimal guest screen (status, level, leave) | Meetings screen app bar |
+| C transport & security | WebSocket (dart:io) on the LAN, no internet; ChaCha20-Poly1305 with keys from PBKDF2(code) + HKDF(per-connection nonces); per-direction message counters (replay / reorder rejected); unauthenticated peers closed without an answer; replayed hello refused; max 4 guests; removed devices refused for the meeting | `secure_channel.dart`, `host_server.dart`, `guest_client.dart` |
+| C discovery | mDNS / DNS-SD `_insato._tcp` via package:bonsoir (Android NSD, Apple Bonjour, Windows DNS-SD); QR / manual address always work | `discovery.dart` |
+| C audio | 16 kHz mono PCM16 frames (≤ 100 ms) with capture timestamps, lossless delta + Rice compression (no maintained cross-platform Opus encoder for Dart) | `pcm_codec.dart` |
+| C clock alignment | NTP-style ping / pong every second (min-RTT filtering, offset + drift regression), capture timestamps by sliding minimum, refined by envelope cross-correlation of overlapping audio (accepted only when strong and unambiguous, applied when two estimates agree); simulated skewed clocks (5.3 s offset, 80 ppm drift, 110 ms unknown input latency, network jitter) align to < 3 ms (target < 20 ms) | `clock_sync.dart`, `alignment.dart`, `fusion_engine_test.dart` |
+| C fusion | VAD runs on an SNR-weighted, gain-matched mix delayed 600 ms (one device: the host signal unchanged); per VAD segment the best-SNR device's audio goes to ASR and embedding; SNR per device is the segment's `ChannelProfile` | `fusion_engine.dart`, `multi_device_source.dart` |
+| C diarization cue | "Nearest device" proximity: `SpeakerTracker` shifts close calls between local clusters by ≤ 0.05 (never the thresholds); offline refinement clusters voice + proximity (`augmentWithChannelCue`, β² = 0.08) with voice-only centroids; no profile → unchanged behaviour | `channel_cue.dart`, tracker, clustering |
+| C robustness | A guest dropping out leaves the meeting running; the guest retries for 3 minutes and returns to its channel; joins / drops / returns / removals and per-device counters are stored with the meeting (`multi_device_log:<id>`) and shown on its minutes tab | `meeting_log.dart`, `MultiDeviceLogCard` |
+| C status UI | Per guest: connected, battery (own MethodChannel: Android BatteryManager, iOS UIDevice, Windows GetSystemPowerStatus — battery_plus conflicts with wakelock_plus), network quality (RTT, loss, late frames), level meter, alignment, remove | Lobby + recording screen card |
+| C not done | Opus (no maintained encoder); guests do not buffer audio while disconnected (the gap is logged instead); the archive WAV is the live mix (re-processing from audio uses it, not per-device audio); a guest records only its microphone (not Windows system audio); real-device verification pending (see report) | — |
 
 
 ## A — Official Arabic minutes (المحضر الرسمي المعتمد)

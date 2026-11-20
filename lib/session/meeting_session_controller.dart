@@ -35,6 +35,7 @@ import '../core/models.dart';
 import '../core/time_format.dart';
 import '../data/repositories.dart';
 import '../data/secure_settings.dart';
+import '../diarization/channel_cue.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
 import '../features/voice/voice_devices.dart'
@@ -684,6 +685,7 @@ class SessionPipeline {
   final Set<String> _created = {};
   final Set<String> _recognized = {};
   final Map<String, String> _lastSegmentBySpeaker = {};
+  final Map<String, ChannelProfile> _channelProfiles = {};
   final List<(int, Completer<void>)> _capacityWaiters = [];
   void Function(int done, int total)? _drainProgress;
 
@@ -726,7 +728,11 @@ class SessionPipeline {
   /// Only the segment's duration is retained here: the samples are owned by
   /// the processor from now on (the isolate processor copies them right
   /// away), so a backlog does not keep every segment's audio twice.
-  void submit(SpeechSegment segment) {
+  ///
+  /// [channels] (v1.2 C, multi-device meetings): SNR per device of this
+  /// segment, used as a speaker cue and kept per stored segment
+  /// ([channelProfiles]).
+  void submit(SpeechSegment segment, {ChannelProfile? channels}) {
     if (_aborted) return;
     _submitted++;
     final durationMs = segment.durationMs;
@@ -738,9 +744,13 @@ class SessionPipeline {
           onError: (Object e) =>
               _Outcome.failed(_asInsato(e, 'تعذّر تفريغ أحد مقاطع الكلام.')),
         );
-    _tail = _tail.then((_) => _apply(durationMs, outcome));
+    _tail = _tail.then((_) => _apply(durationMs, outcome, channels));
     onChanged?.call();
   }
+
+  /// Stored segment id → SNR per device (multi-device meetings only).
+  Map<String, ChannelProfile> get channelProfiles =>
+      Map.unmodifiable(_channelProfiles);
 
   /// Completes when at most [maxPending] segments are waiting (used to
   /// throttle fast producers such as re-processing a file).
@@ -781,7 +791,11 @@ class SessionPipeline {
   /// True once [abort] was called.
   bool get isAborted => _aborted;
 
-  Future<void> _apply(int durationMs, Future<_Outcome> outcome) async {
+  Future<void> _apply(
+    int durationMs,
+    Future<_Outcome> outcome, [
+    ChannelProfile? channels,
+  ]) async {
     try {
       final o = _aborted
           ? null
@@ -807,6 +821,7 @@ class SessionPipeline {
         startMs: r.startMs,
         endMs: r.endMs,
         embedding: r.embedding,
+        channels: channels,
       );
       var speaker = await _resolveSpeaker(assignment);
       if (_aborted) return;
@@ -836,6 +851,7 @@ class SessionPipeline {
       }
       _nextIndex++;
       _stored++;
+      if (channels != null) _channelProfiles[stored.id] = channels;
       _current = speaker;
       final sid = stored.speakerId;
       if (sid != null) _lastSegmentBySpeaker[sid] = stored.id;
@@ -966,6 +982,24 @@ abstract interface class SessionInputDeviceReporter {
   /// Audio source of the running take: `mic`, `system` or `both`
   /// (`AppSettingsData.audioSource*`).
   String get activeAudioSource;
+}
+
+/// Optional interface of a [SessionAudioSource] that records several devices
+/// at once (v1.2 C multi-device meetings).
+abstract interface class SessionSegmentFuser {
+  /// The audio to transcribe for the VAD [segment] (the device that heard it
+  /// best) and the segment's SNR per device (null unless ≥ 2 devices
+  /// covered it).
+  ({SpeechSegment segment, ChannelProfile? channels}) fuseSegment(
+    SpeechSegment segment,
+  );
+
+  /// Called once the take is drained, before speaker refinement: stores the
+  /// take's device log and [segmentProfiles] (stored segment id → SNRs).
+  Future<void> finishTake({
+    required String meetingId,
+    required Map<String, ChannelProfile> segmentProfiles,
+  });
 }
 
 /// [SessionAudioSource] over the app's [AudioCaptureService].
@@ -1797,6 +1831,16 @@ class MeetingSessionController extends Notifier<SessionState> {
         return;
       }
     }
+    final audio = s.audio;
+    if (audio is SessionSegmentFuser) {
+      try {
+        final fused = (audio as SessionSegmentFuser).fuseSegment(segment);
+        s.pipeline.submit(fused.segment, channels: fused.channels);
+        return;
+      } catch (_) {
+        // Fusion is an improvement only: transcribe the mix.
+      }
+    }
     s.pipeline.submit(segment);
   }
 
@@ -1938,6 +1982,18 @@ class MeetingSessionController extends Notifier<SessionState> {
       s.segmentsSub = null;
 
       await meetings.setDuration(id, duration.inMilliseconds);
+      final audio = s.audio;
+      if (audio is SessionSegmentFuser) {
+        // v1.2 C: device log + per-segment SNRs, read by the refinement.
+        await _safe(
+          () => (audio as SessionSegmentFuser)
+              .finishTake(
+                meetingId: id,
+                segmentProfiles: s.pipeline.channelProfiles,
+              )
+              .timeout(const Duration(seconds: 10)),
+        );
+      }
       final archive = s.archivePath;
       final hasArchive = archive != null && await File(archive).exists();
       if (archive != null && !hasArchive) {

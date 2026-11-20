@@ -13,6 +13,9 @@ import '../../session/providers.dart';
 import '../../ui/navigation.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../multi_device/multi_device_providers.dart'
+    show guestSessionControllerProvider;
+import '../multi_device/strings.dart' show MS;
 import '../official/official_service.dart'
     show officialMinutesServiceProvider;
 import 'context_logic.dart';
@@ -31,6 +34,11 @@ Future<void> startNewMeetingWithContext(
 ) async {
   if (ref.read(meetingSessionControllerProvider).isActive) {
     await openRecordingScreen(context);
+    return;
+  }
+  // v1.2 C: the microphone is busy streaming to another meeting's host.
+  if (ref.read(guestSessionControllerProvider).isActive) {
+    showSnack(context, MS.busyGuest, error: true);
     return;
   }
   var consentGiven = false;

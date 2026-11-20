@@ -52,14 +52,22 @@ void main() {
 
     test('foreign or malformed payloads are rejected', () {
       expect(JoinInfo.tryParse('https://example.com'), isNull);
-      expect(JoinInfo.tryParse('insato://join?v=2&s=a&a=1.2.3.4&p=1&k=K7QM2XPA9DTR'),
-          isNull);
-      expect(JoinInfo.tryParse('insato://join?v=1&s=a&a=1.2.3.4&p=0&k=K7QM2XPA9DTR'),
-          isNull);
-      expect(JoinInfo.tryParse('insato://join?v=1&s=a&a=1.2.3.4&p=5&k=short'),
-          isNull);
-      expect(JoinInfo.tryParse('insato://join?v=1&s=a&a=&p=5&k=K7QM2XPA9DTR'),
-          isNull);
+      expect(
+        JoinInfo.tryParse('insato://join?v=2&s=a&a=1.2.3.4&p=1&k=K7QM2XPA9DTR'),
+        isNull,
+      );
+      expect(
+        JoinInfo.tryParse('insato://join?v=1&s=a&a=1.2.3.4&p=0&k=K7QM2XPA9DTR'),
+        isNull,
+      );
+      expect(
+        JoinInfo.tryParse('insato://join?v=1&s=a&a=1.2.3.4&p=5&k=short'),
+        isNull,
+      );
+      expect(
+        JoinInfo.tryParse('insato://join?v=1&s=a&a=&p=5&k=K7QM2XPA9DTR'),
+        isNull,
+      );
       expect(JoinInfo.tryParse('%%%'), isNull);
     });
   });

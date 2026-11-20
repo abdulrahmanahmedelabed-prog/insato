@@ -223,7 +223,11 @@ class DeviceTimelineEvent {
   final int atMs;
 
   /// JSON form.
-  Map<String, Object?> toJson() => {'id': channelId, 'kind': kind, 'at_ms': atMs};
+  Map<String, Object?> toJson() => {
+    'id': channelId,
+    'kind': kind,
+    'at_ms': atMs,
+  };
 
   /// Parses [toJson] output.
   static DeviceTimelineEvent? fromJson(Object? j) {
@@ -307,11 +311,7 @@ class _Channel {
 /// Result of [FusionEngine.fuseSegment].
 class FusedSegment {
   /// Creates a result.
-  const FusedSegment({
-    required this.segment,
-    this.channelId,
-    this.profile,
-  });
+  const FusedSegment({required this.segment, this.channelId, this.profile});
 
   /// The segment to transcribe (samples of the chosen channel).
   final SpeechSegment segment;
@@ -326,10 +326,7 @@ class FusedSegment {
 /// See the file header.
 class FusionEngine {
   /// Creates an engine; [clockOf] returns a guest's clock estimate.
-  FusionEngine({
-    this.config = const FusionConfig(),
-    required this.clockOf,
-  }) {
+  FusionEngine({this.config = const FusionConfig(), required this.clockOf}) {
     _host = _Channel(kHostChannelId, config)..connected = true;
     _channels[kHostChannelId] = _host;
   }
@@ -452,7 +449,11 @@ class FusionEngine {
     ch.lastSeq = math.max(ch.lastSeq, f.seq);
     final n = f.samples.length;
     final clock = clockOf(id);
-    if (_paused || _flushed || n == 0 || clock == null || !clock.isReady ||
+    if (_paused ||
+        _flushed ||
+        n == 0 ||
+        clock == null ||
+        !clock.isReady ||
         _hostClock.anchorUs == null) {
       st.framesDropped++;
       return;

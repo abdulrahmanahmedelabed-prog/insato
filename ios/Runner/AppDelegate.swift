@@ -25,6 +25,32 @@ import flutter_foreground_task
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    registerBatteryChannel(engineBridge.pluginRegistry)
+  }
+
+  /// v1.2 C: a guest device reports its battery to the meeting host
+  /// (lib/features/multi_device/battery.dart).
+  private func registerBatteryChannel(_ registry: FlutterPluginRegistry) {
+    guard let registrar = registry.registrar(forPlugin: "InsatoBattery") else { return }
+    let channel = FlutterMethodChannel(
+      name: "insato/battery", binaryMessenger: registrar.messenger())
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "read" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let device = UIDevice.current
+      device.isBatteryMonitoringEnabled = true
+      let level = device.batteryLevel
+      var reply: [String: Any] = [:]
+      if level >= 0 { reply["level"] = Int((level * 100).rounded()) }
+      switch device.batteryState {
+      case .charging, .full: reply["charging"] = true
+      case .unplugged: reply["charging"] = false
+      default: break
+      }
+      result(reply)
+    }
   }
 
   /// Keeps meeting audio, transcripts, voiceprints and downloaded models out

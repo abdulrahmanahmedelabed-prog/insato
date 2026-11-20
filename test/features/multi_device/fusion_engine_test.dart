@@ -67,16 +67,19 @@ FusionEngine _simulate({
   // Host frames.
   for (var k = 1; host.startUs + k * 100000 < endUs; k++) {
     final captureEnd = host.startUs + k * 100000;
-    final at = captureEnd + host.inputLatencyUs + host.jitter.next(host.jitterUs);
+    final at =
+        captureEnd + host.inputLatencyUs + host.jitter.next(host.jitterUs);
     final start = (k - 1) * frame;
     final src = host.acousticStart + start;
-    events.add(_Event(at, () {
-      final out = engine.addHostFrame(
-        Float32List.sublistView(host.signal, src, src + frame),
-        host.cpu(at),
-      );
-      emitted?.addAll(out);
-    }));
+    events.add(
+      _Event(at, () {
+        final out = engine.addHostFrame(
+          Float32List.sublistView(host.signal, src, src + frame),
+          host.cpu(at),
+        );
+        emitted?.addAll(out);
+      }),
+    );
   }
   // Guest frames and pings.
   guests.forEach((id, g) {
@@ -84,46 +87,56 @@ FusionEngine _simulate({
     var seq = 0;
     for (var k = 1; g.startUs + k * 100000 < endUs; k++) {
       final captureEnd = g.startUs + k * 100000;
-      final guestArrival = captureEnd + g.inputLatencyUs + g.jitter.next(g.jitterUs);
+      final guestArrival =
+          captureEnd + g.inputLatencyUs + g.jitter.next(g.jitterUs);
       final hostArrival = guestArrival + 3000 + net.next(netJitterUs);
       final start = (k - 1) * frame;
       final src = g.acousticStart + start;
       final s = seq++;
       final off = offline[id];
-      final isOffline = off != null && captureEnd >= off.$1 && captureEnd < off.$2;
-      events.add(_Event(guestArrival, () {
-        final captureUs = framer.stamp(
-          endIndex: start + frame,
-          length: frame,
-          arrivalUs: g.cpu(guestArrival),
-        );
-        if (isOffline) return;
-        events.add(_Event(hostArrival, () {
-          engine.addGuestFrame(
-            id,
-            GuestAudioFrame(
-              seq: s,
-              startIndex: start,
-              captureUs: captureUs,
-              samples: Float32List.sublistView(g.signal, src, src + frame),
-            ),
-            host.cpu(hostArrival),
+      final isOffline =
+          off != null && captureEnd >= off.$1 && captureEnd < off.$2;
+      events.add(
+        _Event(guestArrival, () {
+          final captureUs = framer.stamp(
+            endIndex: start + frame,
+            length: frame,
+            arrivalUs: g.cpu(guestArrival),
           );
-        }));
-        events.sort((a, b) => a.atUs.compareTo(b.atUs));
-      }));
+          if (isOffline) return;
+          events.add(
+            _Event(hostArrival, () {
+              engine.addGuestFrame(
+                id,
+                GuestAudioFrame(
+                  seq: s,
+                  startIndex: start,
+                  captureUs: captureUs,
+                  samples: Float32List.sublistView(g.signal, src, src + frame),
+                ),
+                host.cpu(hostArrival),
+              );
+            }),
+          );
+          events.sort((a, b) => a.atUs.compareTo(b.atUs));
+        }),
+      );
     }
     for (var t1 = 200000; t1 < endUs; t1 += 1000000) {
       final d1 = 2000 + net.next(6000);
       final d2 = 2000 + net.next(6000) + net.spike(0.1, 40000);
-      events.add(_Event(t1 + d1 + d2, () {
-        clocks[id]!.add(ClockSample(
-          host.cpu(t1),
-          g.cpu(t1 + d1),
-          g.cpu(t1 + d1) + 100,
-          host.cpu(t1 + d1 + d2 + 100),
-        ));
-      }));
+      events.add(
+        _Event(t1 + d1 + d2, () {
+          clocks[id]!.add(
+            ClockSample(
+              host.cpu(t1),
+              g.cpu(t1 + d1),
+              g.cpu(t1 + d1) + 100,
+              host.cpu(t1 + d1 + d2 + 100),
+            ),
+          );
+        }),
+      );
     }
   });
   events.sort((a, b) => a.atUs.compareTo(b.atUs));
@@ -154,17 +167,23 @@ void main() {
     final out = <Float32List>[];
     final x = room.sublist(0, _rate * 3);
     for (var k = 0; k < 30; k++) {
-      out.addAll(engine.addHostFrame(
-        Float32List.sublistView(x, k * 1600, (k + 1) * 1600),
-        k * 100000,
-      ));
+      out.addAll(
+        engine.addHostFrame(
+          Float32List.sublistView(x, k * 1600, (k + 1) * 1600),
+          k * 100000,
+        ),
+      );
     }
     final emittedBeforeFlush = out.fold(0, (a, f) => a + f.length);
     expect(emittedBeforeFlush, _rate * 3 - const FusionConfig().latencySamples);
     out.addAll(engine.flush());
     final all = Float32List.fromList([for (final f in out) ...f]);
     expect(all, x);
-    final seg = SpeechSegment(index: 0, startMs: 500, samples: x.sublist(8000, 24000));
+    final seg = SpeechSegment(
+      index: 0,
+      startMs: 500,
+      samples: x.sublist(8000, 24000),
+    );
     final fused = engine.fuseSegment(seg);
     expect(identical(fused.segment, seg), isTrue);
     expect(fused.profile, isNull);
@@ -180,11 +199,15 @@ void main() {
       seed: 1,
     );
     final guest = _Device(
-      signal: mixSignals([(0.5, room), (1, noise(room.length, seed: 9))], room.length),
+      signal: mixSignals([
+        (0.5, room),
+        (1, noise(room.length, seed: 9)),
+      ], room.length),
       startUs: 1300000,
       inputLatencyUs: 110000, // Android-like input latency, unknown to NTP
       offsetUs: 5300000,
       driftPpm: 80,
+      jitterUs: 25000,
       seed: 2,
     );
     final engine = _simulate(host: host, guests: {'g1': guest}, seconds: 60);
@@ -202,13 +225,19 @@ void main() {
   test('without cross-correlation the network estimate alone is off by the '
       'latency difference', () {
     final host = _Device(
-      signal: room, startUs: 2000000, inputLatencyUs: 20000,
-      offsetUs: 0, driftPpm: 0,
+      signal: room,
+      startUs: 2000000,
+      inputLatencyUs: 20000,
+      offsetUs: 0,
+      driftPpm: 0,
     );
     final guest = _Device(
       signal: Float32List(room.length), // silent: nothing to correlate
-      startUs: 1300000, inputLatencyUs: 110000,
-      offsetUs: -2000000, driftPpm: -40, seed: 4,
+      startUs: 1300000,
+      inputLatencyUs: 110000,
+      offsetUs: -2000000,
+      driftPpm: -40,
+      seed: 4,
     );
     final engine = _simulate(host: host, guests: {'g1': guest}, seconds: 20);
     final err = _placementErrorMs(engine, 'g1', host, guest);
@@ -231,11 +260,19 @@ void main() {
       guestSig[_rate * 2 + i] += 0.6 * cal[i];
     }
     final host = _Device(
-      signal: hostSig, startUs: 0, inputLatencyUs: 20000, offsetUs: 0, driftPpm: 0,
+      signal: hostSig,
+      startUs: 0,
+      inputLatencyUs: 20000,
+      offsetUs: 0,
+      driftPpm: 0,
     );
     final guest = _Device(
-      signal: guestSig, startUs: 0, inputLatencyUs: 60000,
-      offsetUs: 900000, driftPpm: 30, seed: 3,
+      signal: guestSig,
+      startUs: 0,
+      inputLatencyUs: 60000,
+      offsetUs: 900000,
+      driftPpm: 30,
+      seed: 3,
     );
     final engine = _simulate(host: host, guests: {'g1': guest}, seconds: 44);
     SpeechSegment seg(int fromS, int toS) => SpeechSegment(
@@ -246,8 +283,10 @@ void main() {
     final fa = engine.fuseSegment(seg(21, 25));
     expect(fa.channelId, 'g1');
     expect(fa.profile!.nearest, 'g1');
-    expect(fa.profile!.snrDb['g1']! - fa.profile!.snrDb[kHostChannelId]!,
-        greaterThan(6));
+    expect(
+      fa.profile!.snrDb['g1']! - fa.profile!.snrDb[kHostChannelId]!,
+      greaterThan(6),
+    );
     // The ASR gets the guest's audio, not the mix.
     final gStart = 21 * _rate;
     final st = engine.statsOf('g1')!;
@@ -265,11 +304,19 @@ void main() {
 
   test('a guest dropping out leaves a gap; the meeting goes on', () {
     final host = _Device(
-      signal: room, startUs: 0, inputLatencyUs: 20000, offsetUs: 0, driftPpm: 0,
+      signal: room,
+      startUs: 0,
+      inputLatencyUs: 20000,
+      offsetUs: 0,
+      driftPpm: 0,
     );
     final guest = _Device(
-      signal: mixSignals([(0.7, room)], room.length), startUs: 0,
-      inputLatencyUs: 40000, offsetUs: 100000, driftPpm: 10, seed: 8,
+      signal: mixSignals([(0.7, room)], room.length),
+      startUs: 0,
+      inputLatencyUs: 40000,
+      offsetUs: 100000,
+      driftPpm: 10,
+      seed: 8,
     );
     final emitted = <Float32List>[];
     final engine = _simulate(
@@ -290,33 +337,65 @@ void main() {
     final total = emitted.fold(0, (a, f) => a + f.length);
     expect(total, engine.hostSamples - const FusionConfig().latencySamples);
     // During the outage only the host covers the audio.
-    final gap = engine.fuseSegment(SpeechSegment(
-      index: 1, startMs: 23000, samples: Float32List(_rate * 2)));
+    final gap = engine.fuseSegment(
+      SpeechSegment(index: 1, startMs: 23000, samples: Float32List(_rate * 2)),
+    );
     expect(gap.channelId, kHostChannelId);
     expect(gap.profile, isNull);
-    final before = engine.fuseSegment(SpeechSegment(
-      index: 2, startMs: 12000, samples: Float32List(_rate * 2)));
+    final before = engine.fuseSegment(
+      SpeechSegment(index: 2, startMs: 12000, samples: Float32List(_rate * 2)),
+    );
     expect(before.profile, isNotNull);
     expect(engine.statsOf('g1')!.toJson()['received'], greaterThan(0));
   });
 
   test('pause: guest audio is ignored until resume', () {
-    final engine = FusionEngine(clockOf: (_) => ClockSyncEstimator()
-      ..add(const ClockSample(0, 0, 0, 0))
-      ..add(const ClockSample(1, 1, 1, 1))
-      ..add(const ClockSample(2, 2, 2, 2)));
+    final engine = FusionEngine(
+      clockOf: (_) => ClockSyncEstimator()
+        ..add(const ClockSample(0, 0, 0, 0))
+        ..add(const ClockSample(1, 1, 1, 1))
+        ..add(const ClockSample(2, 2, 2, 2)),
+    );
     engine.addHostFrame(Float32List(1600), 100000);
     engine.pause();
-    engine.addGuestFrame('g', GuestAudioFrame(
-      seq: 0, startIndex: 0, captureUs: 50000, samples: Float32List(1600)), 0);
+    engine.addGuestFrame(
+      'g',
+      GuestAudioFrame(
+        seq: 0,
+        startIndex: 0,
+        captureUs: 50000,
+        samples: Float32List(1600),
+      ),
+      0,
+    );
     expect(engine.statsOf('g')!.framesDropped, 1);
     engine.resume(1000000);
     engine.addHostFrame(Float32List(1600), 1100000);
-    engine.addGuestFrame('g', GuestAudioFrame(
-      seq: 1, startIndex: 1600, captureUs: 500000, samples: Float32List(1600)), 0);
-    expect(engine.statsOf('g')!.framesDropped, 2, reason: 'captured while paused');
-    engine.addGuestFrame('g', GuestAudioFrame(
-      seq: 2, startIndex: 3200, captureUs: 1050000, samples: Float32List(1600)), 0);
+    engine.addGuestFrame(
+      'g',
+      GuestAudioFrame(
+        seq: 1,
+        startIndex: 1600,
+        captureUs: 500000,
+        samples: Float32List(1600),
+      ),
+      0,
+    );
+    expect(
+      engine.statsOf('g')!.framesDropped,
+      2,
+      reason: 'captured while paused',
+    );
+    engine.addGuestFrame(
+      'g',
+      GuestAudioFrame(
+        seq: 2,
+        startIndex: 3200,
+        captureUs: 1050000,
+        samples: Float32List(1600),
+      ),
+      0,
+    );
     expect(engine.statsOf('g')!.framesDropped, 2);
   });
 
@@ -325,8 +404,12 @@ void main() {
     r.write(0, Float32List.fromList(List.filled(800, 0.5)));
     expect(r.coverage(0, 800), 1);
     expect(r.coverage(0, 1600), 0.5);
-    expect(r.read(790, 20, fallback: Float32List.fromList(List.filled(20, -1)))
-        .sublist(9, 11), [0.5, -1]);
+    expect(
+      r
+          .read(790, 20, fallback: Float32List.fromList(List.filled(20, -1)))
+          .sublist(9, 11),
+      [0.5, -1],
+    );
     // Writing a full ring later invalidates the old blocks.
     r.write(1600, Float32List.fromList(List.filled(1600, 0.25)));
     expect(r.coverage(0, 800), 0);

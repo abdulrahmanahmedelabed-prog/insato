@@ -171,8 +171,11 @@ class SecureChannel {
     if (key == null || frame.length < 1 + _nonceLength + _macLength) {
       return null;
     }
-    final counter = ByteData.sublistView(frame, 1, 1 + _nonceLength)
-        .getUint64(4);
+    final counter = ByteData.sublistView(
+      frame,
+      1,
+      1 + _nonceLength,
+    ).getUint64(4);
     if (counter <= _receiveCounter) return null;
     final out = _open(frame, kPhaseSession, key, _receiveDir);
     if (out != null) _receiveCounter = counter;
@@ -195,11 +198,16 @@ class SecureChannel {
       nonce: nonce,
       aad: _aad(phase, dir),
     );
-    final out = Uint8List(1 + _nonceLength + box.cipherText.length + _macLength);
+    final out = Uint8List(
+      1 + _nonceLength + box.cipherText.length + _macLength,
+    );
     out[0] = phase;
     out.setRange(1, 1 + _nonceLength, nonce);
-    out.setRange(1 + _nonceLength, 1 + _nonceLength + box.cipherText.length,
-        box.cipherText);
+    out.setRange(
+      1 + _nonceLength,
+      1 + _nonceLength + box.cipherText.length,
+      box.cipherText,
+    );
     out.setRange(out.length - _macLength, out.length, box.mac.bytes);
     return out;
   }
@@ -219,7 +227,11 @@ class SecureChannel {
       mac: Mac(Uint8List.sublistView(frame, frame.length - _macLength)),
     );
     try {
-      final clear = _aead.decryptSync(box, secretKey: key, aad: _aad(phase, dir));
+      final clear = _aead.decryptSync(
+        box,
+        secretKey: key,
+        aad: _aad(phase, dir),
+      );
       return clear is Uint8List ? clear : Uint8List.fromList(clear);
     } on SecretBoxAuthenticationError {
       return null;

@@ -27,6 +27,7 @@ import '../../features/system_audio/mixed_session_audio_source.dart'
 import '../../features/consistency/consistency.dart' show LiveConsistencyBanner;
 import '../../features/tasks/tasks.dart' show OpenTasksBanner;
 import '../../features/voice/mic_capture.dart' show capturePlatformProvider;
+import '../../features/multi_device/widgets.dart' show MultiDeviceRecordingCard;
 import '../../features/voice/mic_settings.dart' show MicDeviceChip;
 import '../../features/voice/strings.dart' show VoiceStrings;
 import '../../session/meeting_session_controller.dart';
@@ -316,6 +317,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: LiveConsistencyBanner(meetingId: meetingId),
           ),
+        const MultiDeviceRecordingCard(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+        ),
         _ControlPanel(
           state: s,
           currentSpeaker: s.currentSpeakerId == null

@@ -114,9 +114,15 @@ class MultiDeviceGuest {
     WebSocket? ws;
     Object? lastError;
     for (final h in hosts) {
-      final uri = Uri(scheme: 'ws', host: h, port: port, path: kMultiDevicePath);
+      final uri = Uri(
+        scheme: 'ws',
+        host: h,
+        port: port,
+        path: kMultiDevicePath,
+      );
       try {
-        ws = await WebSocket.connect(uri.toString()).timeout(attemptTimeout);
+        ws = await runInSocketZone(() => WebSocket.connect(uri.toString()))
+            .timeout(attemptTimeout);
         break;
       } catch (e) {
         lastError = e;
@@ -129,6 +135,9 @@ class MultiDeviceGuest {
     final cn = secureRandomBytes(16);
     final cnText = base64Encode(cn);
     final incoming = StreamIterator<Object?>(ws.cast<Object?>());
+    // Writing a close frame to a connection the peer already closed makes
+    // dart:io report an uncaught error: only close what is still open.
+    var peerClosed = false;
     try {
       ws.add(
         channel.sealHandshake(
@@ -142,6 +151,7 @@ class MultiDeviceGuest {
         ),
       );
       final has = await incoming.moveNext().timeout(attemptTimeout * 2);
+      peerClosed = !has;
       if (!has || incoming.current is! List<int>) {
         throw const JoinException(JoinFailure.rejectedOrWrongCode);
       }
@@ -176,11 +186,11 @@ class MultiDeviceGuest {
       return guest;
     } on JoinException {
       await incoming.cancel();
-      await ws.close();
+      if (!peerClosed) await ws.close();
       rethrow;
     } catch (e) {
       await incoming.cancel();
-      await ws.close();
+      if (!peerClosed) await ws.close();
       if (e is TimeoutException || e is FormatException) {
         throw JoinException(JoinFailure.rejectedOrWrongCode, '$e');
       }
@@ -200,6 +210,7 @@ class MultiDeviceGuest {
   Timer? _idle;
   int _lastHeardUs = 0;
   bool _closed = false;
+  bool _peerClosed = false;
   bool _kicked = false;
   JoinFailure? _failure;
   int _seq = 0;
@@ -223,8 +234,10 @@ class MultiDeviceGuest {
           _onData(it.current);
           if (_closed) break;
         }
+        if (!_closed) _peerClosed = true;
       } catch (_) {
         // Connection error: treated as lost below.
+        _peerClosed = true;
       }
       await _end(lost: true);
     }());
@@ -233,7 +246,9 @@ class MultiDeviceGuest {
   void _onData(Object? data) {
     final arrival = _nowUs();
     if (data is! List<int>) return;
-    final m = _channel.open(data is Uint8List ? data : Uint8List.fromList(data));
+    final m = _channel.open(
+      data is Uint8List ? data : Uint8List.fromList(data),
+    );
     if (m == null || m.isEmpty || m[0] != MsgType.control) return;
     _lastHeardUs = arrival;
     final Map<String, Object?> j;
@@ -314,10 +329,12 @@ class MultiDeviceGuest {
     _closed = true;
     _idle?.cancel();
     if (lost && !_kicked) _emit(GuestConnectionLost(_failure));
-    try {
-      await _ws.close(WebSocketStatus.normalClosure);
-    } catch (_) {
-      // Already closed.
+    if (!_peerClosed) {
+      try {
+        await _ws.close(WebSocketStatus.normalClosure);
+      } catch (_) {
+        // Already closed.
+      }
     }
     // Not awaited: a single-subscription controller nobody listens to
     // never delivers its done event.
@@ -381,7 +398,9 @@ class GuestAudioFramer {
     _index += samples.length;
     final out = <(int, int, Float32List)>[];
     for (var o = 0; o < samples.length; o += maxSamples) {
-      final n = samples.length - o < maxSamples ? samples.length - o : maxSamples;
+      final n = samples.length - o < maxSamples
+          ? samples.length - o
+          : maxSamples;
       out.add((
         start + o,
         firstUs + (o * kUsPerSample).round(),

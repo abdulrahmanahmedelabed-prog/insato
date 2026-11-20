@@ -1,7 +1,6 @@
 // Real dart:io sockets on localhost: handshake, encryption, admission
 // rules, audio, clock pings, removal and the end of the meeting.
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -42,57 +41,64 @@ Future<MultiDeviceGuest> _join(
   platform: 'android',
 );
 
-Future<T> _next<T extends HostEvent>(MultiDeviceHost h, {String? id}) =>
-    h.events
-        .where((e) => e is T && (id == null || e.guestId == id))
-        .cast<T>()
-        .first
-        .timeout(const Duration(seconds: 5));
+Future<T> _next<T extends HostEvent>(MultiDeviceHost h, {String? id}) => h
+    .events
+    .where((e) => e is T && (id == null || e.guestId == id))
+    .cast<T>()
+    .first
+    .timeout(const Duration(seconds: 5));
 
 Matcher _joinFailure(JoinFailure f) =>
     isA<JoinException>().having((e) => e.failure, 'failure', f);
 
 void main() {
-  test('a guest joins, streams audio, answers pings and reports status',
-      () async {
-    final host = await _host();
-    addTearDown(host.close);
-    expect(JoinInfo.tryParse(host.joinInfo.toUri())!.port, host.port);
-    final connected = _next<GuestConnected>(host);
-    host.setState(HostState.recording, title: 'اجتماع اللجنة');
-    final guest = await _join(host, 'g1');
-    addTearDown(guest.close);
-    expect(guest.welcome.sessionId, host.joinInfo.sessionId);
-    expect(guest.welcome.state, HostState.recording);
-    final c = await connected;
-    expect(c.info.name, 'جهاز g1');
-    expect(host.guests.single.id, 'g1');
+  test(
+    'a guest joins, streams audio, answers pings and reports status',
+    () async {
+      final host = await _host();
+      addTearDown(host.close);
+      expect(JoinInfo.tryParse(host.joinInfo.toUri())!.port, host.port);
+      final connected = _next<GuestConnected>(host);
+      host.setState(HostState.recording, title: 'اجتماع اللجنة');
+      final guest = await _join(host, 'g1');
+      addTearDown(guest.close);
+      expect(guest.welcome.sessionId, host.joinInfo.sessionId);
+      expect(guest.welcome.state, HostState.recording);
+      final c = await connected;
+      expect(c.info.name, 'جهاز g1');
+      expect(host.guests.single.id, 'g1');
 
-    final states = guest.events.where((e) => e is HostStateChanged).cast<HostStateChanged>().first;
-    expect((await states).title, 'اجتماع اللجنة');
+      final states = guest.events
+          .where((e) => e is HostStateChanged)
+          .cast<HostStateChanged>()
+          .first;
+      expect((await states).title, 'اجتماع اللجنة');
 
-    final clock = await _next<GuestClock>(host);
-    expect(clock.sample.rttUs, greaterThanOrEqualTo(0));
-    expect(clock.sample.t4, greaterThanOrEqualTo(clock.sample.t1));
+      final clock = await _next<GuestClock>(host);
+      expect(clock.sample.rttUs, greaterThanOrEqualTo(0));
+      expect(clock.sample.t4, greaterThanOrEqualTo(clock.sample.t1));
 
-    final audio = _next<GuestAudio>(host);
-    final samples = syntheticSpeech(1600);
-    guest.sendAudio(startIndex: 3200, captureUs: 123456, samples: samples);
-    final a = await audio;
-    expect(a.frame.seq, 0);
-    expect(a.frame.startIndex, 3200);
-    expect(a.frame.captureUs, 123456);
-    expect(a.frame.samples[100], closeTo(samples[100], 1e-4));
+      final audio = _next<GuestAudio>(host);
+      final samples = syntheticSpeech(1600);
+      guest.sendAudio(startIndex: 3200, captureUs: 123456, samples: samples);
+      final a = await audio;
+      expect(a.frame.seq, 0);
+      expect(a.frame.startIndex, 3200);
+      expect(a.frame.captureUs, 123456);
+      expect(a.frame.samples[100], closeTo(samples[100], 1e-4));
 
-    final status = _next<GuestStatusReport>(host);
-    guest.sendStatus(const GuestStatus(battery: 80, charging: false, level: 0.3));
-    expect((await status).status.battery, 80);
+      final status = _next<GuestStatusReport>(host);
+      guest.sendStatus(
+        const GuestStatus(battery: 80, charging: false, level: 0.3),
+      );
+      expect((await status).status.battery, 80);
 
-    final gone = _next<GuestDisconnected>(host);
-    await guest.close();
-    expect((await gone).removed, isFalse);
-    expect(host.guests, isEmpty);
-  });
+      final gone = _next<GuestDisconnected>(host);
+      await guest.close();
+      expect((await gone).removed, isFalse);
+      expect(host.guests, isEmpty);
+    },
+  );
 
   test('a wrong pairing code is refused without an answer', () async {
     final host = await _host();
@@ -155,32 +161,34 @@ void main() {
     expect(await answered(), isFalse, reason: 'replay gets nothing');
   });
 
-  test('at most four guests; a returning guest replaces its old link',
-      () async {
-    final host = await _host();
-    addTearDown(host.close);
-    final guests = <MultiDeviceGuest>[];
-    for (var i = 1; i <= 4; i++) {
-      final c = _next<GuestConnected>(host, id: 'g$i');
-      guests.add(await _join(host, 'g$i'));
-      await c;
-    }
-    addTearDown(() async {
-      for (final g in guests) {
-        await g.close();
+  test(
+    'at most four guests; a returning guest replaces its old link',
+    () async {
+      final host = await _host();
+      addTearDown(host.close);
+      final guests = <MultiDeviceGuest>[];
+      for (var i = 1; i <= 4; i++) {
+        final c = _next<GuestConnected>(host, id: 'g$i');
+        guests.add(await _join(host, 'g$i'));
+        await c;
       }
-    });
-    await expectLater(
-      _join(host, 'g5'),
-      throwsA(_joinFailure(JoinFailure.full)),
-    );
-    // g2 reconnects (e.g. after a Wi-Fi hiccup) while its old link lingers.
-    final back = _next<GuestConnected>(host, id: 'g2');
-    final again = await _join(host, 'g2');
-    guests.add(again);
-    await back;
-    expect(host.guests.length, 4);
-  });
+      addTearDown(() async {
+        for (final g in guests) {
+          await g.close();
+        }
+      });
+      await expectLater(
+        _join(host, 'g5'),
+        throwsA(_joinFailure(JoinFailure.full)),
+      );
+      // g2 reconnects (e.g. after a Wi-Fi hiccup) while its old link lingers.
+      final back = _next<GuestConnected>(host, id: 'g2');
+      final again = await _join(host, 'g2');
+      guests.add(again);
+      await back;
+      expect(host.guests.length, 4);
+    },
+  );
 
   test('a removed guest is told, and cannot come back', () async {
     final host = await _host();
@@ -188,7 +196,10 @@ void main() {
     final c = _next<GuestConnected>(host);
     final guest = await _join(host, 'g1');
     await c;
-    final kicked = guest.events.where((e) => e is GuestKicked).cast<GuestKicked>().first;
+    final kicked = guest.events
+        .where((e) => e is GuestKicked)
+        .cast<GuestKicked>()
+        .first;
     final gone = _next<GuestDisconnected>(host);
     await host.remove('g1');
     expect((await gone).removed, isTrue);
@@ -205,7 +216,8 @@ void main() {
     final guest = await _join(host, 'g1');
     await c;
     final ended = guest.events
-        .where((e) => e is HostStateChanged).cast<HostStateChanged>()
+        .where((e) => e is HostStateChanged)
+        .cast<HostStateChanged>()
         .firstWhere((e) => e.state == HostState.ended);
     await host.close();
     await ended.timeout(const Duration(seconds: 5));

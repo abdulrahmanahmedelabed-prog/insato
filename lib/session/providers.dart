@@ -23,6 +23,8 @@ import '../data/repositories_v11.dart';
 import '../data/secure_settings.dart';
 import '../features/context/session_keyterms.dart';
 import '../features/local_llm/local_minutes_backends.dart';
+import '../features/multi_device/multi_device_providers.dart'
+    show multiDeviceAwareSource, multiDeviceLogStoreProvider;
 import '../features/official/official_service.dart'
     show officialMinutesServiceProvider;
 import '../features/profiles/profile_service.dart'
@@ -351,8 +353,12 @@ final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
 /// microphone (remembered input device, far field, fallback to the default
 /// microphone), mixed with the system audio on Windows (F13) as the
 /// audio-source setting says.
+///
+/// v1.2 C: while a multi-device lobby is open the source also records the
+/// guests ([multiDeviceAwareSource]).
 final sessionAudioSourceProvider = Provider<SessionAudioSource>(
-  (ref) => ref.watch(mixedSessionAudioSourceProvider),
+  (ref) =>
+      multiDeviceAwareSource(ref, ref.watch(mixedSessionAudioSourceProvider)),
 );
 
 /// Resolves the key of the microphone a new recording will use
@@ -403,6 +409,9 @@ final postProcessorProvider = Provider<PostProcessor>((ref) {
     // F16: a deleted meeting leaves the stored profiles.
     onMeetingDeleted: (id) =>
         ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),
+    // v1.2 C: nearest-device cue of multi-device meetings.
+    channelProfilesOf: (id) =>
+        ref.read(multiDeviceLogStoreProvider).profiles(id),
   );
 });
 

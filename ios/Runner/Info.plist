@@ -35,6 +35,14 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>يستخدم إنصاتو الميكروفون لتسجيل الاجتماع وتفريغه نصياً والتعرّف على المتحدثين بأصواتهم، ثم إعداد محضر الاجتماع. — Insato records the meeting through the microphone to transcribe it, recognise speakers by voice and write the minutes.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>يستخدم إنصاتو الشبكة المحلية لربط الهواتف والحواسيب في القاعة كميكروفونات لاجتماع واحد. يبقى الصوت داخل الشبكة المحلية مشفّراً. — Insato uses the local network to connect the phones and computers in the room as microphones of one meeting; audio stays on the local network, encrypted.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_insato._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>يستخدم إنصاتو الكاميرا لمسح رمز الانضمام إلى اجتماع متعدد الأجهزة فقط، ولا يلتقط صوراً. — Insato uses the camera only to scan the code that joins a multi-device meeting.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIBackgroundModes</key>

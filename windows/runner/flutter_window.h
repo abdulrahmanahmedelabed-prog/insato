@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "battery_channel.h"
 #include "system_audio_channel.h"
 #include "win32_window.h"
 
@@ -32,6 +33,7 @@ class FlutterWindow : public Win32Window {
 
   // F13: system-audio (WASAPI loopback) channels.
   std::unique_ptr<SystemAudioChannel> system_audio_;
+  std::unique_ptr<BatteryChannel> battery_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

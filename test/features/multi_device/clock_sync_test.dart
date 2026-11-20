@@ -81,7 +81,11 @@ void main() {
       }
       final before = ts.anchorUs!;
       for (var k = 21; k <= 25; k++) {
-        ts.stamp(endIndex: k * 1600, length: 1600, arrivalUs: k * 100000 + 5000000);
+        ts.stamp(
+          endIndex: k * 1600,
+          length: 1600,
+          arrivalUs: k * 100000 + 5000000,
+        );
       }
       expect(ts.anchorUs! - before, closeTo(5000000, 1));
       ts.reset();

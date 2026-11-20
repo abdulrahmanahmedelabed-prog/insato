@@ -97,7 +97,24 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 تُرسَل أي بيانات اجتماعات. قد تسجّل GitHub وHugging Face عنوان IP الخاص بالطلب
 وفق سياستهما.
 
-### د) ما لا يحدث أبداً
+### د) الاجتماع متعدد الأجهزة (الإصدار 1.2) — داخل الشبكة المحلية فقط
+عند تفعيل «اجتماع متعدد الأجهزة» تعمل هواتف وحواسيب أخرى ميكروفوناتٍ إضافية:
+- يُرسل كل جهاز إضافي صوت الميكروفون (16 كيلوهرتز) مباشرةً إلى جهاز المضيف عبر
+  شبكة Wi-Fi المحلية، **ولا يمرّ الصوت بأي خادم ولا يخرج إلى الإنترنت**. لا
+  حاجة إلى اتصال بالإنترنت أصلاً.
+- الاتصال مشفّر وموثَّق (ChaCha20-Poly1305) بمفتاح مشتق من رمز الانضمام الذي
+  يظهر على جهاز المضيف (رمز QR أو 12 حرفاً)؛ لا يُرسل الرمز عبر الشبكة، ويُرفض
+  أي جهاز لا يعرفه، وتُرفض الرسائل المعادة. حدٌّ أقصى أربعة أجهزة، ويستطيع
+  المضيف إزالة أي جهاز.
+- الجهاز الإضافي لا يحفظ الصوت ولا النص؛ يُحفظ الاجتماع (التسجيل المدمج
+  والنص والمحضر) على جهاز المضيف فقط، ومعه سجل بالأجهزة المشاركة وأوقات
+  انقطاعها ونسبة وضوح الصوت لكل جهاز في كل مقطع (للمساعدة على تمييز المتحدثين).
+- يُعلن جهاز المضيف عن الاجتماع على الشبكة المحلية (mDNS/Bonjour) باسم
+  الجهاز ومعرّف الجلسة فقط، طوال فتح شاشة الاستضافة.
+- يرسل الجهاز الإضافي إلى المضيف مستوى البطارية (إن توفر) ومستوى الصوت لعرض
+  حالته.
+
+### هـ) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
 - لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
@@ -148,8 +165,11 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 | الإشعارات (Android 13+) | إظهار إشعار «جارٍ التسجيل» أثناء عمل التسجيل في الخلفية |
 | الإنترنت | تنزيل النماذج، وكتابة المحضر، والتفريغ السحابي الاختياري |
 | منع السكون / الخدمة المقدّمة / الصوت في الخلفية | استمرار التسجيل مع إطفاء الشاشة |
+| الشبكة المحلية (iOS)، حالة الشبكة وWi-Fi والبث المتعدد (Android) | الاجتماع متعدد الأجهزة: الاتصال بين الأجهزة في القاعة واكتشافها على الشبكة المحلية |
+| الكاميرا (اختياري) | مسح رمز QR للانضمام إلى اجتماع متعدد الأجهزة فقط؛ لا تُلتقط صور ولا تُحفظ |
 
-لا يطلب إنصاتو الوصول إلى جهات الاتصال أو الموقع أو الصور أو الكاميرا.
+لا يطلب إنصاتو الوصول إلى جهات الاتصال أو الموقع أو الصور، ولا يستخدم
+الكاميرا إلا لمسح رمز الانضمام عند طلبك.
 
 ## 6. الأطفال
 
@@ -272,7 +292,27 @@ releases, and the on-device minutes models (GGUF) from Hugging Face. This is
 a download only; no meeting data is sent. GitHub and Hugging Face may log the
 requesting IP address under their own policies.
 
-### d) What never happens
+### d) Multi-device meetings (version 1.2) — local network only
+With "اجتماع متعدد الأجهزة" other phones and computers act as extra
+microphones:
+- Each extra device sends its microphone audio (16 kHz) directly to the
+  host device over the local Wi-Fi network. **Audio never goes through a
+  server or out to the internet**; no internet connection is needed at all.
+- The link is encrypted and authenticated (ChaCha20-Poly1305) with a key
+  derived from the join code shown on the host (QR code or 12 characters).
+  The code is never sent over the network; devices that do not know it are
+  refused and replayed messages are rejected. At most four devices; the
+  host can remove any of them.
+- An extra device stores neither audio nor text. The meeting (fused
+  recording, transcript, minutes) is stored on the host only, together with
+  a log of the participating devices, when they dropped out, and each
+  device's signal-to-noise ratio per segment (used to tell speakers apart).
+- While the hosting screen is open the host announces the meeting on the
+  local network (mDNS/Bonjour) with the device name and session id only.
+- Extra devices report their battery level (when available) and input level
+  to the host for its status display.
+
+### e) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.
 - No Insato server: the app talks directly to the services above with your keys.
 - No selling or sharing of data with anyone else.
@@ -328,8 +368,11 @@ request.
 | Notifications (Android 13+) | The "recording in progress" notification during background recording |
 | Internet | Model downloads, minutes generation, optional cloud transcription |
 | Wake lock / foreground service / background audio | Keep recording with the screen off |
+| Local network (iOS); network state, Wi-Fi state, multicast (Android) | Multi-device meetings: connecting and discovering the devices in the room on the local network |
+| Camera (optional) | Only to scan the QR code that joins a multi-device meeting; no photos are taken or stored |
 
-Insato does not request access to contacts, location, photos or the camera.
+Insato does not request access to contacts, location or photos, and uses
+the camera only to scan a join code when you ask it to.
 
 ## 6. Children
 

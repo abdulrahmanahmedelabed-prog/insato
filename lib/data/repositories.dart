@@ -117,6 +117,10 @@ int pickSpeakerColor(Iterable<int> usedColors) {
 /// value as the post-processor's `kVoiceprintLedgerPrefix`).
 const String kVoiceprintLedgerKeyPrefix = 'voiceprint_ledger:';
 
+/// Settings key prefix of a multi-device meeting's log (v1.2 C,
+/// `lib/features/multi_device/meeting_log.dart`), deleted with the meeting.
+const String kMultiDeviceLogKeyPrefix = 'multi_device_log:';
+
 /// Prefix of a ledger tombstone value. Never starts a real (UUID) speaker id.
 const String kVoiceprintLedgerTombstonePrefix = '!';
 
@@ -463,6 +467,10 @@ class MeetingRepository {
     if (row == null) return false;
     final n =
         await (_db.delete(_db.meetings)..where((m) => m.id.equals(id))).go();
+    // v1.2 C: the multi-device log (devices, gaps, per-segment SNRs).
+    await (_db.delete(_db.settings)
+          ..where((s) => s.key.equals('$kMultiDeviceLogKeyPrefix$id')))
+        .go();
     final stored = row.audioPath;
     if (stored != null && stored.isNotEmpty) {
       for (final path in await _audioCandidates(stored)) {

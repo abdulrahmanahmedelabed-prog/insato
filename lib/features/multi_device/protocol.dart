@@ -22,12 +22,38 @@
 //
 // Pure Dart.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'fusion_engine.dart' show GuestAudioFrame;
 import 'pcm_codec.dart';
+
+/// Runs [body] (which opens sockets) in a zone that swallows the errors
+/// dart:io reports *after* a connection ended — e.g. the automatic reply to
+/// a close frame racing the peer's TCP close ("Cannot add event after
+/// closing"). Sockets deliver such errors to the zone they were created in,
+/// where nothing can catch them; the result of [body] itself is passed on.
+Future<T> runInSocketZone<T>(Future<T> Function() body) {
+  final c = Completer<T>();
+  runZonedGuarded(
+    () {
+      body().then(
+        (v) {
+          if (!c.isCompleted) c.complete(v);
+        },
+        onError: (Object e, StackTrace st) {
+          if (!c.isCompleted) c.completeError(e, st);
+        },
+      );
+    },
+    (e, st) {
+      if (!c.isCompleted) c.completeError(e, st);
+    },
+  );
+  return c.future;
+}
 
 /// Protocol version.
 const int kMultiDeviceProtocolVersion = 1;

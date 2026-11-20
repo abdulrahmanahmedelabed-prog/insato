@@ -51,6 +51,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
 | Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
+| Multi-device (v1.2 C) | LAN WebSocket (dart:io) + ChaCha20-Poly1305 (package:cryptography), mDNS (bonsoir), QR (qr / mobile_scanner), pure-Dart clock sync, cross-correlation and fusion | No internet, no server; works on Android, iOS and Windows; fully unit-tested on localhost |
 | Database | drift schema v6 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`; v1.2 D: `consistency_findings`, `resolution_annotations`), migrations tested from v1–v5 snapshots (real v5 data upgraded in `test/data/migration_test.dart`) | Upgrades keep all data |
 
 ## Module layout (`lib/`)
@@ -95,7 +96,7 @@ lib/
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -174,6 +175,53 @@ is displayed next to them. Re-checks replace only *open* findings; the
 `finding_key` (kind + both sides) keeps dismissed / confirmed decisions.
 Deleting the checked meeting deletes its findings and annotations; deleting
 the earlier meeting nulls `prior_meeting_id` (the snapshot stays readable).
+
+## v1.2 multi-device recording (C)
+
+`lib/features/multi_device/` (strings `MS`). Several phones / PCs in the room
+act as one microphone array; everything stays on the LAN.
+
+```
+ guest device                                   host device
+ mic → GuestAudioFramer (sample index →         MultiDeviceHost (HttpServer + WebSocket)
+       CPU time, sliding minimum)                 │ ping/pong every 1 s ──► ClockSyncEstimator (per guest, in MultiDeviceHub)
+     → PCM16 + delta/Rice → ChaCha20-Poly1305 ──► │ audio frames (seq, start index, capture µs)
+                                                  ▼
+ host mic / system audio (mixed source) ─────► FusionEngine
+                                                  • guest frame → host clock (NTP offset + drift)
+                                                    → host sample index (host CaptureTimestamper)
+                                                    + AlignmentTracker correction (envelope xcorr)
+                                                  • one ring buffer per device on the host timeline
+                                                  • VAD stream = SNR-weighted, gain-matched mix,
+                                                    600 ms behind the host capture (archived)
+                                                  ▼
+                                   VadSegmenter → MeetingSessionController._onSegment
+                                                  → SessionSegmentFuser.fuseSegment: best-SNR device's
+                                                    samples + ChannelProfile (SNR per device)
+                                                  → SessionPipeline.submit(channels:) → SpeakerTracker
+                                   stop → finishTake (MultiDeviceMeetingLog) → PostProcessor.refine
+                                          (channelProfilesOf → refineSpeakers(channelProfiles))
+```
+
+| Piece | File | Notes |
+|---|---|---|
+| Wire protocol | `protocol.dart` | QR payload `insato://join?v=1&s=&a=&p=&k=&n=`, 12-char Crockford pairing code, message types (hello / welcome / reject / ready / audio / control JSON), `runInSocketZone` (late dart:io socket errors) |
+| Security | `secure_channel.dart` | K = PBKDF2-HMAC-SHA256(code, 60 000 it., background isolate); per connection HKDF(K, cn‖sn) → c2s / s2c keys; ChaCha20-Poly1305 frames `[phase][nonce][ct+tag]`; handshake AAD names the direction; session nonces are strictly increasing counters |
+| Host server | `host_server.dart` | Admission: authenticated hello (else closed silently), fresh client nonce, version, not removed, ≤ 4 guests; `ready` proves the connection key; a returning guest replaces its old link; idle timeout 6 s; `setState` (lobby / recording / paused / ended), `remove` |
+| Guest client | `guest_client.dart` | Tries every host address, answers pings (t2 at arrival, t3 at send), streams `sendAudio`, reports `GuestStatus`; `JoinFailure` → Arabic messages |
+| Clocks | `clock_sync.dart` | `MonotonicClock`, `CaptureTimestamper`, `ClockSyncEstimator` (min-RTT filter, least-squares drift over 2 min, ±500 ppm cap) |
+| Alignment | `alignment.dart` | Log-envelope onsets at 1 ms, normalised xcorr ±300 ms with parabolic peak; accept peak ≥ 0.35 and ratio ≥ 1.15; apply when two estimates agree within 3 ms |
+| Fusion | `fusion_engine.dart` | `ChannelRing` (48 s per device, 10 ms validity blocks), elastic placement (contiguous frames within 3 ms stay contiguous), min-statistics noise floors, mix weights ∝ SNR power (50 ms smoothing), `fuseSegment`, `DeviceTimelineEvent`s |
+| Session source | `multi_device_source.dart` | Wraps the normal session source when a hub is open (`sessionAudioSourceProvider` → `multiDeviceAwareSource`); implements `SessionSegmentFuser`; forwards pause / resume / stop to guests |
+| Hub & views | `hub.dart` | Per-guest clock, battery, level, loss, `networkQualityOf`, alignment feedback; views throttled to 4 Hz |
+| Log | `meeting_log.dart` | `multi_device_log:<meeting id>` in the settings table (devices, events, per-segment profiles); deleted with the meeting (`MeetingRepository.delete`) |
+| Providers | `multi_device_providers.dart` | `MultiDeviceHostController` (lobby; closes itself after a meeting that reached recording ends), hub holder (no dependency cycle with the session), `GuestSessionController` (capture via `guestAudioSourceProvider` + `SessionPlatformHooks`, reconnects every 2 s for 3 min) |
+| Discovery / battery | `discovery.dart`, `battery.dart` | bonsoir `_insato._tcp`; MethodChannel `insato/battery` (MainActivity.kt, AppDelegate.swift, windows/runner/battery_channel.cpp) |
+| UI | `host_lobby_screen.dart`, `guest_screens.dart`, `widgets.dart` | Lobby, join (QR / nearby / manual), guest screen, `GuestTile`, `MultiDeviceRecordingCard` (recording screen), `MultiDeviceLogCard` (minutes tab), `MultiDeviceMenuButton` (meetings app bar) |
+
+Single-device meetings are untouched: without an open hub the session source
+is the usual one; a segment without a `ChannelProfile` leaves the tracker
+and the refinement exactly as before.
 
 Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom
@@ -274,3 +322,7 @@ parsing) are covered by unit tests in `test/`.
   (`MinutesOutcome.postponedKeyUnavailable`), and Settings shows the key
   state as unknown.
 * A recording-consent reminder is shown before the first recording.
+* Multi-device meetings (v1.2 C): guest audio goes only to the host over the
+  LAN, encrypted and authenticated with a key derived from the join code
+  (never transmitted); guests store nothing; the host advertises only its
+  device name and session id over mDNS while the lobby is open.

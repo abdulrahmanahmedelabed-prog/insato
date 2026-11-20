@@ -10,6 +10,15 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Model downloads, Claude API (minutes) and optional Deepgram ASR. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- v1.2 C multi-device meetings: guests connect to the host over the
+         LAN (INTERNET covers sockets), the network state tells which
+         interface is the Wi-Fi, mDNS discovery (bonsoir / NSD) needs the
+         multicast lock, and the QR scanner needs the camera (runtime
+         permission; the feature is optional, see uses-feature below). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <!-- Keep the CPU awake during long meetings (wakelock_plus,
          flutter_foreground_task). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -27,6 +36,10 @@
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="true" />
+    <!-- The camera only scans join codes (typing the code works too). -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <!--
         allowBackup=false / dataExtractionRules / fullBackupContent:

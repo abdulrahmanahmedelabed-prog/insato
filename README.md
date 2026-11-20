@@ -96,6 +96,16 @@
   دون اتصال، ويتحقق محرك المحضر من الحالات الأدق دون أن يُسمح له باختلاق
   مراجع. «تم الإلغاء رسمياً» يضيف تنويهاً إلى القرار السابق في اجتماعه دون
   تعديل محضره المعتمد. وفحص مباشر أثناء التسجيل اختياري (معطّل افتراضياً).
+- **اجتماع متعدد الأجهزة**: حتى أربعة هواتف أو حواسيب في القاعة تعمل
+  ميكروفوناً واحداً. يعرض جهاز المضيف رمز QR ورمزاً من 12 حرفاً، فينضم الآخرون
+  بمسح الرمز (Android وiOS) أو كتابته (ويندوز)، أو باختيار الاجتماع من قائمة
+  الاجتماعات القريبة. يُرسل الصوت مشفّراً عبر شبكة Wi-Fi المحلية مباشرةً دون
+  إنترنت، وتُزامَن ساعات الأجهزة ثم تُضبط بمقارنة الصوت نفسه إلى أقل من 20
+  مللي ثانية، ويُفرَّغ كل مقطع من الجهاز الأقرب إلى المتحدث (أعلى وضوحاً)،
+  ويساعد «أقرب جهاز» على تمييز المتحدثين. إن انقطع جهاز يستمر الاجتماع
+  ويُسجَّل الانقطاع، ويرى المضيف حالة كل جهاز (الاتصال، البطارية، جودة الشبكة،
+  مستوى الصوت) ويستطيع إزالته. من القائمة أعلى قائمة الاجتماعات: «اجتماع متعدد
+  الأجهزة» و«الانضمام كجهاز إضافي».
 
 ## البنية باختصار
 
@@ -107,6 +117,10 @@
   → قاعدة البيانات (SQLite عبر drift) والواجهة الحية
   → عند الإيقاف: تحسين التجميع ← محرك المحضر (Gemini / Claude) ← المحضر ← PDF / Markdown / مشاركة
 ```
+
+في الاجتماع متعدد الأجهزة يُدمج صوت الأجهزة الإضافية (WebSocket مشفّر على
+الشبكة المحلية) مع ميكروفون المضيف قبل كاشف الكلام، ويُفرَّغ كل مقطع من الجهاز
+الأوضح صوتاً.
 
 التفاصيل الكاملة في [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -173,6 +187,8 @@ flutter test
 - مع التفريغ السحابي تُرسَل **مقاطع الصوت** إلى Deepgram.
 - مع محرك «على الجهاز» أو خادم على الجهاز نفسه لا يغادر الجهازَ شيء؛ ملفات
   المتحدثين اختيارية ومحلية وقابلة للحذف.
+- في الاجتماع متعدد الأجهزة لا يغادر صوت الأجهزة الإضافية **الشبكة المحلية**:
+  يصل مشفّراً إلى جهاز المضيف مباشرةً، ولا يُحفظ على الأجهزة الإضافية.
 - لا إعلانات ولا تتبّع ولا تحليلات استخدام.
 
 التفاصيل في [docs/PRIVACY.md](docs/PRIVACY.md).
@@ -305,6 +321,17 @@ language**, transcribes it, identifies speakers **by voice**, and writes
   references. «تم الإلغاء رسمياً» annotates the earlier resolution on its
   meeting without editing approved minutes. Optional live check while
   recording (off by default).
+- **Multi-device recording**: up to four phones or PCs in the room act as
+  one microphone. The host shows a QR code and a 12-character code; others
+  join by scanning it (Android, iOS), typing it (Windows) or picking the
+  meeting from the list of nearby meetings (mDNS). Audio travels encrypted
+  over the local Wi-Fi only, no internet needed; clocks are synchronised by
+  NTP-style pings and refined by cross-correlating the audio itself to
+  under 20 ms; each segment is transcribed from the device nearest the
+  talker (best SNR) and "nearest device" helps tell speakers apart. A device
+  dropping out does not stop the meeting (the gap is logged); the host sees
+  each device's link, battery, network quality and level and can remove it.
+  Entries: the devices menu above the meetings list.
 
 ## Architecture summary
 
@@ -316,6 +343,10 @@ microphone (PCM16, 16 kHz, mono)
   → database (SQLite via drift) + live UI
   → on stop: re-clustering → minutes engine (Gemini / Claude) → minutes → PDF / Markdown / share
 ```
+
+In a multi-device meeting the guests' audio (encrypted WebSocket on the LAN)
+is aligned and fused with the host microphone before the VAD, and each
+segment is transcribed from the clearest device.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
 
@@ -386,6 +417,9 @@ or in source code.
 - With cloud transcription, **audio segments** are sent to Deepgram.
 - With the on-device engine (or a server on the same machine) nothing leaves
   the device; speaker profiles are opt-in, local and deletable.
+- In a multi-device meeting the extra devices' audio never leaves the
+  **local network**: it goes encrypted straight to the host and is not
+  stored on the extra devices.
 - No ads, no tracking, no usage analytics.
 
 Details: [docs/PRIVACY.md](docs/PRIVACY.md).

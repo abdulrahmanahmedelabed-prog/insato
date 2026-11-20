@@ -144,9 +144,8 @@ class MultiDeviceHost {
   }) async {
     final pairing = code ?? randomBase32(kPairingCodeLength);
     final key = await derivePairingKey(pairing, iterations: kdfIterations);
-    final server = await HttpServer.bind(
-      bindAddress ?? InternetAddress.anyIPv4,
-      port,
+    final server = await runInSocketZone(
+      () => HttpServer.bind(bindAddress ?? InternetAddress.anyIPv4, port),
     );
     final addrs = await (localAddresses ?? lanAddresses)();
     final info = JoinInfo(
@@ -487,8 +486,13 @@ class _HostConnection {
 
   void _onDone() {
     if (phase == _Phase.closed) return;
+    _peerClosed = true;
     unawaited(close());
   }
+
+  /// The peer closed the connection: no close frame is written back (dart:io
+  /// reports writes to a closed socket as uncaught errors).
+  bool _peerClosed = false;
 
   Future<void> close() async {
     if (phase == _Phase.closed) return;
@@ -501,16 +505,17 @@ class _HostConnection {
       host._active.remove(id);
       if (!replaced) host._emit(GuestDisconnected(id, removed: removed));
     }
-    try {
-      await ws.close(WebSocketStatus.normalClosure);
-    } catch (_) {
-      // Already gone.
+    if (!_peerClosed) {
+      try {
+        await ws.close(WebSocketStatus.normalClosure);
+      } catch (_) {
+        // Already gone.
+      }
     }
     await _sub?.cancel();
   }
 
-  static String _clip(String s, int n) =>
-      s.length <= n ? s : s.substring(0, n);
+  static String _clip(String s, int n) => s.length <= n ? s : s.substring(0, n);
 }
 
 /// The device's LAN IPv4 addresses (private ranges first; loopback and
