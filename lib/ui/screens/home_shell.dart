@@ -10,6 +10,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/time_format.dart';
 import '../../features/ask/ask.dart' show AskMeetingsScreen;
+import '../../features/meeting_package/meeting_package.dart'
+    show IncomingPackageListener;
 import '../../features/tasks/tasks.dart' show TasksScreen;
 import '../../session/meeting_session_controller.dart';
 import '../../session/providers.dart';
@@ -165,7 +167,11 @@ class HomeShell extends ConsumerWidget {
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
             startNewMeeting(context, ref),
       },
-      child: Focus(autofocus: true, child: scaffold),
+      // Meeting packages opened from other apps (Android / iOS).
+      child: Focus(
+        autofocus: true,
+        child: IncomingPackageListener(child: scaffold),
+      ),
     );
   }
 }

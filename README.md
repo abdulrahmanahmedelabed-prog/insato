@@ -106,6 +106,20 @@
   ويُسجَّل الانقطاع، ويرى المضيف حالة كل جهاز (الاتصال، البطارية، جودة الشبكة،
   مستوى الصوت) ويستطيع إزالته. من القائمة أعلى قائمة الاجتماعات: «اجتماع متعدد
   الأجهزة» و«الانضمام كجهاز إضافي».
+- **حزمة الاجتماع (دون إنترنت ولا شبكة جوال)**: تسجّل مجموعة بعيدة جزءها من
+  الاجتماع على جهاز إنصاتو آخر دون أي اتصال، ثم يُصدَّر من قائمة الاجتماع
+  «تصدير حزمة الاجتماع» ملفاً واحداً بامتداد `.insato` يُنقل بأي وسيلة: كابل
+  USB، أو بلوتوث / المشاركة القريبة / AirDrop، أو بطاقة ذاكرة، أو البريد عند
+  توفر اتصال. يحوي الملف بيانات وصفية والنص بأوقاته والمتحدثين، والتسجيل
+  الصوتي والمحضر اختيارياً، ولكل جزء بصمة SHA-256 تكشف أي تلف أو تعديل،
+  ويمكن تشفيره بكلمة مرور (AES-256-GCM). **بصمات الصوت لا تُضمَّن إلا إذا
+  اخترت ذلك عند التصدير**. على الجهاز الرئيسي: «استيراد حزمة اجتماع» أعلى
+  قائمة الاجتماعات (أو فتح الملف بإنصاتو على Android وiOS) لإنشاء اجتماع
+  جديد منها أو دمجها في اجتماع موجود؛ يُضبط التوقيت بساعتي الجهازين ثم
+  بمطابقة الصوتين حين يكون التسجيلان متداخلين، وتُرتب المقاطع زمنياً مع
+  وسم الجهاز، ويُعتمد النص الأوضح لما سمعه الجهازان معاً دون تكرار. تعرض
+  معاينة الدمج الجهاز والمدة والتداخل وفرق التوقيت، ويمكن التراجع عن الدمج
+  من قائمة الاجتماع، ثم إعادة إنشاء المحضر.
 
 ## البنية باختصار
 
@@ -332,6 +346,22 @@ language**, transcribes it, identifies speakers **by voice**, and writes
   dropping out does not stop the meeting (the gap is logged); the host sees
   each device's link, battery, network quality and level and can remove it.
   Entries: the devices menu above the meetings list.
+- **Meeting packages (no internet, no mobile network)**: a remote group
+  records its part of the meeting offline on its own Insato device; "تصدير
+  حزمة الاجتماع" (meeting menu) writes one `.insato` file to move by any
+  means — USB cable, Bluetooth / Nearby Share / AirDrop, SD card, or e-mail
+  once a connection appears. It holds a manifest, the timed transcript and
+  speakers, optionally the recording and minutes; every entry is listed with
+  its SHA-256 (corruption / tampering is detected) and the file can be
+  password-encrypted (AES-256-GCM, PBKDF2 key). **Voiceprints are included
+  only when the user opts in on export.** On the main device, "استيراد حزمة
+  اجتماع" (meetings list) — or opening the file with Insato on Android /
+  iOS — creates a new meeting or merges it into an existing one: the wall
+  clocks give a first offset, refined by cross-correlating the two
+  recordings when they overlap; segments are ordered by aligned time and
+  tagged with the source device; what both devices heard is kept once
+  (better-SNR text). A preview shows device, duration, overlap and offset;
+  the merge can be undone from the meeting menu; minutes can be regenerated.
 
 ## Architecture summary
 

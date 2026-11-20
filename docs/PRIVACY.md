@@ -114,7 +114,26 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 - يرسل الجهاز الإضافي إلى المضيف مستوى البطارية (إن توفر) ومستوى الصوت لعرض
   حالته.
 
-### هـ) ما لا يحدث أبداً
+### هـ) حزمة الاجتماع (الإصدار 1.2) — ملف تنقله أنت
+- لا يغادر ملف «حزمة الاجتماع» (`.insato`) الجهاز إلا حين تختار مشاركته أو
+  حفظه، ويُنقل بالوسيلة التي تختارها (كابل، بلوتوث، المشاركة القريبة، AirDrop،
+  بطاقة ذاكرة، بريد). لا يمرّ بأي خادم لإنصاتو.
+- **ما يحتويه**: عنوان الاجتماع ووقت بدايته ومدته وسياقه، واسم الجهاز ونوع
+  نظامه، والنص الكامل بأوقاته ولغاته، وأسماء المتحدثين كما على الجهاز المصدِّر،
+  ونسبة وضوح الصوت لكل مقطع؛ و**اختيارياً** التسجيل الصوتي والمحضر.
+- **بصمات الصوت بيانات حيوية (بيومترية)**: لا تُضمَّن في الحزمة إلا إذا فعّلت
+  «تضمين بصمات الصوت» في نافذة التصدير نفسها (معطّل افتراضياً ولا يُحفظ هذا
+  الاختيار). لا تضمّنها إلا بموافقة المتحدثين ولجهة تثق بها.
+- بلا كلمة مرور يستطيع قراءة الملف كل من يحصل عليه. بكلمة مرور تُشفَّر كل
+  محتوياته (AES-256-GCM بمفتاح مشتق من كلمة المرور بـ PBKDF2)؛ لا تُحفظ كلمة
+  المرور في الملف، فأبلغها للمستلم بطريقة أخرى. وتحمل الحزمة بصمة SHA-256 لكل
+  جزء، فيرفض إنصاتو أي ملف تلف أو عُدِّل بعد التصدير.
+- عند الدمج تُضاف محتويات الحزمة إلى الاجتماع على الجهاز الرئيسي (ومنها بصمات
+  الصوت إن ضُمّنت، فتُضاف إلى مكتبة الأصوات أو تُطابق متحدثاً معروفاً)، وتُحفظ
+  نسخة من حال الاجتماع قبل الدمج للتراجع عنه؛ تُحذف هذه النسخة وتسجيلها مع
+  حذف الاجتماع. احذف ملف الحزمة من الأجهزة الوسيطة بعد الاستيراد.
+
+### و) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
 - لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
@@ -312,7 +331,30 @@ microphones:
 - Extra devices report their battery level (when available) and input level
   to the host for its status display.
 
-### e) What never happens
+### e) Meeting packages (version 1.2) — a file you move yourself
+- A meeting package (`.insato`) leaves the device only when you share or
+  save it, and travels by the means you choose (cable, Bluetooth, Nearby
+  Share, AirDrop, SD card, e-mail). It never goes through an Insato server.
+- **What it contains**: the meeting title, start time, duration and context,
+  the device name and platform, the full transcript with timestamps and
+  languages, the speaker names as on the exporting device and a per-segment
+  signal-to-noise ratio; **optionally** the recording and the minutes.
+- **Voiceprints are biometric data**: they are included only when you turn
+  on "تضمين بصمات الصوت" in that export dialog (off by default, never
+  remembered). Include them only with the speakers' consent and for a
+  recipient you trust.
+- Without a password anyone holding the file can read it. With a password
+  every entry is encrypted (AES-256-GCM, key derived with PBKDF2); the
+  password is not stored in the file, so tell it to the recipient another
+  way. Every entry is listed with its SHA-256, so Insato refuses a file that
+  was damaged or modified after export.
+- Merging adds the package's content to the meeting on the main device
+  (including voiceprints when present, which join the voice library or match
+  a known speaker) and keeps a snapshot of the meeting as it was, for undo;
+  the snapshot and its recording are deleted with the meeting. Delete the
+  package file from intermediate devices after importing it.
+
+### f) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.
 - No Insato server: the app talks directly to the services above with your keys.
 - No selling or sharing of data with anyone else.

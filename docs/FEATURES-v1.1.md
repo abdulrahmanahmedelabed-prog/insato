@@ -321,6 +321,30 @@ v1.1 is verified on real devices.
 * Robust to a node dropping out (meeting continues; gap noted); battery and
   network-quality indicators per node.
 
+## E — Offline meeting packages (حزمة الاجتماع)
+
+Status: implemented (`lib/features/meeting_package/`, tests in
+`test/features/meeting_package/`).
+
+* Export from any meeting: one `.insato` file (ZIP) with a manifest (app /
+  schema / format version, device name, start wall clock + monotonic clock
+  at export, meeting id, title), the transcript with timestamps, the local
+  speakers, optionally the WAV recording (remembered per settings) and the
+  minutes; voiceprints only on explicit opt-in (default off). SHA-256 per
+  entry in the manifest; optional password (AES-256-GCM, PBKDF2).
+* Transfer by any means: USB, Bluetooth / Nearby Share / AirDrop, SD card,
+  e-mail. Android "open with" / share and iOS "Open in" deliver the file to
+  the import flow; the file picker works on every platform.
+* Import as a new meeting, or merge into an existing one: offset from the
+  wall clocks refined by audio cross-correlation (multi-device aligner) when
+  the recordings overlap; segments ordered by aligned time with the source
+  device in new speaker names (`متحدث N (جهاز: …)`); duplicates heard by
+  both devices keep the better-SNR text; remote speakers mapped to the voice
+  library by voiceprint (if included) or by user-given name; speaker
+  refinement re-run; offer to regenerate minutes.
+* Merge preview (device, duration, overlap, offset, duplicates, speakers),
+  progress, undo of the last merges (snapshot).
+
 ## D — Contradiction & consistency checker (كاشف التناقضات)
 * Institutional memory: all approved resolutions and tasks (F9) are indexed
   (F8 retrieval).
