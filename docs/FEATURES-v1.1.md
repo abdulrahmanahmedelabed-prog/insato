@@ -7,14 +7,14 @@ Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
 | Feature | State | Reachable from |
 |---|---|---|
 | F1 voice enrollment | Implemented, wired | Voice library «إضافة شخص بصوته», «تحسين البصمة» |
-| F2 glossary | Implemented, wired (Deepgram keyterms, minutes prompt) | Settings → «قاموس المصطلحات»; codes tab (promote jargon) |
+| F2 glossary | Implemented, wired (cloud-ASR prompt, minutes prompt) | Settings → «قاموس المصطلحات»; codes tab (promote jargon) |
 | F3 meeting context | Implemented, wired | «اجتماع جديد» form; minutes tab card; meeting menu |
 | F5 evidence links | Implemented, wired | ▶ chips in minutes, tasks, codes; docked player |
 | F8 ask your meetings | Implemented, wired | Destination «اسأل» |
 | F9 task tracking | Implemented, wired | Destination «المهام»; meeting tab; recording banner |
 | F12 Word export | Implemented, wired | Meeting menu → export sheet |
 | F13 Windows system audio | Implemented, wired; native code not yet built with MSVC | Settings and context form (Windows only) |
-| F14 engines | Gemini (default), Claude, on-device GGUF, local server; wired | Settings → minutes engine; models screen |
+| F14 engines | Gemini (default, free), Groq (free, since 1.2), on-device GGUF, local server; wired (Claude removed in 1.2: free services only) | Settings → minutes engine; models screen |
 | F15 unknown speakers | Partly: auto labels, saved voiceprints (≥ 3 s of speech), rename everywhere, merge; the «low confidence» flag for brief voices is not set yet | Voice library |
 | F16 speaker profiles | Implemented, wired; updated after every minutes | Voice library / meeting speakers menu «ملف المتحدث» |
 | F17 codes | Implemented, wired (tab, exports) | Meeting tab «الرموز والشيفرات» |
@@ -38,7 +38,8 @@ loopback (`windows/runner/`), Hugging Face GGUF availability.
 * `glossary_terms` table: term, optional Arabic spelling/translation, category
   (person / organisation / technical / other), created_at.
 * Used in three places:
-  1. Deepgram cloud ASR: `keyterm` query params (nova-3).
+  1. Cloud ASR (Groq Whisper since 1.2): a short `prompt` (≤ 180 characters)
+     of the highest-priority terms.
   2. Minutes prompt: “canonical spellings” list — the model must correct
      recognition errors toward these spellings when context supports it.
   3. Per-meeting context (F3) can add meeting-only terms.
@@ -66,7 +67,7 @@ loopback (`windows/runner/`), Hugging Face GGUF availability.
   meetings with Arabic normalisation (alef/ya/ta-marbuta/diacritics, light
   stemming); top meetings' minutes + top-k transcript windows are packed into
   the prompt (budgeted by characters).
-* Claude answers with citations `[meeting title — hh:mm:ss]` mapped to
+* The selected engine answers with citations `[meeting title — hh:mm:ss]` mapped to
   clickable links (open meeting at that segment).
 * Conversation history kept per session (not persisted by default).
 
@@ -102,9 +103,15 @@ behind the one `StructuredMinutesEngine`, see docs/V11-CONTRACTS.md):
 0. **Cloud — Google Gemini** (DEFAULT, owner decision: free tier, model `gemini-flash-lite-latest`, key from
    Google AI Studio). Settings shows honestly that on the free tier Google may
    use prompts/responses to improve its products and human reviewers may read
-   them (a billed Cloud project is treated as paid); the user accepts this
-   before the first request. Rate limits are respected (never hammered).
-1. **Cloud — Claude** (optional, highest quality): `claude-opus-5-5` as in v1.
+   them; the user accepts this before the first request. Rate limits are
+   respected (never hammered).
+1. **Cloud — Groq** (since 1.2, free plan; replaces the paid Claude engine,
+   owner decision: free cloud services only): OpenAI-compatible API through
+   the local-server client with an API key; the largest Llama / Qwen /
+   gpt-oss model of the key by default; map-reduce when the free per-minute
+   token limit is smaller than the request; its own privacy notice (Groq's
+   stated policy: no training on API data, processed on its servers).
+   Optional automatic switch between Gemini and Groq on a daily quota.
 2. **On-device** (fully offline, private): GGUF model run in-process via
    `llamadart` (llama.cpp; Android / iOS / Windows). Model catalog entries
    with sizes and RAM requirements, downloaded through `ModelManager`, e.g.
@@ -160,7 +167,7 @@ Guardrails (built in, not optional):
   and no hiring/firing “scores”. Low-evidence items are marked as such or
   omitted. Wording is descriptive, never judgemental.
 * Built incrementally: per-meeting speaker notes are extracted together with
-  the minutes (same engine: Claude / on-device / local server), then merged
+  the minutes (same engine: Gemini / Groq / on-device / local server), then merged
   into the profile; “rebuild profile” recomputes from all meetings.
 
 ## F17 — Codes, jargon, hidden meanings & references (الشيفرات والرموز)

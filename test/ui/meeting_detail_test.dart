@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/features/codes/strings.dart';
+import 'package:insato/features/groq/strings.dart';
+import 'package:insato/session/minutes_engines.dart';
 import 'package:insato/ui/screens/meeting_detail_screen.dart';
 import 'package:insato/ui/screens/meeting_transcript_tab.dart';
 import 'package:insato/ui/strings_ar.dart';
@@ -53,6 +55,30 @@ void main() {
     await settle(t, rounds: 12);
     expect(env.minutes!.calls, 1);
     expect(find.text('ملخص 2 مقاطع'), findsOneWidget);
+    await env.dispose(t);
+  });
+
+  testWidgets('a used-up daily quota offers the other free engine once', (
+    t,
+  ) async {
+    setScreenSize(t, kPhone);
+    final engine = _QuotaThenOkEngine();
+    final env = UiTestEnv()..minutes = engine;
+    final seeded = await env.run(t, () => seedMeeting(env));
+    await pumpScreen(t, env, MeetingDetailScreen(meetingId: seeded.meeting.id));
+
+    await t.tap(find.text(S.regenerateMinutes));
+    await settle(t, rounds: 12);
+    expect(find.text(GS.quotaOffer('Gemini', 'Groq')), findsOneWidget);
+    final offer = find.text(GS.useAlternative('Groq'));
+    expect(offer, findsOneWidget);
+
+    await t.tap(offer);
+    await settle(t, rounds: 12);
+    expect(engine.calls, 2);
+    // The second run was forced onto Groq; Settings were not changed.
+    expect(engine.overrides, [null, 'groq']);
+    expect(find.text(GS.useAlternative('Groq')), findsNothing);
     await env.dispose(t);
   });
 
@@ -209,4 +235,36 @@ void main() {
     expect(text, contains(KS.verified));
     await env.dispose(t);
   });
+}
+
+/// Fails like an exhausted Gemini daily quota first, then succeeds;
+/// records the engine forced for each run.
+class _QuotaThenOkEngine extends FakeMinutesEngine {
+  final List<String?> overrides = [];
+
+  @override
+  Future<Minutes> generate({
+    required Meeting meeting,
+    required List<TranscriptSegment> segments,
+    required Map<String, Speaker> speakersById,
+    void Function(double progress, String status)? onProgress,
+    MinutesInputs inputs = MinutesInputs.none,
+  }) async {
+    overrides.add(currentMinutesEngineOverride);
+    if (overrides.length == 1) {
+      calls++;
+      throw MinutesQuotaExhaustedException(
+        GS.quotaOffer('Gemini', 'Groq'),
+        exhaustedEngine: 'gemini',
+        alternativeEngine: 'groq',
+      );
+    }
+    return super.generate(
+      meeting: meeting,
+      segments: segments,
+      speakersById: speakersById,
+      onProgress: onProgress,
+      inputs: inputs,
+    );
+  }
 }

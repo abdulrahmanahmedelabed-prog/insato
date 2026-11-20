@@ -244,5 +244,5 @@ abstract final class DS {
 
   /// Live mode needs a cloud engine.
   static const String liveNeedsCloud =
-      'الفحص المباشر يعمل مع Gemini أو Claude فقط.';
+      'الفحص المباشر يعمل مع Gemini أو Groq فقط.';
 }

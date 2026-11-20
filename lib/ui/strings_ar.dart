@@ -296,12 +296,13 @@ abstract final class S {
       'البدء.\n\n'
       'تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك. لكتابة المحضر '
       'يُرسَل نص الاجتماع فقط (دون الصوت) إلى محرك المحضر الذي تختاره في '
-      'الإعدادات: Gemini من Google (الافتراضي، مجاني) أو Claude. في الفئة '
-      'المجانية من Gemini قد تستخدم Google النصوص المرسلة لتحسين منتجاتها وقد '
-      'يطّلع عليها مراجعون بشريون؛ فلا تستخدمها للاجتماعات السرية. وإذا اخترت '
-      'التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram لمعالجتها؛ يطلب إنصاتو '
-      'من Deepgram عدم استخدامها في تدريب نماذجها، لكن مدة احتفاظها بها تخضع '
-      'لسياسة بياناتها.';
+      'الإعدادات: Gemini من Google (الافتراضي) أو Groq، وكلاهما مجاني، أو '
+      'محرك محلي لا يُخرج النص من جهازك أو شبكتك. في الفئة المجانية من Gemini '
+      'قد تستخدم Google النصوص المرسلة لتحسين منتجاتها وقد يطّلع عليها '
+      'مراجعون بشريون؛ وتقول Groq إنها لا تستخدم بيانات واجهتها في التدريب '
+      'لكنها تعالجها على خوادمها. فلا تستخدم المحركات السحابية للاجتماعات '
+      'السرية. وإذا اخترت التفريغ السحابي المجاني تُرسَل مقاطع الصوت إلى Groq '
+      'لمعالجتها وفق سياستها.';
 
   /// Consent checkbox.
   static const String consentCheckbox =
@@ -485,10 +486,14 @@ abstract final class S {
   /// Minutes engine not ready.
   static const String apiKeyMissingTitle = 'محرك المحضر غير جاهز';
 
-  /// Minutes engine not ready body.
-  /// Claude is selected but its key is not stored.
-  static const String claudeKeyMissingBody =
-      'أضِف مفتاح Claude من الإعدادات ليكتب إنصاتو المحضر.';
+  /// Groq is selected but its key is not stored.
+  static const String groqKeyMissingBody =
+      'أضِف مفتاح Groq المجاني من الإعدادات ليكتب إنصاتو المحضر.';
+
+  /// Groq's key is stored but its privacy notice was not accepted.
+  static const String groqPrivacyPendingBody =
+      'وافِق على تنبيه خصوصية Groq في الإعدادات (محرك كتابة المحضر) ليكتب '
+      'إنصاتو المحضر.';
 
   /// Gemini's key is stored but its privacy notice was not accepted.
   static const String geminiPrivacyPendingBody =
@@ -496,8 +501,9 @@ abstract final class S {
       'إنصاتو المحضر.';
 
   static const String apiKeyMissingBody =
-      'أضِف مفتاح محرك المحضر من الإعدادات ليكتب إنصاتو المحضر؛ مفتاح Gemini '
-      'مجاني من Google AI Studio. يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
+      'أضِف مفتاح محرك المحضر من الإعدادات ليكتب إنصاتو المحضر؛ مفاتيح Gemini '
+      '(من Google AI Studio) وGroq (من GroqCloud) مجانية. يُرسَل نص الاجتماع '
+      'فقط، ولا يُرسَل الصوت.';
 
   /// Add key.
   static const String addApiKey = 'ضبط محرك المحضر';
@@ -674,7 +680,7 @@ abstract final class S {
   // ---------------------------------------------------------------------------
 
   /// Section: minutes engine.
-  static const String sectionClaude = 'محرك كتابة المحضر';
+  static const String sectionMinutesEngine = 'محرك كتابة المحضر';
 
   /// Minutes engine choice label.
   static const String minutesEngine = 'المحرك';
@@ -682,8 +688,8 @@ abstract final class S {
   /// Engine: Gemini.
   static const String engineGemini = 'Gemini (مجاني)';
 
-  /// Engine: Claude.
-  static const String engineClaude = 'Claude';
+  /// Engine: Groq.
+  static const String engineGroq = 'Groq (مجاني)';
 
   /// Engine: on-device model.
   static const String engineLocal = 'على الجهاز';
@@ -693,9 +699,10 @@ abstract final class S {
 
   /// Helper under the engine choice, per engine.
   static String minutesEngineHelper(String engine) => switch (engine) {
-    'claude' =>
-      'Claude من Anthropic: أعلى جودة في كتابة المحاضر، ويتطلب مفتاح API '
-          'مدفوعاً. يُرسَل نص الاجتماع فقط.',
+    'groq' =>
+      'Groq: نماذج مفتوحة كبيرة وسريعة جداً، مجانية بمفتاح من GroqCloud، مع '
+          'حدود منخفضة لعدد الطلبات والكلمات في الدقيقة واليوم؛ تُقسَّم '
+          'الاجتماعات الطويلة تلقائياً. يُرسَل نص الاجتماع فقط.',
     'local' =>
       'نموذج يعمل على جهازك دون إنترنت: أعلى خصوصية، لكنه أبطأ وأقل جودة من '
           'المحركات السحابية.',
@@ -735,9 +742,8 @@ abstract final class S {
       'عند استخدام مفتاح Gemini المجاني (دون تفعيل الفوترة) قد تستخدم Google '
       'نصوص الاجتماعات المرسلة والمحاضر الناتجة لتحسين منتجاتها، وقد يطّلع '
       'عليها مراجعون بشريون بعد فصلها عن حسابك. لا تُرسِل عبره اجتماعات سرية '
-      'أو بيانات شخصية حساسة؛ استخدم لها المحرك على الجهاز أو مفتاحاً من مشروع '
-      'Google Cloud مفعّل الفوترة (يُعامَل كخدمة مدفوعة ولا يُستخدم في '
-      'التدريب). يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
+      'أو بيانات شخصية حساسة؛ استخدم لها المحرك على الجهاز أو الخادم المحلي. '
+      'يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
 
   /// Accept the Gemini notice.
   static const String geminiPrivacyAccept = 'فهمت وأوافق';
@@ -751,13 +757,6 @@ abstract final class S {
 
   /// The selected local engine is not available in this build.
   static const String engineUnavailable = 'هذا المحرك غير متاح في هذا الإصدار.';
-
-  /// API key label.
-  static const String anthropicKey = 'مفتاح Anthropic API (Claude)';
-
-  /// API key helper.
-  static const String anthropicKeyHelper =
-      'يُحفظ المفتاح مشفّرًا في مخزن الجهاز الآمن، ولا يُرسَل إلا إلى Anthropic.';
 
   /// Show key.
   static const String showKey = 'إظهار المفتاح';
@@ -794,13 +793,6 @@ abstract final class S {
   static String connectionOk(String model) =>
       'الاتصال ناجح والمفتاح صالح (النموذج: $model).';
 
-  /// Claude model label.
-  static const String claudeModel = 'نموذج Claude';
-
-  /// Claude model helper.
-  static const String claudeModelHelper =
-      'الافتراضي claude-opus-5-5، وهو الأعلى جودة في كتابة المحاضر.';
-
   /// Model saved.
   static const String modelSaved = 'تم حفظ النموذج.';
 
@@ -824,7 +816,7 @@ abstract final class S {
   static const String asrLocal = 'على الجهاز';
 
   /// Cloud.
-  static const String asrCloud = 'سحابي (Deepgram)';
+  static const String asrCloud = 'سحابي مجاني (Groq)';
 
   /// ASR explanation local.
   static const String asrLocalHelper =
@@ -832,16 +824,18 @@ abstract final class S {
 
   /// ASR explanation cloud.
   static const String asrCloudHelper =
-      'دقة أعلى وسرعة أكبر على الأجهزة الضعيفة، لكن مقاطع الصوت تُرسَل إلى '
-      'Deepgram لمعالجتها. يطلب إنصاتو عدم استخدامها في تدريب النماذج، '
-      'ويخضع الاحتفاظ بها لسياسة بيانات Deepgram. تبقى البصمات الصوتية على '
-      'جهازك.';
-
-  /// Deepgram key.
-  static const String deepgramKey = 'مفتاح Deepgram API';
+      'تفريغ سحابي مجاني عبر Groq Whisper: أدق وأسرع على الأجهزة الضعيفة، '
+      'لكن مقاطع الصوت تُرسَل إلى Groq. الحصة المجانية محدودة؛ وإذا نفدت أثناء '
+      'اجتماع يكمل إنصاتو على الجهاز إن كان نموذج Whisper مُنزَّلاً. تبقى '
+      'البصمات الصوتية على جهازك.';
 
   /// Whisper model.
   static const String whisperModel = 'نموذج Whisper';
+
+  /// Under the Whisper choice in cloud mode.
+  static const String whisperFallbackNote =
+      'نموذج Whisper على الجهاز أدناه احتياطي: يُكمل به إنصاتو التفريغ إن '
+      'نفدت الحصة السحابية المجانية أثناء الاجتماع (إن كان مُنزَّلاً).';
 
   /// Language hint.
   static const String languageHint = 'لغة الاجتماع';
@@ -898,12 +892,13 @@ abstract final class S {
       '• تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك فقط، ولا تُنسخ '
       'احتياطيًا إلى السحابة.\n'
       '• لكتابة المحضر يُرسَل نص الاجتماع فقط (دون الصوت) إلى محرك المحضر '
-      'المختار: Google (Gemini، الافتراضي) أو Anthropic (Claude). في الفئة '
-      'المجانية من Gemini قد تستخدم Google النصوص لتحسين منتجاتها وقد يطّلع '
-      'عليها مراجعون بشريون؛ ولا يغادر النص جهازك مع المحرك المحلي.\n'
-      '• في التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram لمعالجتها، مع '
-      'طلب عدم استخدامها في تدريب النماذج؛ ويخضع الاحتفاظ بها لسياسة بيانات '
-      'Deepgram.\n'
+      'المختار، وكل الخيارات السحابية مجانية: Google (Gemini، الافتراضي) أو '
+      'Groq. في الفئة المجانية من Gemini قد تستخدم Google النصوص لتحسين '
+      'منتجاتها وقد يطّلع عليها مراجعون بشريون؛ وتقول Groq إنها لا تستخدم '
+      'بيانات واجهتها في التدريب لكنها تعالجها على خوادمها. ولا يغادر النص '
+      'جهازك مع المحرك المحلي.\n'
+      '• في التفريغ السحابي المجاني تُرسَل مقاطع الصوت إلى Groq (Whisper) '
+      'لمعالجتها وفق سياستها؛ والتفريغ على الجهاز لا يرسل شيئاً.\n'
       '• مفاتيح API محفوظة مشفّرة في المخزن الآمن للنظام، لا في قاعدة بيانات '
       'التطبيق.\n'
       '• أبلغ المشاركين دائمًا بأن الاجتماع يُسجَّل.';
@@ -1014,7 +1009,9 @@ abstract final class S {
 
   /// Cloud mode note on models.
   static const String cloudModeNote =
-      'التفريغ السحابي مفعّل، لذا لا تحتاج إلى نموذج Whisper على الجهاز.';
+      'التفريغ السحابي المجاني (Groq Whisper) مفعّل، لذا لا يلزم نموذج Whisper '
+      'على الجهاز؛ لكن تنزيله يتيح إكمال التفريغ على الجهاز إن نفدت الحصة '
+      'المجانية أثناء الاجتماع.';
 
   // ---------------------------------------------------------------------------
   // Languages (ISO-639-1 → Arabic name)

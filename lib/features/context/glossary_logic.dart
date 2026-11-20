@@ -1,11 +1,11 @@
 // Pure logic of the glossary (F2): drafts and validation, search with
-// Arabic normalisation, plain-text export / import, the Deepgram keyterm
+// Arabic normalisation, plain-text export / import, the cloud-ASR keyterm
 // list and the meeting-only term synchronisation plan (F3). No Flutter
 // imports; unit-tested in test/features/context/.
 
 import '../../core/models.dart';
 import '../../data/repositories_v11.dart' show normalizedKey;
-import '../../speech/cloud_asr_engine.dart' show kMaxDeepgramKeyterms;
+import '../../speech/cloud_asr_engine.dart' show kMaxCloudAsrKeyterms;
 
 /// Longest accepted glossary term (characters).
 const int kMaxGlossaryTermLength = 100;
@@ -266,21 +266,21 @@ GlossaryImport parseGlossaryText(
 }
 
 // ---------------------------------------------------------------------------
-// Deepgram keyterms (F2 use 1)
+// Cloud-ASR keyterms (F2 use 1)
 // ---------------------------------------------------------------------------
 
-/// The `keyterm` list sent to Deepgram, at most [limit] entries, without
-/// duplicates (case- and whitespace-insensitive). Priority, because Deepgram
-/// only accepts a limited number: this meeting's terms, its expected
+/// The vocabulary given to cloud transcription (Groq Whisper `prompt`), at
+/// most [limit] entries, without duplicates (case- and
+/// whitespace-insensitive). Priority, because the prompt is short: this meeting's terms, its expected
 /// attendees, the names of user-named [speakers], global terms; then, while
 /// room remains, the Arabic spellings of those terms (helpful when the
 /// meeting is in Arabic).
-List<String> buildDeepgramKeyterms({
+List<String> buildCloudAsrKeyterms({
   Iterable<GlossaryTerm> meetingTerms = const [],
   Iterable<String> expectedAttendees = const [],
   Iterable<Speaker> speakers = const [],
   Iterable<GlossaryTerm> globalTerms = const [],
-  int limit = kMaxDeepgramKeyterms,
+  int limit = kMaxCloudAsrKeyterms,
 }) {
   final seen = <String>{};
   final out = <String>[];

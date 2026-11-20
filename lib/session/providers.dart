@@ -270,7 +270,7 @@ final modelStatesProvider = StreamProvider<Map<String, ModelState>>((
 final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
 /// Creates the backend of the minutes engine selected in Settings (Gemini
-/// by default, Claude, on-device or local server; see
+/// by default, Groq, on-device or local server; see
 /// [createMinutesBackend]). Also used by "Ask your meetings" (F8). The
 /// caller closes the backend after use.
 ///
@@ -291,6 +291,9 @@ final minutesBackendFactoryProvider =
         onGeminiModelDiscovered: (model) {
           // Remember the model that works for this key; ignore storage errors.
           settings.setGeminiModel(model).catchError((Object _) {});
+        },
+        onGroqModelDiscovered: (model) {
+          settings.setGroqModel(model).catchError((Object _) {});
         },
       );
     });
@@ -331,14 +334,15 @@ final liveBacklogLimitMsProvider = Provider<int>((ref) => 15 * 60 * 1000);
 // Recording session engines
 // ---------------------------------------------------------------------------
 
-/// Builds the speech engines of a session (sherpa-onnx + optional Deepgram).
+/// Builds the speech engines of a session (sherpa-onnx + optional Groq
+/// Whisper).
 final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
   final glossary = ref.watch(glossaryRepositoryProvider);
   final speakers = ref.watch(speakerRepositoryProvider);
   return SherpaSessionEnginesFactory(
     modelManager: () => ref.read(modelManagerProvider.future),
     secureSettings: ref.watch(secureSettingsProvider),
-    // F2 / F3: Deepgram keyterms — the meeting-only terms and expected
+    // F2 / F3: cloud-ASR vocabulary — the meeting-only terms and expected
     // attendees of the meeting being started (its id does not exist yet),
     // the names of user-named speakers and the global glossary.
     keyterms: () => resolveSessionKeyterms(

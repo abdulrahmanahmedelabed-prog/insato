@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/features/groq/strings.dart';
 import 'package:insato/ui/screens/settings_screen.dart';
 import 'package:insato/ui/services/connection_tester.dart';
 import 'package:insato/ui/strings_ar.dart';
@@ -89,7 +90,11 @@ void main() {
       expect(find.text(S.engineGemini), findsOneWidget);
       expect(find.text(S.geminiPrivacyTitle), findsOneWidget);
       expect(find.widgetWithText(TextField, S.geminiKey), findsOneWidget);
-      expect(find.widgetWithText(TextField, S.anthropicKey), findsNothing);
+      expect(find.widgetWithText(TextField, GS.keyLabel), findsNothing);
+      // Engine choice: only free cloud engines (and local ones).
+      expect(find.text(S.engineGroq), findsOneWidget);
+      expect(find.textContaining('Claude'), findsNothing);
+      expect(find.textContaining('Deepgram'), findsNothing);
 
       await t.ensureVisible(find.text(S.geminiPrivacyAccept));
       await t.tap(find.text(S.geminiPrivacyAccept));
@@ -106,7 +111,7 @@ void main() {
       await env.dispose(t);
     });
 
-    testWidgets('saving the Gemini key and switching to Claude', (t) async {
+    testWidgets('saving the Gemini key and switching to Groq', (t) async {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();
       await pumpScreen(t, env, const SettingsScreen());
@@ -119,14 +124,33 @@ void main() {
       await settle(t, rounds: 10);
       expect(env.secure.gemini, 'AIza-key');
 
-      await t.ensureVisible(find.text(S.engineClaude));
+      await t.ensureVisible(find.text(S.engineGroq));
       await t.pump();
-      await t.tap(find.text(S.engineClaude));
+      await t.tap(find.text(S.engineGroq));
       await settle(t, rounds: 10);
       final s = await env.run(t, () => AppSettings(env.db).load());
-      expect(s.minutesEngine, AppSettingsData.engineClaude);
-      expect(find.widgetWithText(TextField, S.anthropicKey), findsOneWidget);
+      expect(s.minutesEngine, AppSettingsData.engineGroq);
+      expect(find.widgetWithText(TextField, GS.keyLabel), findsOneWidget);
+      expect(find.text(GS.privacyTitle), findsOneWidget);
+      expect(find.text(GS.modelLabel), findsOneWidget);
       expect(find.text(S.geminiPrivacyTitle), findsNothing);
+      // The automatic fallback between free cloud engines is offered.
+      expect(find.text(GS.fallbackTitle), findsOneWidget);
+
+      // Accepting the Groq notice, then the fallback switch.
+      await t.ensureVisible(find.text(S.geminiPrivacyAccept));
+      await t.tap(find.text(S.geminiPrivacyAccept));
+      await settle(t, rounds: 10);
+      await t.ensureVisible(find.text(GS.fallbackTitle));
+      // Keep the tile clear of the snack bar at the bottom.
+      await t.drag(find.text(GS.fallbackTitle), const Offset(0, -300));
+      await settle(t, rounds: 5);
+      await t.tap(find.text(GS.fallbackTitle));
+      await settle(t, rounds: 10);
+      final g = await env.run(t, () => AppSettings(env.db).load());
+      expect(g.groqPrivacyAcknowledged, isTrue);
+      expect(g.geminiPrivacyAcknowledged, isFalse);
+      expect(g.cloudFallbackAuto, isTrue);
       await env.dispose(t);
     });
 
@@ -140,7 +164,7 @@ void main() {
       );
       final labels = [
         S.engineGemini,
-        S.engineClaude,
+        S.engineGroq,
         S.engineLocal,
         S.engineServer,
       ].where((l) => inButton(l).evaluate().isNotEmpty).toList();

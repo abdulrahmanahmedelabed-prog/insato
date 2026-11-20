@@ -14,7 +14,7 @@
 | البيانات | مكان الحفظ | هل تغادر الجهاز؟ |
 |---|---|---|
 | تسجيلات الصوت (ملفات WAV) | مجلد التطبيق على جهازك | لا، إلا مع التفريغ السحابي (البند 2-ب) |
-| نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى محرك المحضر السحابي الذي تختاره (Google Gemini افتراضياً، أو Anthropic Claude) عند كتابة المحضر؛ لا، مع المحرك المحلي |
+| نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى محرك المحضر السحابي الذي تختاره (Google Gemini افتراضياً، أو Groq؛ وكلاهما مجاني) عند كتابة المحضر؛ لا، مع المحرك المحلي |
 | البصمات الصوتية للمتحدثين | قاعدة البيانات المحلية | **لا، أبداً** |
 | أسماء المتحدثين التي تدخلها | قاعدة البيانات المحلية | ضمن نص التفريغ المرسَل لكتابة المحضر |
 | المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك» أو كاشف التناقضات، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
@@ -45,15 +45,21 @@
 - **Google Gemini (الافتراضي، الفئة المجانية):** يُرسَل النص إلى واجهة Gemini
   البرمجية لدى Google. **تنبيه مهم:** عند استخدام مفتاح مجاني (دون تفعيل
   الفوترة) قد تستخدم Google المحتوى المرسَل والإجابات لتحسين منتجاتها، وقد
-  يطّلع عليها مراجعون بشريون بعد فصلها عن حسابك. أما مفتاح مشروع Google Cloud
-  مفعّل الفوترة فيُعامَل كخدمة مدفوعة ولا يُستخدم المحتوى في تحسين المنتجات.
-  لهذا يعرض إنصاتو هذا التنبيه ويطلب موافقتك قبل أول إرسال، ولا يرسل شيئاً
+  يطّلع عليها مراجعون بشريون بعد فصلها عن حسابك. لهذا يعرض إنصاتو هذا التنبيه ويطلب موافقتك قبل أول إرسال، ولا يرسل شيئاً
   دونها. لا تستخدم Gemini المجاني للاجتماعات السرية؛ استخدم لها المحرك المحلي
   على الجهاز. شروط Gemini API: <https://ai.google.dev/gemini-api/terms>،
   وسياسة خصوصية Google: <https://policies.google.com/privacy>.
-- **Anthropic Claude (اختياري):** يُرسَل النص إلى واجهة Claude البرمجية لدى
-  Anthropic وتخضع معالجته لشروطها وسياسة خصوصيتها:
-  <https://www.anthropic.com/legal/privacy>.
+- **Groq (الخطة المجانية):** يُرسَل النص إلى واجهة Groq البرمجية
+  (`api.groq.com`). تقول Groq في سياستها إنها لا تستخدم بيانات واجهتها البرمجية
+  لتدريب النماذج، لكنها تعالج النص على خوادمها وقد تحتفظ به مؤقتاً وفق سياستها؛
+  وهذا تعهّد من المزوّد وليس ضماناً من إنصاتو. يعرض إنصاتو هذا التنبيه ويطلب
+  موافقتك قبل أول إرسال. سياسة خصوصية Groq: <https://groq.com/privacy-policy/>.
+- **التبديل بين المحركين المجانيين (اختياري):** إذا نفدت الحصة اليومية للمحرك
+  المختار يُعرَض عليك (أو يُستخدم تلقائياً إن فعّلت ذلك) المحرك المجاني الآخر،
+  بشرط أن يكون مفتاحه محفوظاً وتنبيه خصوصيته مقبولاً؛ فلا يُرسَل شيء إلى مزوّد
+  لم توافق عليه.
+- **لا خدمات مدفوعة:** أُزيل محركا Claude (Anthropic) وDeepgram في الإصدار 1.2،
+  وحُذفت مفاتيحهما المحفوظة من الجهاز عند الترقية.
 - **المحرك على الجهاز / الخادم المحلي:** لا يغادر النص جهازك مع المحرك على الجهاز
   أو خادم على العنوان المحلي (localhost)؛ أما إذا كان عنوان الخادم جهازاً آخر
   فيُرسَل النص إلى ذلك الجهاز، وينبّهك التطبيق إلى ذلك.
@@ -75,17 +81,18 @@
 النتائج والتنويهات («أُلغي رسمياً») تُحفظ محلياً وتُحذف مع الاجتماع.
 **الفحص المباشر أثناء التسجيل** معطّل افتراضياً؛ إذا فعّلته يُرسَل كل بضع
 دقائق آخر ما قيل (حتى 60 مقطعاً) مع البنود السابقة المرتبطة به، وفقط إلى محرك
-سحابي (Gemini أو Claude) سبق أن وافقت عليه؛ ولا تُحفظ نتائجه.
+سحابي (Gemini أو Groq) سبق أن وافقت عليه؛ ولا تُحفظ نتائجه.
 
-### ب) التفريغ السحابي — Deepgram (اختياري، معطّل افتراضياً)
-إذا اخترت محرك التفريغ السحابي، تُرسَل **مقاطع الصوت** إلى Deepgram عبر
-HTTPS باستخدام مفتاحك لمعالجتها، ويعود النص فقط. يطلب إنصاتو في كل طلب
-الانسحاب من برنامج تحسين النماذج لدى Deepgram (`mip_opt_out=true`)، أي ألّا
-تُستخدم هذه المقاطع في تدريب نماذجها. ومع ذلك فإن مدة احتفاظ Deepgram بالصوت
-والنص وكيفية تعاملها معهما تحكمهما سياسة بياناتها هي، لا إنصاتو:
-<https://deepgram.com/privacy>. مع التفريغ على الجهاز (الافتراضي) لا يُرسَل أي
-صوت. ومع التفريغ السحابي تُرسَل أيضاً مصطلحات القاموس وأسماء الحضور المتوقعين
-والمتحدثين المسمَّين بوصفها «مصطلحات مفتاحية» (keyterms) لتحسين التعرّف عليها.
+### ب) التفريغ السحابي — Groq Whisper (اختياري ومجاني، معطّل افتراضياً)
+إذا اخترت التفريغ السحابي ووافقت على تنبيه خصوصيته الخاص، تُرسَل **مقاطع
+الصوت** (ملفات WAV قصيرة) إلى Groq عبر HTTPS باستخدام مفتاحك لتحويلها إلى نص،
+ويعود النص فقط. تقول Groq في سياستها إنها لا تستخدم بيانات واجهتها البرمجية
+لتدريب النماذج، لكن الصوت يُعالَج على خوادمها وفق سياستها، لا وفق إنصاتو:
+<https://groq.com/privacy-policy/>. مع التفريغ على الجهاز (الافتراضي) لا يُرسَل
+أي صوت؛ وإذا نفدت الحصة المجانية أثناء الاجتماع يكمل إنصاتو على الجهاز فلا
+يُرسَل ما تبقى. ومع التفريغ السحابي يُرسَل أيضاً تلميح قصير (حتى 180 حرفاً) من
+مصطلحات القاموس وأسماء الحضور المتوقعين والمتحدثين المسمَّين لتحسين التعرّف
+عليها.
 
 **صوت النظام على Windows:** عند اختيار «صوت النظام» أو «الاثنان معاً» يُسجَّل ما
 يُشغَّل على الحاسوب (مثل صوت Zoom/Teams) ويُعامَل كتسجيل الميكروفون تماماً: يبقى
@@ -145,7 +152,7 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
   حذف التطبيق على Android وiOS يحذف كل بياناته من الجهاز. على Windows يُوزَّع
   التطبيق مجلداً بلا برنامج إزالة، فاحذف المجلدين المذكورين أعلاه يدوياً لإزالة
   بياناته ومفاتيحه.
-- البيانات المرسَلة إلى Google أو Anthropic أو Deepgram يحكمها احتفاظ تلك الجهات
+- البيانات المرسَلة إلى Google أو Groq يحكمها احتفاظ تلك الجهات
   وفق شروطها؛ لا يملك إنصاتو نسخة منها.
 
 ## 4. الموافقة على التسجيل
@@ -197,7 +204,7 @@ what leaves the device and where it goes.
 | Data | Where it is stored | Does it leave the device? |
 |---|---|---|
 | Audio recordings (WAV files) | App folder on your device | No — unless cloud transcription is enabled (2b) |
-| Transcript text | Local database (SQLite) | Yes, to the cloud minutes engine you choose (Google Gemini by default, or Anthropic Claude) when minutes are generated; no with the on-device engine |
+| Transcript text | Local database (SQLite) | Yes, to the cloud minutes engine you choose (Google Gemini by default, or Groq — both free) when minutes are generated; no with the on-device engine |
 | Speaker voiceprints | Local database | **Never** |
 | Speaker names you enter | Local database | As part of the transcript sent for minutes |
 | Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings or the contradiction checker, and open tasks with later minutes requests; otherwise only if you share/export them |
@@ -230,17 +237,25 @@ sent.**
 - **Google Gemini (default, free tier):** the text is sent to Google's Gemini
   API. **Important:** with a free (unbilled) key Google may use the submitted
   content and responses to improve its products, and human reviewers may read
-  them after they are disconnected from your account. A key from a Google
-  Cloud project with billing enabled is treated as paid and the content is
-  not used to improve Google's products. Insato therefore shows this notice
+  them after they are disconnected from your account. Insato therefore shows this notice
   and asks for your agreement before the first request, and sends nothing
   without it. Do not use the free Gemini tier for confidential meetings — use
   the on-device engine. Gemini API terms:
   <https://ai.google.dev/gemini-api/terms>; Google privacy policy:
   <https://policies.google.com/privacy>.
-- **Anthropic Claude (optional):** the text is sent to Anthropic's Claude API,
-  governed by Anthropic's API terms and privacy policy:
-  <https://www.anthropic.com/legal/privacy>.
+- **Groq (free plan):** the text is sent to Groq's API (`api.groq.com`).
+  Groq's stated policy is that it does not use API data to train models, but
+  it processes the text on its servers and may retain it temporarily under
+  its policy — this is the provider's statement, not a guarantee by Insato.
+  Insato shows this notice and asks for your agreement before the first
+  request. Groq privacy policy: <https://groq.com/privacy-policy/>.
+- **Switching between the free engines (optional):** when the selected
+  engine's daily quota is used up, the other free cloud engine is offered (or
+  used automatically if you enabled that) — only if its key is stored and its
+  notice accepted, so nothing goes to a provider you did not accept.
+- **No paid services:** the Claude (Anthropic) and Deepgram engines were
+  removed in 1.2, and their stored keys are deleted from the device on
+  upgrade.
 - **On-device engine / local server:** with the on-device engine or a server on
   localhost the text never leaves your device; if the server URL points to
   another host, the text is sent to that host (the app warns you when this
@@ -266,20 +281,20 @@ the device, and the local rules send nothing. Findings and «أُلغي رسمي
 annotations are stored locally and deleted with the meeting. **Live checking
 while recording** is off by default; when enabled, every few minutes the
 latest lines (up to 60 segments) and the related earlier items are sent, and
-only to a cloud engine (Gemini or Claude) you already accepted; its results
+only to a cloud engine (Gemini or Groq) you already accepted; its results
 are not stored.
 
-### b) Cloud transcription — Deepgram (optional, off by default)
-If you select the cloud transcription engine, **audio segments** are sent
-over HTTPS to Deepgram with your API key for processing, and only text comes
-back. Every request opts out of Deepgram's Model Improvement Program
-(`mip_opt_out=true`), asking Deepgram not to use the audio to train its
-models. How long Deepgram retains the audio and transcript, and how it
-handles them, is still governed by Deepgram's own data policy, not by
-Insato: <https://deepgram.com/privacy>. With on-device transcription (the
-default) no audio is sent anywhere. With cloud transcription, glossary terms
-and the names of expected attendees and named speakers are also sent as
-keyterms to improve their recognition.
+### b) Cloud transcription — Groq Whisper (optional, free, off by default)
+If you select cloud transcription and accept its own privacy notice, **audio
+segments** (short WAV files) are sent over HTTPS to Groq with your API key,
+and only text comes back. Groq's stated policy is not to use API data for
+training, but the audio is processed on its servers under Groq's policy, not
+Insato's: <https://groq.com/privacy-policy/>. With on-device transcription
+(the default) no audio is sent anywhere; if the free quota runs out during a
+meeting, Insato finishes on the device and sends nothing more. With cloud
+transcription a short hint (up to 180 characters) of glossary terms and the
+names of expected attendees and named speakers is also sent to improve their
+recognition.
 
 **Windows system audio:** with "system audio" or "both", what plays on the
 computer (e.g. Zoom/Teams) is recorded and treated exactly like the
@@ -346,7 +361,7 @@ microphones:
   device. On Windows the app is distributed as a folder without an
   uninstaller: delete the two folders named above to remove its data and
   keys.
-- Data sent to Google, Anthropic or Deepgram is retained under those providers'
+- Data sent to Google or Groq is retained under those providers'
   terms; Insato keeps no copy of it anywhere else.
 
 ## 4. Recording consent

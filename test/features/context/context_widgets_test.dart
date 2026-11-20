@@ -58,7 +58,7 @@ void main() {
       final env = UiTestEnv();
       await pumpScreen(t, env, const GlossaryScreen());
       expect(find.text(CS.emptyTitle), findsOneWidget);
-      expect(find.text(CS.deepgramOff), findsOneWidget);
+      expect(find.text(CS.cloudAsrOff), findsOneWidget);
 
       await t.tap(find.text(CS.addTerm));
       await settle(t);
@@ -119,7 +119,7 @@ void main() {
       await pumpScreen(t, env, const GlossaryScreen());
       expect(find.text('Aramco'), findsOneWidget);
       expect(find.text('Gemini'), findsOneWidget);
-      expect(find.text(CS.deepgramUsage(3, 3, 50)), findsOneWidget);
+      expect(find.text(CS.cloudAsrUsage(3, 3)), findsOneWidget);
       expect(find.text(CS.minutesUsage(3)), findsOneWidget);
 
       await t.tap(

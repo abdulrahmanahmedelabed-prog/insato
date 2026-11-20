@@ -61,8 +61,11 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
   المحضر**, and accept the free-tier data notice (nothing is sent before).
   The free tier is rate limited (a few requests per minute, a few dozen per
   day); the app waits out short per-minute limits once and otherwise reports
-  them in Arabic. Claude (Anthropic key) is available as an optional engine;
-  Deepgram is optional for cloud transcription. Keys live only in secure storage; never add
+  them in Arabic. **Groq** (free key from <https://console.groq.com/keys>) is
+  the alternative free engine and also powers the optional free cloud
+  transcription (Groq Whisper); each use has its own privacy notice. Insato
+  offers no paid service (Claude and Deepgram were removed in 1.2). Keys live
+  only in secure storage; never add
   keys to source, `.env` files or CI logs.
 - Real devices are strongly recommended for audio work: emulator microphones
   are often low quality or silent. On the Android emulator enable

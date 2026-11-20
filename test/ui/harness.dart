@@ -77,14 +77,14 @@ class FakeShareGateway implements ShareGateway {
 }
 
 /// Connection tester returning a fixed result.
-class FakeConnectionTester extends ClaudeConnectionTester {
+class FakeConnectionTester extends GroqConnectionTester {
   FakeConnectionTester(this.result);
 
   final ConnectionTestResult result;
   final List<String> keys = [];
 
   @override
-  Future<ConnectionTestResult> test(String apiKey, {String model = ''}) async {
+  Future<ConnectionTestResult> test(String apiKey, {String? model}) async {
     keys.add(apiKey);
     return result;
   }
@@ -120,7 +120,7 @@ class UiTestEnv {
     const ConnectionTestResult(
       ok: true,
       messageAr: 'ok',
-      model: 'claude-opus-5-5',
+      model: 'openai/gpt-oss-120b',
     ),
   );
   Map<String, ModelState> modelStates;
@@ -144,7 +144,7 @@ class UiTestEnv {
       return m == null ? null : MinutesEngineHandle(m);
     }),
     shareGatewayProvider.overrideWithValue(share),
-    claudeConnectionTesterProvider.overrideWithValue(tester),
+    groqConnectionTesterProvider.overrideWithValue(tester),
     ...extraOverrides,
   ];
 

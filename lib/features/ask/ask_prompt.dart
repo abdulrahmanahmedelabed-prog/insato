@@ -20,11 +20,13 @@ const int kAskHistoryAnswerChars = 1200;
 const int kAskExpectedAnswerChars = 1500;
 
 /// Total prompt budget (characters) for [engineId]: generous for cloud
-/// engines (long context; Gemini's free tier also limits tokens per minute),
-/// small for on-device models with a short context window.
+/// engines (long context; Gemini's free tier also limits tokens per minute;
+/// Groq's free plan allows only a few thousand tokens per minute and request,
+/// and its engine shortens the message further when needed), small for
+/// on-device models with a short context window.
 int askPromptCharBudget(String engineId) => switch (engineId) {
-  AppSettingsData.engineClaude => 90000,
   AppSettingsData.engineGemini => 60000,
+  AppSettingsData.engineGroq => 16000,
   AppSettingsData.engineServer => 24000,
   AppSettingsData.engineLocal => 9000,
   _ => 24000,

@@ -7,8 +7,10 @@ import 'package:insato/core/errors.dart';
 import 'package:insato/core/interfaces.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/features/groq/strings.dart';
 import 'package:insato/diarization/clustering.dart';
 import 'package:insato/diarization/vector_math.dart';
+import 'package:insato/speech/cloud_asr_engine.dart';
 import 'package:insato/speech/model_catalog.dart';
 import 'package:insato/speech/processing_isolate.dart';
 import 'package:insato/session/meeting_session_controller.dart';
@@ -390,6 +392,69 @@ void main() {
       },
     );
 
+    test(
+      'cloud quota used up: the device worker takes over for the rest',
+      () async {
+        final cloud = _QuotaAsr(exhaustAfter: 1);
+        final notices = <String>[];
+        var deviceSpawns = 0;
+        final proc = await IsolateSegmentProcessor.start(
+          spawn: () => ProcessingIsolate.spawnWithFactory(
+            _isoConfig(runAsr: false),
+            _isoFactory,
+          ),
+          cloudAsr: cloud,
+          onDeviceFallback: () {
+            deviceSpawns++;
+            return ProcessingIsolate.spawnWithFactory(
+              _isoConfig(),
+              _isoFactory,
+            );
+          },
+          onNotice: notices.add,
+        );
+        final first = await proc.process(speech(0, 0, 2000, 1));
+        expect(first.asr.text, 'سحابي 0');
+        expect(proc.usesDeviceFallback, isFalse);
+        // The quota runs out: this segment and the next come from the device.
+        final second = await proc.process(speech(1, 2500, 2000, 1));
+        expect(second.asr.text, 'كلام 1');
+        expect(second.embedding, isNotNull);
+        final third = await proc.process(speech(2, 5000, 2000, 1));
+        expect(third.asr.text, 'كلام 2');
+        expect(proc.usesDeviceFallback, isTrue);
+        expect(cloud.calls, 2);
+        expect(deviceSpawns, 1);
+        expect(notices, [GS.asrFellBackToDevice]);
+        await proc.dispose();
+      },
+    );
+
+    test(
+      'cloud quota used up without an on-device model: segments fail, one '
+      'notice',
+      () async {
+        final cloud = _QuotaAsr(exhaustAfter: 0);
+        final notices = <String>[];
+        final proc = await IsolateSegmentProcessor.start(
+          spawn: () => ProcessingIsolate.spawnWithFactory(
+            _isoConfig(runAsr: false),
+            _isoFactory,
+          ),
+          cloudAsr: cloud,
+          onNotice: notices.add,
+        );
+        for (var i = 0; i < 2; i++) {
+          await expectLater(
+            proc.process(speech(i, i * 2500, 2000, 1)),
+            throwsA(isA<CloudAsrQuotaExhaustedException>()),
+          );
+        }
+        expect(notices, [GS.asrNoDeviceFallback]);
+        await proc.dispose();
+      },
+    );
+
     test('respawns a crashed worker and retries the segment', () async {
       final dir = await Directory.systemTemp.createTemp('insato_iso_');
       addTearDown(() => dir.delete(recursive: true));
@@ -566,4 +631,34 @@ void main() {
       });
     });
   });
+}
+
+/// Cloud ASR whose free quota runs out after [exhaustAfter] segments.
+class _QuotaAsr implements AsrEngine {
+  _QuotaAsr({required this.exhaustAfter});
+
+  final int exhaustAfter;
+  int calls = 0;
+
+  @override
+  String get name => 'quota';
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<AsrResult> transcribe(SpeechSegment segment,
+      {String? languageHint}) async {
+    calls++;
+    if (calls > exhaustAfter) {
+      throw const CloudAsrQuotaExhaustedException(
+        GS.asrQuotaExhausted,
+        daily: true,
+      );
+    }
+    return AsrResult(text: 'سحابي ${segment.index}', language: 'ar');
+  }
+
+  @override
+  Future<void> dispose() async {}
 }

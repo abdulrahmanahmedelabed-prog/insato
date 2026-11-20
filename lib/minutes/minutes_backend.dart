@@ -9,13 +9,13 @@
 // Implementations:
 // * [GeminiMinutesBackend] (gemini_client.dart) — Google Gemini API, the
 //   default engine (free tier);
-// * [ClaudeMinutesBackend] (this file) — Anthropic Claude API;
+// * Groq (lib/features/groq) — Groq's free plan, OpenAI-compatible API
+//   (shares the local-server client and map-reduce of F14);
 // * on-device / local-server backends — lib/features/local_llm (F14).
 //
 // THIS FILE IS A SHARED CONTRACT (see docs/V11-CONTRACTS.md).
 
 import '../core/models.dart';
-import 'claude_client.dart';
 import 'minutes_prompt.dart';
 
 /// Coarse phases of a backend request, for the progress UI.
@@ -152,10 +152,10 @@ class MinutesBackendResult {
 /// A minutes / structured-generation engine backend.
 abstract class MinutesBackend {
   /// `AppSettingsData.minutesEngine` value of this backend (`gemini`,
-  /// `claude`, `local`, `server`).
+  /// `groq`, `local`, `server`).
   String get engineId;
 
-  /// Product name shown in Arabic status lines (e.g. `Gemini`, `Claude`).
+  /// Product name shown in Arabic status lines (e.g. `Gemini`, `Groq`).
   String get displayName;
 
   /// True when the request leaves the device (cloud provider).
@@ -171,71 +171,4 @@ abstract class MinutesBackend {
 
   /// Releases resources (HTTP client, loaded model). Idempotent.
   void close();
-}
-
-/// [MinutesBackend] over the Claude Messages API ([ClaudeClient]).
-class ClaudeMinutesBackend implements MinutesBackend {
-  /// Wraps [client]; [effort] / [maxTokens] are sent with every request.
-  ClaudeMinutesBackend(
-    this._client, {
-    this.effort = 'high',
-    this.maxTokens = 64000,
-  });
-
-  final ClaudeClient _client;
-
-  /// `output_config.effort`.
-  final String effort;
-
-  /// `max_tokens`.
-  final int maxTokens;
-
-  /// The wrapped client (tests).
-  ClaudeClient get client => _client;
-
-  @override
-  String get engineId => 'claude';
-
-  @override
-  String get displayName => 'Claude';
-
-  @override
-  bool get sendsDataOffDevice => true;
-
-  @override
-  Future<MinutesBackendResult> generateStructured(
-    MinutesBackendRequest request, {
-    MinutesBackendProgressCallback? onProgress,
-  }) async {
-    var attempt = 1;
-    final result = await _client.createStructured(
-      system: request.system,
-      user: request.user,
-      schema: request.schema,
-      effort: effort,
-      maxTokens: maxTokens,
-      onPhase: (phase, a) {
-        attempt = a;
-        onProgress?.call(
-          MinutesBackendProgress(switch (phase) {
-            ClaudeStreamPhase.connecting => MinutesBackendPhase.connecting,
-            ClaudeStreamPhase.thinking => MinutesBackendPhase.thinking,
-            ClaudeStreamPhase.writing => MinutesBackendPhase.writing,
-            ClaudeStreamPhase.retrying => MinutesBackendPhase.retrying,
-          }, attempt: a),
-        );
-      },
-      onDelta: (chars) => onProgress?.call(
-        MinutesBackendProgress(
-          MinutesBackendPhase.writing,
-          attempt: attempt,
-          receivedChars: chars,
-        ),
-      ),
-    );
-    return MinutesBackendResult(text: result.text, model: result.model);
-  }
-
-  @override
-  void close() => _client.close();
 }

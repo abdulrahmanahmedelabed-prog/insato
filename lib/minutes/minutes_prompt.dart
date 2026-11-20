@@ -1,5 +1,5 @@
 // Prompt construction for Arabic meeting minutes (every engine: Gemini,
-// Claude, local): the JSON schema that constrains the output, the
+// Groq, local): the JSON schema that constrains the output, the
 // (cache-stable) system prompt, transcript rendering and the per-meeting
 // user message.
 //
@@ -57,7 +57,7 @@ List<String> _wires<T>(List<T> values, String Function(T) wire) =>
     values.map(wire).toList(growable: false);
 
 /// JSON schema of the structured minutes answer (used by every engine:
-/// Gemini, Claude, local). Mirrors [Minutes.contentJson] exactly (same
+/// Gemini, Groq, local). Mirrors [Minutes.contentJson] exactly (same
 /// keys, same nesting).
 ///
 /// Follows the structured-output rules: every object has

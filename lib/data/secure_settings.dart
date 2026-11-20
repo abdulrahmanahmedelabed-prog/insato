@@ -60,15 +60,22 @@ class SecureSettings {
   /// transiently (e.g. a locked device), so a running meeting keeps working.
   final Map<String, String?> _lastKnown = {};
 
-  /// Secure-storage key of the Anthropic (Claude) API key.
-  static const String anthropicApiKeyKey = 'insato.anthropic_api_key';
-
-  /// Secure-storage key of the Deepgram API key.
-  static const String deepgramApiKeyKey = 'insato.deepgram_api_key';
-
   /// Secure-storage key of the Google Gemini API key (free from Google AI
   /// Studio, aistudio.google.com/apikey).
   static const String geminiApiKeyKey = 'insato.gemini_api_key';
+
+  /// Secure-storage key of the Groq API key (free plan, from
+  /// console.groq.com/keys). One key serves both Groq minutes and Groq
+  /// Whisper transcription.
+  static const String groqApiKeyKey = 'insato.groq_api_key';
+
+  /// Secure-storage key of the Anthropic (Claude) API key of versions before
+  /// 1.2 (paid engine, removed). Only deleted by [deleteLegacyPaidKeys].
+  static const String legacyAnthropicApiKeyKey = 'insato.anthropic_api_key';
+
+  /// Secure-storage key of the Deepgram API key of versions before 1.2
+  /// (paid engine, removed). Only deleted by [deleteLegacyPaidKeys].
+  static const String legacyDeepgramApiKeyKey = 'insato.deepgram_api_key';
 
   /// Marker written once [migrateAccessibility] has rewritten the keys.
   static const String accessibilityMigratedKey =
@@ -104,7 +111,7 @@ class SecureSettings {
   Future<void> migrateAccessibility() async {
     try {
       if (await _storage.read(key: accessibilityMigratedKey) != null) return;
-      for (final k in [anthropicApiKeyKey, deepgramApiKeyKey, geminiApiKeyKey]) {
+      for (final k in [geminiApiKeyKey, groqApiKeyKey]) {
         final v = await _storage.read(key: k);
         if (v != null && v.trim().isNotEmpty) {
           await _storage.write(key: k, value: v);
@@ -127,24 +134,6 @@ class SecureSettings {
     }
   }
 
-  /// The Anthropic API key, or null when not configured.
-  Future<String?> getAnthropicApiKey() => _read(anthropicApiKeyKey);
-
-  /// Stores the Anthropic API key (trimmed). A blank value clears it.
-  Future<void> setAnthropicApiKey(String key) => _write(anthropicApiKeyKey, key);
-
-  /// Removes the Anthropic API key.
-  Future<void> clearAnthropicApiKey() => _write(anthropicApiKeyKey, null);
-
-  /// The Deepgram API key, or null when not configured.
-  Future<String?> getDeepgramApiKey() => _read(deepgramApiKeyKey);
-
-  /// Stores the Deepgram API key (trimmed). A blank value clears it.
-  Future<void> setDeepgramApiKey(String key) => _write(deepgramApiKeyKey, key);
-
-  /// Removes the Deepgram API key.
-  Future<void> clearDeepgramApiKey() => _write(deepgramApiKeyKey, null);
-
   /// The Google Gemini API key, or null when not configured.
   Future<String?> getGeminiApiKey() => _read(geminiApiKeyKey);
 
@@ -153,6 +142,25 @@ class SecureSettings {
 
   /// Removes the Gemini API key.
   Future<void> clearGeminiApiKey() => _write(geminiApiKeyKey, null);
+
+  /// The Groq API key, or null when not configured.
+  Future<String?> getGroqApiKey() => _read(groqApiKeyKey);
+
+  /// Stores the Groq API key (trimmed). A blank value clears it.
+  Future<void> setGroqApiKey(String key) => _write(groqApiKeyKey, key);
+
+  /// Removes the Groq API key.
+  Future<void> clearGroqApiKey() => _write(groqApiKeyKey, null);
+
+  /// Deletes the API keys of the paid engines removed in 1.2 (Anthropic
+  /// Claude, Deepgram). Throws a [PlatformException] when the keystore cannot
+  /// be written now (the caller retries at the next launch).
+  Future<void> deleteLegacyPaidKeys() async {
+    for (final k in [legacyAnthropicApiKeyKey, legacyDeepgramApiKeyKey]) {
+      await _storage.delete(key: k);
+      _lastKnown.remove(k);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -170,10 +178,14 @@ class AppSettingsData {
     this.matchThreshold = defaultMatchThreshold,
     this.consentAcknowledged = false,
     this.minutesDetail = detailDetailed,
-    this.claudeModel = defaultClaudeModel,
     this.minutesEngine = engineGemini,
     this.geminiModel = defaultGeminiModel,
     this.geminiPrivacyAcknowledged = false,
+    this.groqModel,
+    this.groqPrivacyAcknowledged = false,
+    this.groqAsrModel = defaultGroqAsrModel,
+    this.groqAsrPrivacyAcknowledged = false,
+    this.cloudFallbackAuto = false,
     this.localLlmModelId,
     this.serverUrl = defaultServerUrl,
     this.serverModel,
@@ -186,7 +198,7 @@ class AppSettingsData {
   /// [asrEngine] value for on-device recognition (sherpa-onnx Whisper).
   static const String asrLocal = 'local';
 
-  /// [asrEngine] value for cloud recognition (Deepgram).
+  /// [asrEngine] value for cloud recognition (Groq Whisper, free plan).
   static const String asrCloud = 'cloud';
 
   /// Allowed [asrEngine] values.
@@ -204,8 +216,8 @@ class AppSettingsData {
   /// [minutesEngine] value: Google Gemini API (free tier by default).
   static const String engineGemini = 'gemini';
 
-  /// [minutesEngine] value: Anthropic Claude API.
-  static const String engineClaude = 'claude';
+  /// [minutesEngine] value: Groq API (free plan, OpenAI-compatible).
+  static const String engineGroq = 'groq';
 
   /// [minutesEngine] value: on-device GGUF model (F14).
   static const String engineLocal = 'local';
@@ -216,10 +228,29 @@ class AppSettingsData {
   /// Allowed [minutesEngine] values.
   static const List<String> minutesEngines = [
     engineGemini,
-    engineClaude,
+    engineGroq,
     engineLocal,
     engineServer,
   ];
+
+  /// The free cloud minutes engines (each needs its own key and accepted
+  /// privacy notice).
+  static const List<String> cloudMinutesEngines = [engineGemini, engineGroq];
+
+  /// Groq Whisper model: large-v3 (most accurate, the default).
+  static const String groqWhisperLargeV3 = 'whisper-large-v3';
+
+  /// Groq Whisper model: large-v3-turbo (faster, slightly less accurate).
+  static const String groqWhisperLargeV3Turbo = 'whisper-large-v3-turbo';
+
+  /// Allowed [groqAsrModel] values.
+  static const List<String> groqAsrModels = [
+    groqWhisperLargeV3,
+    groqWhisperLargeV3Turbo,
+  ];
+
+  /// Default Groq Whisper model (best accuracy for Arabic).
+  static const String defaultGroqAsrModel = groqWhisperLargeV3;
 
   /// [audioSource] value: microphone only.
   static const String audioSourceMic = 'mic';
@@ -242,9 +273,6 @@ class AppSettingsData {
 
   /// Default voice match threshold (cosine similarity).
   static const double defaultMatchThreshold = 0.55;
-
-  /// Default Claude model used for minutes.
-  static const String defaultClaudeModel = 'claude-opus-5-5';
 
   /// Default Gemini model: Google's alias of the newest stable Flash-Lite model
   /// (available on the free tier). When an account lacks it, the engine
@@ -278,11 +306,9 @@ class AppSettingsData {
   /// `'detailed'` or `'concise'`.
   final String minutesDetail;
 
-  /// Claude model id used to generate minutes (engine `claude`).
-  final String claudeModel;
-
-  /// Minutes engine (F14): [engineGemini] (default), [engineClaude],
-  /// [engineLocal] or [engineServer]. Also used by "Ask your meetings" (F8).
+  /// Minutes engine (F14): [engineGemini] (default), [engineGroq],
+  /// [engineLocal] or [engineServer]. Also used by "Ask your meetings" (F8)
+  /// and the consistency checker.
   final String minutesEngine;
 
   /// Gemini model id (engine `gemini`), e.g. `gemini-flash-lite-latest`.
@@ -292,6 +318,27 @@ class AppSettingsData {
   /// may use free-tier prompts and responses to improve its products, and
   /// human reviewers may read them). Nothing is sent to Gemini before this.
   final bool geminiPrivacyAcknowledged;
+
+  /// Groq chat model id (engine `groq`); null = picked automatically from
+  /// the key's live model list (the largest Llama / Qwen / gpt-oss model).
+  final String? groqModel;
+
+  /// The user read and accepted the Groq data notice (Groq states that it
+  /// does not use API data for training, but the transcript is processed on
+  /// its servers). Nothing is sent to Groq for minutes before this.
+  final bool groqPrivacyAcknowledged;
+
+  /// Groq Whisper model of cloud transcription ([groqAsrModels]).
+  final String groqAsrModel;
+
+  /// The user read and accepted the cloud-transcription notice (audio
+  /// segments are sent to Groq). Cloud transcription never starts before.
+  final bool groqAsrPrivacyAcknowledged;
+
+  /// When the selected free cloud minutes engine has used up its daily
+  /// quota, switch automatically to the other free cloud engine (if its key
+  /// is stored and its notice accepted) instead of only offering it.
+  final bool cloudFallbackAuto;
 
   /// Catalog id of the on-device GGUF model (engine `local`); null = the
   /// catalog's recommended model.
@@ -325,10 +372,12 @@ class AppSettingsData {
   /// True when concise minutes are selected.
   bool get conciseMinutes => minutesDetail == detailConcise;
 
+  /// True when cloud (Groq Whisper) transcription is selected.
+  bool get usesCloudAsr => asrEngine == asrCloud;
+
   /// True when the selected minutes engine sends the transcript off the
-  /// device to a cloud provider (Gemini or Claude).
-  bool get minutesEngineIsCloud =>
-      minutesEngine == engineGemini || minutesEngine == engineClaude;
+  /// device to a cloud provider (Gemini or Groq).
+  bool get minutesEngineIsCloud => cloudMinutesEngines.contains(minutesEngine);
 
   /// Returns a copy with the given fields replaced. The `clear*` flags
   /// reset nullable fields to null ([clearLanguageHint] = auto-detect).
@@ -341,10 +390,15 @@ class AppSettingsData {
     double? matchThreshold,
     bool? consentAcknowledged,
     String? minutesDetail,
-    String? claudeModel,
     String? minutesEngine,
     String? geminiModel,
     bool? geminiPrivacyAcknowledged,
+    String? groqModel,
+    bool clearGroqModel = false,
+    bool? groqPrivacyAcknowledged,
+    String? groqAsrModel,
+    bool? groqAsrPrivacyAcknowledged,
+    bool? cloudFallbackAuto,
     String? localLlmModelId,
     bool clearLocalLlmModelId = false,
     String? serverUrl,
@@ -365,11 +419,17 @@ class AppSettingsData {
       matchThreshold: matchThreshold ?? this.matchThreshold,
       consentAcknowledged: consentAcknowledged ?? this.consentAcknowledged,
       minutesDetail: minutesDetail ?? this.minutesDetail,
-      claudeModel: claudeModel ?? this.claudeModel,
       minutesEngine: minutesEngine ?? this.minutesEngine,
       geminiModel: geminiModel ?? this.geminiModel,
       geminiPrivacyAcknowledged:
           geminiPrivacyAcknowledged ?? this.geminiPrivacyAcknowledged,
+      groqModel: clearGroqModel ? null : (groqModel ?? this.groqModel),
+      groqPrivacyAcknowledged:
+          groqPrivacyAcknowledged ?? this.groqPrivacyAcknowledged,
+      groqAsrModel: groqAsrModel ?? this.groqAsrModel,
+      groqAsrPrivacyAcknowledged:
+          groqAsrPrivacyAcknowledged ?? this.groqAsrPrivacyAcknowledged,
+      cloudFallbackAuto: cloudFallbackAuto ?? this.cloudFallbackAuto,
       localLlmModelId: clearLocalLlmModelId
           ? null
           : (localLlmModelId ?? this.localLlmModelId),
@@ -392,10 +452,14 @@ class AppSettingsData {
         matchThreshold,
         consentAcknowledged,
         minutesDetail,
-        claudeModel,
         minutesEngine,
         geminiModel,
         geminiPrivacyAcknowledged,
+        groqModel,
+        groqPrivacyAcknowledged,
+        groqAsrModel,
+        groqAsrPrivacyAcknowledged,
+        cloudFallbackAuto,
         localLlmModelId,
         serverUrl,
         serverModel,
@@ -424,9 +488,14 @@ class AppSettingsData {
       'whisperModelId: $whisperModelId, languageHint: $languageHint, '
       'keepAudio: $keepAudio, matchThreshold: $matchThreshold, '
       'consentAcknowledged: $consentAcknowledged, '
-      'minutesDetail: $minutesDetail, claudeModel: $claudeModel, '
+      'minutesDetail: $minutesDetail, '
       'minutesEngine: $minutesEngine, geminiModel: $geminiModel, '
       'geminiPrivacyAcknowledged: $geminiPrivacyAcknowledged, '
+      'groqModel: $groqModel, '
+      'groqPrivacyAcknowledged: $groqPrivacyAcknowledged, '
+      'groqAsrModel: $groqAsrModel, '
+      'groqAsrPrivacyAcknowledged: $groqAsrPrivacyAcknowledged, '
+      'cloudFallbackAuto: $cloudFallbackAuto, '
       'localLlmModelId: $localLlmModelId, serverUrl: $serverUrl, '
       'serverModel: $serverModel, audioSource: $audioSource, '
       'inputDeviceId: $inputDeviceId, farFieldMode: $farFieldMode, '
@@ -470,13 +539,21 @@ class AppSettingsData {
       consentAcknowledged: flag(AppSettings.kConsentAcknowledged, false),
       minutesDetail:
           choice(AppSettings.kMinutesDetail, minutesDetails, detailDetailed),
-      claudeModel: nonEmpty(AppSettings.kClaudeModel, defaultClaudeModel),
+      // A stored `claude` (removed paid engine) falls back to Gemini.
       minutesEngine:
           choice(AppSettings.kMinutesEngine, minutesEngines, engineGemini),
       geminiModel: normalizeGeminiModel(m[AppSettings.kGeminiModel]) ??
           defaultGeminiModel,
       geminiPrivacyAcknowledged:
           flag(AppSettings.kGeminiPrivacyAcknowledged, false),
+      groqModel: normalizeGroqModel(m[AppSettings.kGroqModel]),
+      groqPrivacyAcknowledged:
+          flag(AppSettings.kGroqPrivacyAcknowledged, false),
+      groqAsrModel:
+          choice(AppSettings.kGroqAsrModel, groqAsrModels, defaultGroqAsrModel),
+      groqAsrPrivacyAcknowledged:
+          flag(AppSettings.kGroqAsrPrivacyAcknowledged, false),
+      cloudFallbackAuto: flag(AppSettings.kCloudFallbackAuto, false),
       localLlmModelId: optional(AppSettings.kLocalLlmModelId),
       serverUrl: server ?? defaultServerUrl,
       serverModel: optional(AppSettings.kServerModel),
@@ -499,11 +576,17 @@ class AppSettingsData {
         AppSettings.kMatchThreshold: matchThreshold.toString(),
         AppSettings.kConsentAcknowledged: consentAcknowledged.toString(),
         AppSettings.kMinutesDetail: minutesDetail,
-        AppSettings.kClaudeModel: claudeModel,
         AppSettings.kMinutesEngine: minutesEngine,
         AppSettings.kGeminiModel: geminiModel,
         AppSettings.kGeminiPrivacyAcknowledged:
             geminiPrivacyAcknowledged.toString(),
+        AppSettings.kGroqModel: ?groqModel,
+        AppSettings.kGroqPrivacyAcknowledged:
+            groqPrivacyAcknowledged.toString(),
+        AppSettings.kGroqAsrModel: groqAsrModel,
+        AppSettings.kGroqAsrPrivacyAcknowledged:
+            groqAsrPrivacyAcknowledged.toString(),
+        AppSettings.kCloudFallbackAuto: cloudFallbackAuto.toString(),
         AppSettings.kLocalLlmModelId: ?localLlmModelId,
         AppSettings.kServerUrl: serverUrl,
         AppSettings.kServerModel: ?serverModel,
@@ -529,6 +612,15 @@ class AppSettingsData {
     var t = model?.trim() ?? '';
     if (t.startsWith('models/')) t = t.substring('models/'.length);
     if (t.isEmpty || !RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(t)) return null;
+    return t;
+  }
+
+  /// Normalises a Groq model id: trimmed; null when blank or not a
+  /// plausible id (letters, digits, `.`, `-`, `_`, `/`, `:`), e.g.
+  /// `llama-3.3-70b-versatile` or `openai/gpt-oss-120b`.
+  static String? normalizeGroqModel(String? model) {
+    final t = model?.trim() ?? '';
+    if (t.isEmpty || !RegExp(r'^[A-Za-z0-9._/:-]+$').hasMatch(t)) return null;
     return t;
   }
 
@@ -580,8 +672,9 @@ class AppSettings {
   /// Settings-table key for [AppSettingsData.minutesDetail].
   static const String kMinutesDetail = 'minutes_detail';
 
-  /// Settings-table key for [AppSettingsData.claudeModel].
-  static const String kClaudeModel = 'claude_model';
+  /// Settings-table key of the Claude model of versions before 1.2 (paid
+  /// engine, removed); deleted by [migrateToFreeEngines].
+  static const String kLegacyClaudeModel = 'claude_model';
 
   /// Settings-table key for [AppSettingsData.minutesEngine].
   static const String kMinutesEngine = 'minutes_engine';
@@ -592,6 +685,26 @@ class AppSettings {
   /// Settings-table key for [AppSettingsData.geminiPrivacyAcknowledged].
   static const String kGeminiPrivacyAcknowledged =
       'gemini_privacy_acknowledged';
+
+  /// Settings-table key for [AppSettingsData.groqModel].
+  static const String kGroqModel = 'groq_model';
+
+  /// Settings-table key for [AppSettingsData.groqPrivacyAcknowledged].
+  static const String kGroqPrivacyAcknowledged = 'groq_privacy_acknowledged';
+
+  /// Settings-table key for [AppSettingsData.groqAsrModel].
+  static const String kGroqAsrModel = 'groq_asr_model';
+
+  /// Settings-table key for [AppSettingsData.groqAsrPrivacyAcknowledged].
+  static const String kGroqAsrPrivacyAcknowledged =
+      'groq_asr_privacy_acknowledged';
+
+  /// Settings-table key for [AppSettingsData.cloudFallbackAuto].
+  static const String kCloudFallbackAuto = 'cloud_fallback_auto';
+
+  /// Marker row written once [migrateToFreeEngines] completed. Not a
+  /// preference: a reset keeps it.
+  static const String kFreeEnginesMigrated = 'free_engines_migrated_v1';
 
   /// Settings-table key for [AppSettingsData.localLlmModelId].
   static const String kLocalLlmModelId = 'local_llm_model_id';
@@ -618,6 +731,7 @@ class AppSettings {
   /// Keys whose absence means null (removed by [save] when null).
   static const List<String> _optionalKeys = [
     kLanguageHint,
+    kGroqModel,
     kLocalLlmModelId,
     kServerModel,
     kInputDeviceId,
@@ -634,29 +748,46 @@ class AppSettings {
   Stream<AppSettingsData> watch() =>
       _db.select(_db.settings).watch().map(_fromRows).distinct();
 
-  /// One-time upgrade step for v1.0 users: v1.0 had only the Claude engine
-  /// and never wrote [kMinutesEngine], so its absence would otherwise fall
-  /// back to Gemini and stop automatic minutes for a user whose working
-  /// Claude key is still stored. When the row is absent, writes `claude` if
-  /// an Anthropic key exists, else `gemini` (the default). Writing the row in
-  /// both cases makes this run once only, and an explicit choice is never
-  /// overridden. Never throws: a keystore that cannot be read now (locked
-  /// device) leaves the row absent so the step is retried at next launch.
-  Future<void> migrateV1MinutesEngine(SecureSettings secure) async {
+  /// One-time upgrade step of 1.2 (owner decision: free cloud services
+  /// only). Runs until it completed once ([kFreeEnginesMigrated]):
+  ///
+  /// * minutes engine `claude` (paid, removed) → `gemini`; Gemini's privacy
+  ///   notice must still be accepted before anything is sent;
+  /// * cloud transcription selected under Deepgram (paid, removed) → stays
+  ///   cloud (now Groq Whisper) only if the Groq transcription notice was
+  ///   accepted, otherwise on-device;
+  /// * the stored Claude model row and the Anthropic / Deepgram API keys
+  ///   are deleted.
+  ///
+  /// v1.0 users never stored an engine (it was Claude): the absent row now
+  /// means the default, Gemini. Never throws: when the keystore cannot be
+  /// written now (locked device) the marker is not written and the step is
+  /// retried at the next launch (it is idempotent).
+  Future<void> migrateToFreeEngines(SecureSettings secure) async {
     try {
-      final row = await (_db.select(_db.settings)
-            ..where((s) => s.key.equals(kMinutesEngine)))
-          .getSingleOrNull();
-      if (row != null) return;
-      final key = await secure.getAnthropicApiKey();
-      await _put(
-        kMinutesEngine,
-        key != null
-            ? AppSettingsData.engineClaude
-            : AppSettingsData.engineGemini,
-      );
+      final rows = {
+        for (final r in await _db.select(_db.settings).get()) r.key: r.value,
+      };
+      if (rows[kFreeEnginesMigrated] != null) return;
+      final asrAcknowledged = switch (rows[kGroqAsrPrivacyAcknowledged]
+          ?.trim()) {
+        'true' || '1' => true,
+        _ => false,
+      };
+      await _db.transaction(() async {
+        if (rows[kMinutesEngine]?.trim() == 'claude') {
+          await _put(kMinutesEngine, AppSettingsData.engineGemini);
+        }
+        if (rows[kAsrEngine]?.trim() == AppSettingsData.asrCloud &&
+            !asrAcknowledged) {
+          await _put(kAsrEngine, AppSettingsData.asrLocal);
+        }
+        await _remove(kLegacyClaudeModel);
+      });
+      await secure.deleteLegacyPaidKeys();
+      await _put(kFreeEnginesMigrated, '1');
     } catch (e) {
-      debugPrint('migrateV1MinutesEngine failed: $e');
+      debugPrint('migrateToFreeEngines failed: $e');
     }
   }
 
@@ -750,18 +881,6 @@ class AppSettings {
     return _put(kMinutesDetail, detail);
   }
 
-  /// Claude model id used for minutes.
-  Future<String> get claudeModel async => (await load()).claudeModel;
-
-  /// Sets the Claude model id. Throws [ArgumentError] when blank.
-  Future<void> setClaudeModel(String model) {
-    final t = model.trim();
-    if (t.isEmpty) {
-      throw ArgumentError.value(model, 'model', 'must not be blank');
-    }
-    return _put(kClaudeModel, t);
-  }
-
   /// Selected minutes engine (see [AppSettingsData.minutesEngines]).
   Future<String> get minutesEngine async => (await load()).minutesEngine;
 
@@ -769,7 +888,7 @@ class AppSettings {
   Future<void> setMinutesEngine(String engine) {
     if (!AppSettingsData.minutesEngines.contains(engine)) {
       throw ArgumentError.value(
-          engine, 'engine', 'must be gemini, claude, local or server');
+          engine, 'engine', 'must be gemini, groq, local or server');
     }
     return _put(kMinutesEngine, engine);
   }
@@ -794,6 +913,40 @@ class AppSettings {
   /// Records whether the Gemini free-tier data notice was accepted.
   Future<void> setGeminiPrivacyAcknowledged(bool v) =>
       _put(kGeminiPrivacyAcknowledged, v.toString());
+
+  /// Sets the Groq chat model (null / blank = automatic choice). Throws
+  /// [ArgumentError] when malformed.
+  Future<void> setGroqModel(String? model) {
+    final t = model?.trim() ?? '';
+    if (t.isEmpty) return _remove(kGroqModel);
+    final n = AppSettingsData.normalizeGroqModel(t);
+    if (n == null) {
+      throw ArgumentError.value(model, 'model', 'not a Groq model id');
+    }
+    return _put(kGroqModel, n);
+  }
+
+  /// Records whether the Groq data notice (minutes) was accepted.
+  Future<void> setGroqPrivacyAcknowledged(bool v) =>
+      _put(kGroqPrivacyAcknowledged, v.toString());
+
+  /// Sets the Groq Whisper model. Throws [ArgumentError] for unknown values.
+  Future<void> setGroqAsrModel(String model) {
+    if (!AppSettingsData.groqAsrModels.contains(model)) {
+      throw ArgumentError.value(model, 'model', 'not a Groq Whisper model');
+    }
+    return _put(kGroqAsrModel, model);
+  }
+
+  /// Records whether the cloud-transcription notice (audio to Groq) was
+  /// accepted.
+  Future<void> setGroqAsrPrivacyAcknowledged(bool v) =>
+      _put(kGroqAsrPrivacyAcknowledged, v.toString());
+
+  /// Enables or disables the automatic switch to the other free cloud
+  /// engine when the daily quota is used up.
+  Future<void> setCloudFallbackAuto(bool v) =>
+      _put(kCloudFallbackAuto, v.toString());
 
   /// Sets the on-device GGUF model id (null / blank = recommended model).
   Future<void> setLocalLlmModelId(String? id) =>
@@ -844,10 +997,14 @@ class AppSettings {
     kMatchThreshold,
     kConsentAcknowledged,
     kMinutesDetail,
-    kClaudeModel,
     kMinutesEngine,
     kGeminiModel,
     kGeminiPrivacyAcknowledged,
+    kGroqModel,
+    kGroqPrivacyAcknowledged,
+    kGroqAsrModel,
+    kGroqAsrPrivacyAcknowledged,
+    kCloudFallbackAuto,
     kLocalLlmModelId,
     kServerUrl,
     kServerModel,

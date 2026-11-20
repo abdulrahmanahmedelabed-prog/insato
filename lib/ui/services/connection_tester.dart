@@ -1,17 +1,21 @@
-// "Test connection" of the Settings screen, mapped to an Arabic verdict:
-// * Claude: one tiny structured request to the Messages API;
-// * Gemini: `models.list` with the key — it validates the key without using
-//   any of the (very small) free generation quota, and checks that the
-//   configured model exists (otherwise suggests the newest Flash model).
+// "Test connection" of the Settings screen, mapped to an Arabic verdict.
+// Both free cloud engines are checked by listing the key's models, which
+// validates the key without using any of the (small) free generation quota:
+// * Gemini: `models.list`; checks that the configured model exists
+//   (otherwise suggests the newest Flash model);
+// * Groq: `GET /openai/v1/models`; reports the model that will be used (the
+//   configured one, or the automatic choice).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/errors.dart';
-import '../../minutes/claude_client.dart';
+import '../../features/groq/groq_api.dart';
+import '../../features/groq/groq_minutes_backend.dart' show listGroqModels;
+import '../../features/groq/strings.dart';
 import '../../minutes/gemini_client.dart';
 
-/// Outcome of [ClaudeConnectionTester.test].
+/// Outcome of a connection test.
 class ConnectionTestResult {
   /// Creates a result.
   const ConnectionTestResult({
@@ -29,100 +33,6 @@ class ConnectionTestResult {
   /// Model that served the test request (when [ok]).
   final String? model;
 }
-
-/// Checks an Anthropic API key with a minimal request.
-class ClaudeConnectionTester {
-  /// Creates a tester. [client] is injectable for tests; when omitted each
-  /// test uses (and closes) its own HTTP client.
-  ClaudeConnectionTester({this.client, this.endpoint});
-
-  /// HTTP client (tests).
-  final http.Client? client;
-
-  /// Endpoint override (tests).
-  final Uri? endpoint;
-
-  static const Map<String, dynamic> _schema = {
-    'type': 'object',
-    'properties': {
-      'ok': {'type': 'boolean'},
-    },
-    'required': ['ok'],
-    'additionalProperties': false,
-  };
-
-  /// Sends one tiny request with [apiKey] to [model].
-  ///
-  /// Never throws: failures become a result with `ok == false` and an Arabic
-  /// explanation (invalid key, unavailable model, network…).
-  Future<ConnectionTestResult> test(
-    String apiKey, {
-    String model = kDefaultClaudeModel,
-  }) async {
-    final key = apiKey.trim();
-    if (key.isEmpty) {
-      return const ConnectionTestResult(
-        ok: false,
-        messageAr: 'أدخل مفتاح Anthropic API أولًا.',
-      );
-    }
-    final m = model.trim().isEmpty ? kDefaultClaudeModel : model.trim();
-    final c = ClaudeClient(
-      apiKey: key,
-      client: client,
-      model: m,
-      endpoint: endpoint,
-      maxAttempts: 2,
-      baseRetryDelay: const Duration(milliseconds: 500),
-      maxRetryDelay: const Duration(seconds: 5),
-      idleTimeout: const Duration(seconds: 45),
-    );
-    try {
-      final r = await c.createStructured(
-        system: 'Connectivity check. Answer with {"ok": true}.',
-        user: 'ping',
-        schema: _schema,
-        effort: 'low',
-        maxTokens: 1024,
-      );
-      return ConnectionTestResult(
-        ok: true,
-        messageAr: 'الاتصال ناجح والمفتاح صالح.',
-        model: r.model,
-      );
-    } on MissingApiKeyException catch (e) {
-      return ConnectionTestResult(ok: false, messageAr: e.messageAr);
-    } on MinutesGenerationException catch (e) {
-      // The key was accepted and the model answered; the tiny token budget
-      // simply ran out (or the model declined the ping). Both prove the key
-      // and model work.
-      final d = e.debugDetails ?? '';
-      if (d.contains('stop_reason=max_tokens') ||
-          d.contains('stop_reason=refusal')) {
-        return ConnectionTestResult(
-          ok: true,
-          messageAr: 'الاتصال ناجح والمفتاح صالح.',
-          model: m,
-        );
-      }
-      return ConnectionTestResult(ok: false, messageAr: e.messageAr);
-    } on InsatoException catch (e) {
-      return ConnectionTestResult(ok: false, messageAr: e.messageAr);
-    } catch (_) {
-      return const ConnectionTestResult(
-        ok: false,
-        messageAr: 'تعذّر الاتصال بخدمة Claude. تحقّق من اتصالك بالإنترنت.',
-      );
-    } finally {
-      c.close();
-    }
-  }
-}
-
-/// The connection tester used by the Settings screen.
-final claudeConnectionTesterProvider = Provider<ClaudeConnectionTester>(
-  (ref) => ClaudeConnectionTester(),
-);
 
 /// Checks a Gemini API key by listing the models it can use.
 class GeminiConnectionTester {
@@ -197,4 +107,64 @@ class GeminiConnectionTester {
 /// The Gemini connection tester used by the Settings screen.
 final geminiConnectionTesterProvider = Provider<GeminiConnectionTester>(
   (ref) => GeminiConnectionTester(),
+);
+
+/// Checks a Groq API key by listing the models it can use.
+class GroqConnectionTester {
+  /// Creates a tester. [client] / [baseUrl] are injectable for tests.
+  GroqConnectionTester({this.client, this.baseUrl = kGroqApiBase, this.gate});
+
+  /// HTTP client (tests).
+  final http.Client? client;
+
+  /// API base (tests).
+  final String baseUrl;
+
+  /// Rate gate (tests).
+  final GroqRateGate? gate;
+
+  /// Lists the models of [apiKey]. Never throws. The result's `model` is
+  /// the model minutes will use: [model] when the key has it, otherwise the
+  /// automatic choice ([pickPreferredGroqModel]).
+  Future<ConnectionTestResult> test(String apiKey, {String? model}) async {
+    final key = apiKey.trim();
+    if (key.isEmpty) {
+      return const ConnectionTestResult(ok: false, messageAr: GS.testNoKey);
+    }
+    try {
+      final models = await listGroqModels(
+        apiKey: key,
+        httpClient: client,
+        baseUrl: baseUrl,
+        gate: gate,
+      );
+      final wanted = model?.trim();
+      if (wanted != null &&
+          wanted.isNotEmpty &&
+          models.any((m) => m.id == wanted && m.active)) {
+        return ConnectionTestResult(
+          ok: true,
+          messageAr: GS.testOk,
+          model: wanted,
+        );
+      }
+      final pick = pickPreferredGroqModel(models);
+      if (pick == null) {
+        return const ConnectionTestResult(ok: false, messageAr: GS.noModel);
+      }
+      return ConnectionTestResult(ok: true, messageAr: GS.testOk, model: pick);
+    } on InsatoException catch (e) {
+      return ConnectionTestResult(ok: false, messageAr: e.messageAr);
+    } catch (_) {
+      return const ConnectionTestResult(
+        ok: false,
+        messageAr: GS.testUnreachable,
+      );
+    }
+  }
+}
+
+/// The Groq connection tester used by the Settings screen.
+final groqConnectionTesterProvider = Provider<GroqConnectionTester>(
+  (ref) => GroqConnectionTester(),
 );

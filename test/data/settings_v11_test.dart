@@ -94,7 +94,7 @@ void main() {
     tearDown(() => db.close());
 
     test('persist and validate', () async {
-      await settings.setMinutesEngine('claude');
+      await settings.setMinutesEngine('groq');
       await settings.setGeminiModel('models/gemini-2.5-flash');
       await settings.setGeminiPrivacyAcknowledged(true);
       await settings.setLocalLlmModelId(' qwen ');
@@ -105,8 +105,8 @@ void main() {
       await settings.setFarFieldMode(true);
       await settings.setProfilesFeatureAcknowledged(true);
       final d = await settings.load();
-      expect(d.minutesEngine, 'claude');
-      expect(await settings.minutesEngine, 'claude');
+      expect(d.minutesEngine, 'groq');
+      expect(await settings.minutesEngine, 'groq');
       expect(await settings.geminiModel, 'gemini-2.5-flash');
       expect(await settings.geminiPrivacyAcknowledged, isTrue);
       expect(d.localLlmModelId, 'qwen');
@@ -150,10 +150,10 @@ void main() {
       expect(await s.getGeminiApiKey(), isNull);
       await s.setGeminiApiKey('  AIzaSy-test ');
       expect(await s.getGeminiApiKey(), 'AIzaSy-test');
-      await s.setAnthropicApiKey('sk-ant');
+      await s.setGroqApiKey('gsk-1');
       await s.clearGeminiApiKey();
       expect(await s.getGeminiApiKey(), isNull);
-      expect(await s.getAnthropicApiKey(), 'sk-ant');
+      expect(await s.getGroqApiKey(), 'gsk-1');
       await s.setGeminiApiKey('x');
       await s.setGeminiApiKey(' ');
       expect(await s.getGeminiApiKey(), isNull);

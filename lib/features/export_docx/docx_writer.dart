@@ -125,7 +125,7 @@ List<DirectionalPiece> splitByDirection(String text) {
     final r = runes[i];
     if (_isLtrLetter(r)) {
       // Extend to the last LTR letter (or a digit that follows LTR text,
-      // as in `claude-opus-5` or `OPEX 2026`) before the next RTL letter.
+      // as in `gpt-oss-120b` or `OPEX 2026`) before the next RTL letter.
       var end = i;
       var j = i;
       while (j < runes.length && !_isRtlLetter(runes[j])) {

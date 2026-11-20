@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/interfaces.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/features/groq/strings.dart';
 import 'package:insato/ui/screens/models_screen.dart';
 import 'package:insato/ui/screens/settings_screen.dart';
 import 'package:insato/ui/screens/speakers_screen.dart';
@@ -23,7 +24,7 @@ void main() {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();
       await pumpScreen(t, env, const SettingsScreen());
-      expect(find.text(S.sectionClaude), findsOneWidget);
+      expect(find.text(S.sectionMinutesEngine), findsOneWidget);
       expect(find.text(S.keyNotConfigured), findsOneWidget);
       expect(find.text(S.minutesDetail), findsOneWidget);
       for (final s in [
@@ -39,20 +40,22 @@ void main() {
       await env.dispose(t);
     });
 
-    testWidgets('saving and testing the Anthropic key', (t) async {
+    testWidgets('saving and testing the Groq key', (t) async {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();
-      await env.run(t, () => AppSettings(env.db).setMinutesEngine('claude'));
+      await env.run(t, () => AppSettings(env.db).setMinutesEngine('groq'));
       await pumpScreen(t, env, const SettingsScreen());
 
-      final field = find.widgetWithText(TextField, S.anthropicKey);
+      expect(find.text(GS.privacyTitle), findsOneWidget);
+      final field = find.widgetWithText(TextField, GS.keyLabel);
       expect(t.widget<TextField>(field).obscureText, isTrue);
-      await t.enterText(field, '  sk-ant-123  ');
+      await t.enterText(field, '  gsk_123  ');
+      await t.ensureVisible(find.text(S.testConnection));
       await t.tap(find.text(S.testConnection));
       await settle(t, rounds: 10);
-      expect(env.tester.keys, ['sk-ant-123']);
+      expect(env.tester.keys, ['gsk_123']);
       // A key that passed the test is stored.
-      expect(env.secure.anthropic, 'sk-ant-123');
+      expect(env.secure.groq, 'gsk_123');
       expect(find.text(S.keyConfigured), findsOneWidget);
       expect(find.textContaining('الاتصال ناجح'), findsOneWidget);
       await env.dispose(t);
@@ -64,17 +67,19 @@ void main() {
         ..tester = FakeConnectionTester(
           const ConnectionTestResult(ok: false, messageAr: 'المفتاح غير صالح'),
         );
-      await env.run(t, () => AppSettings(env.db).setMinutesEngine('claude'));
+      await env.run(t, () => AppSettings(env.db).setMinutesEngine('groq'));
       await pumpScreen(t, env, const SettingsScreen());
-      await t.enterText(find.widgetWithText(TextField, S.anthropicKey), 'bad');
+      await t.enterText(find.widgetWithText(TextField, GS.keyLabel), 'bad');
+      await t.ensureVisible(find.text(S.testConnection));
       await t.tap(find.text(S.testConnection));
       await settle(t, rounds: 10);
       expect(find.text('المفتاح غير صالح'), findsOneWidget);
-      expect(env.secure.anthropic, isNull);
+      expect(env.secure.groq, isNull);
       await env.dispose(t);
     });
 
-    testWidgets('switching to cloud ASR shows the Deepgram key', (t) async {
+    testWidgets('switching to cloud ASR shows the Groq Whisper settings',
+        (t) async {
       setScreenSize(t, kPhone);
       final env = UiTestEnv();
       await pumpScreen(t, env, const SettingsScreen());
@@ -90,8 +95,21 @@ void main() {
       await settle(t, rounds: 10);
       final s = await env.run(t, () => AppSettings(env.db).load());
       expect(s.asrEngine, AppSettingsData.asrCloud);
-      expect(find.widgetWithText(TextField, S.deepgramKey), findsOneWidget);
-      expect(find.text(S.whisperModel), findsNothing);
+      expect(find.text(GS.asrPrivacyTitle), findsOneWidget);
+      expect(find.widgetWithText(TextField, GS.keyLabel), findsOneWidget);
+      expect(find.text(GS.asrModelLargeV3), findsOneWidget);
+      // The on-device model stays selectable as the quota fallback.
+      expect(find.text(S.whisperFallbackNote), findsOneWidget);
+
+      // Accepting the transcription notice is stored.
+      await t.ensureVisible(find.text(S.geminiPrivacyAccept).last);
+      await t.tap(find.text(S.geminiPrivacyAccept).last);
+      await settle(t, rounds: 10);
+      expect(
+        (await env.run(t, () => AppSettings(env.db).load()))
+            .groqAsrPrivacyAcknowledged,
+        isTrue,
+      );
       await env.dispose(t);
     });
 

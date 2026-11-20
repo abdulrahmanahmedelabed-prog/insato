@@ -7,6 +7,11 @@
 // whose path ends with `/v1` is OpenAI-compatible, any other is Ollama.
 // [LlmServerClient.probe] detects the flavour of a server and returns the
 // URL to save.
+//
+// The same client also talks to Groq's OpenAI-compatible cloud API (free
+// plan, lib/features/groq): a fixed base URL ending in `/v1`, an API key
+// sent as `Authorization: Bearer`, non-streaming requests and
+// `json_object` mode for models without structured outputs.
 
 import 'dart:async';
 import 'dart:convert';
@@ -16,6 +21,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/errors.dart';
 import '../../data/secure_settings.dart';
+import '../../minutes/http_support.dart' show parseRetryAfter;
 import 'llm_generator.dart';
 import 'strings.dart';
 
@@ -104,6 +110,23 @@ String? serverErrorMessage(String body) {
   return t.length > 200 ? '${t.substring(0, 200)}…' : t;
 }
 
+/// The model's raw answer from a `json_validate_failed` error body (Groq and
+/// other OpenAI-compatible servers return the generation that did not
+/// validate as `error.failed_generation`), or null.
+String? failedGeneration(String body) {
+  try {
+    final j = jsonDecode(body);
+    if (j is! Map) return null;
+    final e = j['error'];
+    if (e is! Map) return null;
+    final failed = e['failed_generation'];
+    if (failed is String && failed.trim().isNotEmpty) return failed;
+  } on FormatException {
+    // Not JSON.
+  }
+  return null;
+}
+
 /// Result of [LlmServerClient.probe].
 class LlmServerProbe {
   /// Creates a result.
@@ -132,10 +155,30 @@ class LlmServerException extends MinutesGenerationException {
     super.cause,
     super.retryable,
     this.statusCode,
+    this.retryAfter,
+    this.serverMessage,
   });
 
   /// HTTP status, when the server answered.
   final int? statusCode;
+
+  /// The server's `Retry-After`, when it sent one (429 / 503).
+  final Duration? retryAfter;
+
+  /// The server's own error message (English, for classification).
+  final String? serverMessage;
+}
+
+/// How the answer format is requested from an OpenAI-compatible server.
+enum LlmResponseFormat {
+  /// `response_format: {type: json_schema}` with the request schema.
+  jsonSchema,
+
+  /// `response_format: {type: json_object}` (schema given in the prompt).
+  jsonObject,
+
+  /// No `response_format` (schema given in the prompt).
+  none,
 }
 
 /// HTTP client of an Ollama / OpenAI-compatible server.
@@ -145,6 +188,8 @@ class LlmServerClient {
   LlmServerClient({
     required String baseUrl,
     http.Client? client,
+    this.apiKey,
+    this.onResponseHeaders,
     this.connectTimeout = const Duration(seconds: 10),
     this.firstByteTimeout = const Duration(minutes: 10),
     this.idleTimeout = const Duration(minutes: 3),
@@ -154,6 +199,19 @@ class LlmServerClient {
 
   /// Base URL as saved (with `/v1` for OpenAI-compatible servers).
   final String baseUrl;
+
+  /// API key sent as `Authorization: Bearer` (cloud providers such as Groq);
+  /// null for local servers.
+  final String? apiKey;
+
+  /// Receives the headers of every HTTP response (e.g. Groq's
+  /// `x-ratelimit-*` headers).
+  final void Function(Map<String, String> headers)? onResponseHeaders;
+
+  Map<String, String> get _auth {
+    final k = apiKey?.trim();
+    return k == null || k.isEmpty ? const {} : {'authorization': 'Bearer $k'};
+  }
 
   /// Timeout of short requests (model list, probe, model info).
   final Duration connectTimeout;
@@ -177,12 +235,13 @@ class LlmServerClient {
   // Short requests
   // -------------------------------------------------------------------------
 
-  Future<http.Response> _get(Uri uri) => _short(() => _client.get(uri), uri);
+  Future<http.Response> _get(Uri uri) =>
+      _short(() => _client.get(uri, headers: _auth), uri);
 
   Future<http.Response> _postJson(Uri uri, Map<String, dynamic> body) => _short(
     () => _client.post(
       uri,
-      headers: const {'content-type': 'application/json'},
+      headers: {'content-type': 'application/json', ..._auth},
       body: jsonEncode(body),
     ),
     uri,
@@ -193,7 +252,9 @@ class LlmServerClient {
     Uri uri,
   ) async {
     try {
-      return await send().timeout(connectTimeout);
+      final r = await send().timeout(connectTimeout);
+      onResponseHeaders?.call(r.headers);
+      return r;
     } on TimeoutException catch (e) {
       throw LlmServerException(
         LS.serverTimeout(baseUrl),
@@ -215,8 +276,25 @@ class LlmServerClient {
     retryable: e is SocketException || e is http.ClientException,
   );
 
-  LlmServerException _httpError(int status, String body, {String? model}) {
+  LlmServerException _httpError(
+    int status,
+    String body, {
+    String? model,
+    Map<String, String> headers = const {},
+  }) {
     final msg = serverErrorMessage(body);
+    final retryAfter = parseRetryAfter(headers['retry-after']);
+    if (status == 401 || status == 403 || status == 413 || status == 429) {
+      // Cloud providers: the caller maps these to its own messages.
+      return LlmServerException(
+        LS.serverHttpError(status, msg),
+        debugDetails: 'HTTP $status: $msg',
+        statusCode: status,
+        retryable: status == 429,
+        retryAfter: retryAfter,
+        serverMessage: msg,
+      );
+    }
     final lower = (msg ?? '').toLowerCase();
     if (model != null &&
         (status == 404 ||
@@ -228,6 +306,7 @@ class LlmServerClient {
         LS.serverModelMissing(model, flavor == LlmServerFlavor.ollama),
         debugDetails: 'HTTP $status: $msg',
         statusCode: status,
+        serverMessage: msg,
       );
     }
     if (lower.contains('context') &&
@@ -245,6 +324,8 @@ class LlmServerClient {
       debugDetails: 'HTTP $status: $msg',
       statusCode: status,
       retryable: status >= 500 || status == 429,
+      retryAfter: retryAfter,
+      serverMessage: msg,
     );
   }
 
@@ -267,7 +348,9 @@ class LlmServerClient {
       f == LlmServerFlavor.ollama ? '/api/tags' : '/models',
     );
     final r = await _get(uri);
-    if (r.statusCode != 200) throw _httpError(r.statusCode, r.body);
+    if (r.statusCode != 200) {
+      throw _httpError(r.statusCode, r.body, headers: r.headers);
+    }
     final j = _json(r.body);
     final list = j?[f == LlmServerFlavor.ollama ? 'models' : 'data'];
     if (list is! List) {
@@ -284,6 +367,28 @@ class LlmServerClient {
             n.trim(),
     }.toList()..sort();
     return names;
+  }
+
+  /// The raw entries of an OpenAI-compatible `/models` list (each a map
+  /// with at least `id`; Groq adds `active`, `context_window`,
+  /// `max_completion_tokens`, `owned_by`).
+  Future<List<Map<String, dynamic>>> listModelEntries() async {
+    final uri = _uri(baseUrl, '/models');
+    final r = await _get(uri);
+    if (r.statusCode != 200) {
+      throw _httpError(r.statusCode, r.body, headers: r.headers);
+    }
+    final list = _json(r.body)?['data'];
+    if (list is! List) {
+      throw LlmServerException(
+        LS.serverNotRecognised(baseUrl),
+        debugDetails: 'unexpected model list from $uri',
+      );
+    }
+    return [
+      for (final m in list)
+        if (m is Map<String, dynamic> && m['id'] is String) m,
+    ];
   }
 
   /// Detects the server's flavour: the URL's own flavour first, then the
@@ -362,16 +467,31 @@ class LlmServerClient {
   // Generation
   // -------------------------------------------------------------------------
 
-  /// Runs one chat generation with streaming. [numCtx] is sent to Ollama
+  /// Runs one chat generation. [numCtx] is sent to Ollama
   /// (`options.num_ctx`). When [useSchema] is false the schema is not sent
   /// (the caller put it in the prompt). Throws [LlmServerSchemaRejected]
   /// when the server refuses the schema parameter.
+  ///
+  /// OpenAI-compatible servers only: [stream] false sends one plain request
+  /// (answer in `choices[0].message.content`); [jsonObjectMode] asks for
+  /// `response_format: json_object` when no schema is sent; [strictSchema]
+  /// is the `json_schema.strict` flag; [maxCompletionTokensField] sends
+  /// `max_completion_tokens` instead of `max_tokens`; [extraBody] is merged
+  /// into the request body (provider options). A server that rejects an
+  /// answer as invalid JSON (`json_validate_failed`) has its
+  /// `failed_generation` returned as the answer, for the tolerant parser and
+  /// the repair pass.
   Future<LlmGeneration> chat({
     required String model,
     required LlmGenerationRequest request,
     required int numCtx,
     bool useSchema = true,
     LlmProgressCallback? onProgress,
+    bool stream = true,
+    bool jsonObjectMode = false,
+    bool strictSchema = true,
+    bool maxCompletionTokensField = false,
+    Map<String, dynamic> extraBody = const {},
   }) async {
     final ollama = flavor == LlmServerFlavor.ollama;
     final schema = useSchema ? request.schema : null;
@@ -394,26 +514,32 @@ class LlmServerClient {
         : <String, dynamic>{
             'model': model,
             'messages': messages,
-            'stream': true,
-            'max_tokens': request.maxTokens,
+            'stream': stream,
+            maxCompletionTokensField ? 'max_completion_tokens' : 'max_tokens':
+                request.maxTokens,
             'temperature': request.temperature,
             if (schema != null)
               'response_format': {
                 'type': 'json_schema',
                 'json_schema': {
                   'name': 'response',
-                  'strict': true,
+                  'strict': strictSchema,
                   'schema': schema,
                 },
-              },
+              }
+            else if (jsonObjectMode)
+              'response_format': {'type': 'json_object'},
+            ...extraBody,
           };
+    final streaming = ollama || stream;
     final uri = _uri(baseUrl, ollama ? '/api/chat' : '/chat/completions');
     final abort = Completer<void>();
     final req = http.AbortableRequest('POST', uri, abortTrigger: abort.future)
       ..headers['content-type'] = 'application/json'
       ..headers['accept'] = ollama
           ? 'application/x-ndjson'
-          : 'text/event-stream'
+          : (streaming ? 'text/event-stream' : 'application/json')
+      ..headers.addAll(_auth)
       ..body = jsonEncode(body);
 
     http.StreamedResponse resp;
@@ -430,8 +556,15 @@ class LlmServerClient {
     } catch (e) {
       throw _connectionError(e, uri);
     }
+    onResponseHeaders?.call(resp.headers);
     if (resp.statusCode != 200) {
       final text = await resp.stream.bytesToString().catchError((_) => '');
+      final failed = failedGeneration(text);
+      if (failed != null) {
+        // The model answered, but not with valid JSON for the format: keep
+        // its text for the tolerant parser / repair pass.
+        return LlmGeneration(text: stripThinking(failed), model: model);
+      }
       if (schema != null &&
           resp.statusCode == 400 &&
           RegExp(
@@ -440,8 +573,14 @@ class LlmServerClient {
           ).hasMatch(text)) {
         throw LlmServerSchemaRejected(serverErrorMessage(text) ?? text);
       }
-      throw _httpError(resp.statusCode, text, model: model);
+      throw _httpError(
+        resp.statusCode,
+        text,
+        model: model,
+        headers: resp.headers,
+      );
     }
+    if (!streaming) return _plainAnswer(resp, uri, model, onProgress, abort);
 
     final answer = StringBuffer();
     var thinkingChars = 0;
@@ -522,6 +661,58 @@ class LlmServerClient {
       text: stripThinking(answer.toString()),
       model: usedModel,
       truncated: truncated,
+    );
+  }
+
+  Future<LlmGeneration> _plainAnswer(
+    http.StreamedResponse resp,
+    Uri uri,
+    String model,
+    LlmProgressCallback? onProgress,
+    Completer<void> abort,
+  ) async {
+    final String text;
+    try {
+      text = await http.ByteStream(resp.stream.timeout(idleTimeout))
+          .bytesToString();
+    } on TimeoutException catch (e) {
+      if (!abort.isCompleted) abort.complete();
+      throw LlmServerException(
+        LS.serverStalled,
+        debugDetails: 'answer idle on $uri',
+        cause: e,
+        retryable: true,
+      );
+    } catch (e) {
+      throw _connectionError(e, uri);
+    }
+    final j = _json(text);
+    final choices = j?['choices'];
+    if (j == null ||
+        choices is! List ||
+        choices.isEmpty ||
+        choices.first is! Map) {
+      if (j?['error'] != null) {
+        throw _httpError(200, text, model: model);
+      }
+      throw LlmServerException(
+        LS.serverNotRecognised(baseUrl),
+        debugDetails: 'unexpected chat answer from $uri',
+      );
+    }
+    final c = choices.first as Map;
+    final msg = c['message'];
+    final content = msg is Map ? (msg['content'] as String? ?? '') : '';
+    if (content.isNotEmpty) {
+      onProgress?.call(LlmStreamPhase.writing, content.length);
+    }
+    final usedModel = j['model'] is String && (j['model'] as String).isNotEmpty
+        ? j['model'] as String
+        : model;
+    return LlmGeneration(
+      text: stripThinking(content),
+      model: usedModel,
+      truncated: c['finish_reason'] == 'length',
     );
   }
 

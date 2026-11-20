@@ -51,6 +51,8 @@ import '../diarization/vector_math.dart';
 import '../features/voice/voice_devices.dart'
     show knownSpeakerThresholdFor, voiceDeviceAfterLearning;
 import 'meeting_session_controller.dart';
+import 'minutes_engines.dart'
+    show MinutesQuotaExhaustedException, runWithMinutesEngine;
 import 'providers.dart';
 
 /// Minimum speech (ms) of a brand-new automatic speaker before its voiceprint
@@ -1720,6 +1722,7 @@ class MeetingJobState {
     this.errorAr,
     this.noticeAr,
     this.needsApiKey = false,
+    this.alternativeEngine,
   });
 
   /// Job kind (null when idle).
@@ -1740,8 +1743,14 @@ class MeetingJobState {
   /// Arabic notice after success (e.g. minutes skipped without API key).
   final String? noticeAr;
 
-  /// True when the job could not run because the Anthropic key is missing.
+  /// True when the job could not run because the selected engine is not
+  /// set up (key missing, privacy notice not accepted, …).
   final bool needsApiKey;
+
+  /// When the job failed because the free daily quota of the selected cloud
+  /// engine is used up: the other free cloud engine (ready to use) that the
+  /// UI offers instead (`MinutesQuotaExhaustedException`).
+  final String? alternativeEngine;
 
   /// True while running.
   bool get isRunning => phase == MeetingJobPhase.running;
@@ -1813,6 +1822,9 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
                 ? e.messageAr
                 : 'حدث خطأ غير متوقع أثناء معالجة الاجتماع.',
             needsApiKey: e is MissingApiKeyException,
+            alternativeEngine: e is MinutesQuotaExhaustedException
+                ? e.alternativeEngine
+                : null,
           ),
         );
         return false;
@@ -1829,14 +1841,20 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
   ///
   /// v1.2 (D): once new minutes are saved, the consistency checker runs in
   /// the background (heuristics, then the selected engine).
-  Future<bool> generateMinutes({bool automatic = false}) {
+  ///
+  /// [engine] runs this job once with another minutes engine than the one
+  /// selected in Settings (the free cloud engine offered after a daily
+  /// quota ran out, see [MeetingJobState.alternativeEngine]).
+  Future<bool> generateMinutes({bool automatic = false, String? engine}) {
     final post = ref.read(postProcessorProvider);
     var generated = false;
     final job = _run(MeetingJobKind.minutes, 'جارٍ إعداد المحضر…', (
       progress,
     ) async {
       if (!automatic) {
-        await post.regenerateMinutes(meetingId, onProgress: progress);
+        Future<Minutes> run() =>
+            post.regenerateMinutes(meetingId, onProgress: progress);
+        await (engine == null ? run() : runWithMinutesEngine(engine, run));
         generated = true;
         return const MeetingJobState(
           kind: MeetingJobKind.minutes,

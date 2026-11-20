@@ -1,6 +1,8 @@
-// Settings: minutes engine (Gemini free tier by default with its privacy
-// notice, key and model; Claude key and model; local engines when
-// available) and minutes detail, transcription engine (on-device Whisper or Deepgram with key),
+// Settings: minutes engine (owner decision: free cloud engines only —
+// Gemini free tier by default and Groq free plan, each with its privacy
+// notice, key and model; local engines when available), the automatic
+// fallback between the free cloud engines, minutes detail, transcription
+// engine (on-device Whisper or free Groq Whisper with its own notice),
 // Whisper model, language hint, keep-audio, custom vocabulary (F2),
 // microphone (F18: device, far field, test) and audio source (F13, Windows
 // only), speaker matching sensitivity, models, privacy and about.
@@ -16,13 +18,13 @@ import '../../features/consistency/consistency.dart'
     show ConsistencyLiveSettingTile;
 import '../../features/context/glossary_screen.dart' show GlossaryScreen;
 import '../../features/context/strings.dart' show CS;
+import '../../features/groq/groq_settings.dart';
 import '../../features/local_llm/local_minutes_backends.dart';
 import '../../features/official/entity_settings_screen.dart'
     show EntitySettingsTile;
 import '../../features/system_audio/audio_source_selector.dart'
     show AudioSourceSelector;
 import '../../features/voice/mic_settings.dart' show MicSettingsSection;
-import '../../minutes/claude_client.dart';
 import '../../minutes/gemini_client.dart';
 import '../../speech/model_catalog.dart';
 import '../format.dart';
@@ -101,8 +103,13 @@ class SettingsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // -------------------------------------------- Minutes engine
-              const SectionHeader(S.sectionClaude, icon: Icons.auto_awesome),
+              const SectionHeader(
+                S.sectionMinutesEngine,
+                icon: Icons.auto_awesome,
+              ),
               MinutesEngineSettings(settings: s, save: _save),
+              if (s.minutesEngineIsCloud)
+                CloudFallbackTile(settings: s, save: _save),
               const SizedBox(height: 16),
               Text(S.minutesDetail, style: theme.textTheme.titleSmall),
               const SizedBox(height: 8),
@@ -153,24 +160,16 @@ class SettingsScreen extends ConsumerWidget {
                 style: muted,
               ),
               const SizedBox(height: 12),
-              if (!s.usesLocalAsr)
-                ApiKeyCard(
-                  label: S.deepgramKey,
-                  load: () =>
-                      ref.read(secureSettingsProvider).getDeepgramApiKey(),
-                  save: (k) =>
-                      ref.read(secureSettingsProvider).setDeepgramApiKey(k),
-                  clear: () =>
-                      ref.read(secureSettingsProvider).clearDeepgramApiKey(),
-                  onChanged: () =>
-                      ref.invalidate(deepgramKeyConfiguredProvider),
-                )
-              else
-                _WhisperChoice(
-                  selected: s.whisperModelId,
-                  onSelect: (id) =>
-                      _save(context, () => store.setWhisperModelId(id)),
-                ),
+              if (!s.usesLocalAsr) ...[
+                GroqAsrSettings(settings: s, save: _save),
+                const SizedBox(height: 12),
+                Text(S.whisperFallbackNote, style: muted),
+              ],
+              _WhisperChoice(
+                selected: s.whisperModelId,
+                onSelect: (id) =>
+                    _save(context, () => store.setWhisperModelId(id)),
+              ),
               const SizedBox(height: 4),
               _LanguageTile(
                 hint: s.languageHint,
@@ -559,7 +558,7 @@ class _ApiKeyCardState extends State<ApiKeyCard> {
   }
 }
 
-/// Text field for a model id (Claude, Gemini).
+/// Text field for a model id (Gemini).
 class ModelIdField extends StatefulWidget {
   /// Creates the field.
   const ModelIdField({
@@ -589,20 +588,6 @@ class ModelIdField extends StatefulWidget {
 
   @override
   State<ModelIdField> createState() => _ModelIdFieldState();
-}
-
-/// Text field for the Claude model id.
-class ClaudeModelField extends ModelIdField {
-  /// Creates the field.
-  const ClaudeModelField({
-    super.key,
-    required super.value,
-    required super.onSave,
-  }) : super(
-         label: S.claudeModel,
-         helper: S.claudeModelHelper,
-         defaultModel: kDefaultClaudeModel,
-       );
 }
 
 class _ModelIdFieldState extends State<ModelIdField> {
@@ -659,8 +644,8 @@ class _ModelIdFieldState extends State<ModelIdField> {
 }
 
 /// The minutes-engine part of Settings: engine choice, then the selected
-/// engine's configuration (Gemini: privacy notice, key, model; Claude: key,
-/// model; local engines: their own settings).
+/// engine's configuration (Gemini / Groq: privacy notice, key, model; local
+/// engines: their own settings).
 class MinutesEngineSettings extends ConsumerWidget {
   /// Creates the section.
   const MinutesEngineSettings({
@@ -693,9 +678,9 @@ class MinutesEngineSettings extends ConsumerWidget {
         icon: Icon(Icons.cloud_outlined),
       ),
       const ButtonSegment(
-        value: AppSettingsData.engineClaude,
-        label: Text(S.engineClaude),
-        icon: Icon(Icons.auto_awesome_outlined),
+        value: AppSettingsData.engineGroq,
+        label: Text(S.engineGroq),
+        icon: Icon(Icons.bolt_rounded),
       ),
       if (local != null || s.minutesEngine == AppSettingsData.engineLocal)
         const ButtonSegment(
@@ -807,26 +792,9 @@ class MinutesEngineSettings extends ConsumerWidget {
             defaultModel: kDefaultGeminiModel,
             onSave: (m) => save(context, () => store.setGeminiModel(m)),
           ),
-        ] else if (s.minutesEngine == AppSettingsData.engineClaude) ...[
-          ApiKeyCard(
-            key: const ValueKey('anthropic-key'),
-            label: S.anthropicKey,
-            helper: S.anthropicKeyHelper,
-            load: () => ref.read(secureSettingsProvider).getAnthropicApiKey(),
-            save: (k) => ref.read(secureSettingsProvider).setAnthropicApiKey(k),
-            clear: () =>
-                ref.read(secureSettingsProvider).clearAnthropicApiKey(),
-            onChanged: () => ref.invalidate(anthropicKeyConfiguredProvider),
-            test: (k) => ref
-                .read(claudeConnectionTesterProvider)
-                .test(k, model: s.claudeModel),
-          ),
-          const SizedBox(height: 12),
-          ClaudeModelField(
-            value: s.claudeModel,
-            onSave: (m) => save(context, () => store.setClaudeModel(m)),
-          ),
-        ] else if (selectedBuilder?.settings != null)
+        ] else if (s.minutesEngine == AppSettingsData.engineGroq)
+          GroqEngineSettings(settings: s, save: save)
+        else if (selectedBuilder?.settings != null)
           selectedBuilder!.settings!(context)
         else
           const ErrorBanner(
@@ -839,13 +807,32 @@ class MinutesEngineSettings extends ConsumerWidget {
 }
 
 /// The Gemini free-tier data notice, accepted before anything is sent.
-class GeminiPrivacyCard extends StatelessWidget {
+class GeminiPrivacyCard extends CloudPrivacyCard {
   /// Creates the card.
   const GeminiPrivacyCard({
     super.key,
+    required super.acknowledged,
+    required super.onChanged,
+  }) : super(title: S.geminiPrivacyTitle, body: S.geminiPrivacyBody);
+}
+
+/// A cloud provider's data notice (Gemini, Groq, Groq Whisper), accepted
+/// before anything is sent to it; the acceptance can be withdrawn.
+class CloudPrivacyCard extends StatelessWidget {
+  /// Creates the card.
+  const CloudPrivacyCard({
+    super.key,
+    required this.title,
+    required this.body,
     required this.acknowledged,
     required this.onChanged,
   });
+
+  /// Notice title.
+  final String title;
+
+  /// Notice text.
+  final String body;
 
   /// Whether the notice was accepted.
   final bool acknowledged;
@@ -869,15 +856,12 @@ class GeminiPrivacyCard extends StatelessWidget {
                 Icon(Icons.privacy_tip_outlined, color: scheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    S.geminiPrivacyTitle,
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  child: Text(title, style: theme.textTheme.titleSmall),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(S.geminiPrivacyBody, style: theme.textTheme.bodyMedium),
+            Text(body, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
             if (acknowledged)
               Row(

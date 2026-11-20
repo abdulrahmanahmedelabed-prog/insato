@@ -15,6 +15,8 @@ import '../../features/evidence/evidence.dart' show EvidenceChips;
 import '../../features/multi_device/widgets.dart' show MultiDeviceLogCard;
 import '../../features/official/official_summary_card.dart'
     show OfficialSummaryCard, confirmRegenerateOfficial;
+import '../../features/groq/strings.dart' show GS;
+import '../../session/minutes_engines.dart' show minutesEngineDisplayNameAr;
 import '../../session/post_processor.dart';
 import '../../session/providers.dart';
 import '../navigation.dart';
@@ -31,17 +33,19 @@ class MeetingMinutesTab extends ConsumerWidget {
   /// The meeting.
   final Meeting meeting;
 
-  void _generate(WidgetRef ref) {
+  void _generate(WidgetRef ref, {String? engine}) {
     unawaited(
-      ref.read(meetingJobsProvider(meeting.id).notifier).generateMinutes(),
+      ref
+          .read(meetingJobsProvider(meeting.id).notifier)
+          .generateMinutes(engine: engine),
     );
   }
 
   Future<void> _openSettings(BuildContext context, WidgetRef ref) async {
     await openSettingsScreen(context);
     ref
-      ..invalidate(anthropicKeyConfiguredProvider)
-      ..invalidate(geminiKeyConfiguredProvider);
+      ..invalidate(geminiKeyConfiguredProvider)
+      ..invalidate(groqKeyConfiguredProvider);
   }
 
   @override
@@ -66,6 +70,7 @@ class MeetingMinutesTab extends ConsumerWidget {
     if (generating) {
       children.add(_GeneratingCard(job: job));
     } else if (minutesJob && job.phase == MeetingJobPhase.failed) {
+      final alternative = job.alternativeEngine;
       children.add(
         ErrorBanner(
           message: job.errorAr ?? S.unexpectedError,
@@ -74,6 +79,13 @@ class MeetingMinutesTab extends ConsumerWidget {
               ? FilledButton.tonal(
                   onPressed: () => _openSettings(context, ref),
                   child: const Text(S.addApiKey),
+                )
+              : alternative != null
+              ? FilledButton.tonal(
+                  onPressed: () => _generate(ref, engine: alternative),
+                  child: Text(
+                    GS.useAlternative(minutesEngineDisplayNameAr(alternative)),
+                  ),
                 )
               : null,
           onDismiss: () =>

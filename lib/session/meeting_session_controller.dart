@@ -8,7 +8,7 @@
 // * [SessionEnginesFactory]– builds the [SpeechSegmenter] + [SegmentProcessor]
 //                            for a session (production: sherpa VAD on the main
 //                            isolate, Whisper + speaker embedder in a
-//                            [ProcessingIsolate], optional Deepgram ASR).
+//                            [ProcessingIsolate], optional Groq Whisper).
 // * [SessionPipeline]      – pure orchestration core: strictly ordered
 //                            processing results → [SpeakerTracker] → speaker
 //                            records → [TranscriptSegment] rows.
@@ -41,6 +41,7 @@ import '../diarization/vector_math.dart';
 import '../features/voice/voice_devices.dart'
     show knownSpeakerThresholdFor, vadConfigFor;
 import '../speech/asr_outcome.dart';
+import '../features/groq/strings.dart' show GS;
 import '../speech/cloud_asr_engine.dart';
 import '../speech/model_catalog.dart';
 import '../speech/model_manager.dart';
@@ -212,6 +213,8 @@ class IsolateSegmentProcessor implements SegmentProcessor {
     this.languageHint,
     int maxConcurrentCloudRequests = 3,
     this.maxRespawns = 3,
+    this._onDeviceFallback,
+    this._onNotice,
   }) : _cloud = cloudAsr,
        _pool = _Pool(math.max(1, maxConcurrentCloudRequests));
 
@@ -219,12 +222,20 @@ class IsolateSegmentProcessor implements SegmentProcessor {
   ///
   /// With [cloudAsr] the worker must have been configured with
   /// `runAsr: false`; transcripts then come from [cloudAsr].
+  ///
+  /// [onDeviceFallback] spawns a worker that also runs on-device ASR: when
+  /// the cloud engine reports that its free quota is used up
+  /// ([CloudAsrQuotaExhaustedException]), the processor switches to it for
+  /// the rest of the session and reports [GS.asrFellBackToDevice] through
+  /// [onNotice] (or [GS.asrNoDeviceFallback] without a fallback).
   static Future<IsolateSegmentProcessor> start({
     required Future<ProcessingIsolate> Function() spawn,
     AsrEngine? cloudAsr,
     String? languageHint,
     int maxConcurrentCloudRequests = 3,
     int maxRespawns = 3,
+    Future<ProcessingIsolate> Function()? onDeviceFallback,
+    void Function(String noticeAr)? onNotice,
   }) async {
     final iso = await spawn();
     return IsolateSegmentProcessor._(
@@ -234,13 +245,24 @@ class IsolateSegmentProcessor implements SegmentProcessor {
       languageHint: languageHint,
       maxConcurrentCloudRequests: maxConcurrentCloudRequests,
       maxRespawns: maxRespawns,
+      onDeviceFallback: onDeviceFallback,
+      onNotice: onNotice,
     );
   }
 
-  final Future<ProcessingIsolate> Function() _spawn;
+  Future<ProcessingIsolate> Function() _spawn;
   ProcessingIsolate _isolate;
   final AsrEngine? _cloud;
   final _Pool _pool;
+  final Future<ProcessingIsolate> Function()? _onDeviceFallback;
+  final void Function(String noticeAr)? _onNotice;
+
+  /// True once cloud transcription was abandoned for this session (quota
+  /// used up) and the on-device worker took over.
+  bool get usesDeviceFallback => _onDevice;
+  bool _onDevice = false;
+  bool _quotaNoticeSent = false;
+  Future<void>? _switching;
 
   /// Language hint for the cloud engine (the worker has its own copy).
   final String? languageHint;
@@ -267,14 +289,26 @@ class IsolateSegmentProcessor implements SegmentProcessor {
     _inFlight++;
     try {
       final cloud = _cloud;
-      if (cloud == null) return await _runIsolate(segment);
+      if (_switching != null) await _switching;
+      if (cloud == null || _onDevice) return await _runIsolate(segment);
       // Embedding failures are not fatal in cloud mode: the transcript is
       // what matters, the speaker then falls back to continuity rules.
       final embedding = _runIsolate(segment)
           .then<ProcessedSegment?>((r) => r, onError: (Object _) => null);
-      final asr = await _pool.run(
-        () => cloud.transcribe(segment, languageHint: languageHint),
-      );
+      final AsrResult asr;
+      try {
+        asr = await _pool.run(
+          () => cloud.transcribe(segment, languageHint: languageHint),
+        );
+      } on CloudAsrQuotaExhaustedException {
+        await embedding;
+        if (_onDeviceFallback == null) {
+          _notifyOnce(GS.asrNoDeviceFallback);
+          rethrow;
+        }
+        await (_switching ??= _switchToDevice());
+        return await _runIsolate(segment);
+      }
       final emb = await embedding;
       return ProcessedSegment(
         index: segment.index,
@@ -289,6 +323,30 @@ class IsolateSegmentProcessor implements SegmentProcessor {
     } finally {
       _inFlight--;
     }
+  }
+
+  void _notifyOnce(String message) {
+    if (_quotaNoticeSent) return;
+    _quotaNoticeSent = true;
+    _onNotice?.call(message);
+  }
+
+  /// Replaces the embedding-only worker by one that also transcribes, for
+  /// the rest of the session.
+  Future<void> _switchToDevice() async {
+    final spawnDevice = _onDeviceFallback!;
+    final old = _isolate;
+    // Free the old worker first: a new one waits for earlier shutdowns so
+    // two copies of the native models are never resident.
+    try {
+      await old.dispose(waitForPending: true);
+    } catch (_) {
+      // Best effort.
+    }
+    _isolate = await spawnDevice();
+    _spawn = spawnDevice;
+    _onDevice = true;
+    _notifyOnce(GS.asrFellBackToDevice);
   }
 
   Future<ProcessedSegment> _runIsolate(SpeechSegment segment) async {
@@ -347,6 +405,8 @@ class SessionEngineRequest {
     this.languageHint,
     this.firstIndex = 0,
     this.farField = false,
+    this.cloudAsrModel = AppSettingsData.defaultGroqAsrModel,
+    this.cloudAsrAcknowledged = false,
   });
 
   /// Builds a request from the user's settings.
@@ -359,6 +419,8 @@ class SessionEngineRequest {
     languageHint: s.languageHint,
     firstIndex: firstIndex,
     farField: s.farFieldMode,
+    cloudAsrModel: s.groqAsrModel,
+    cloudAsrAcknowledged: s.groqAsrPrivacyAcknowledged,
   );
 
   /// [AppSettingsData.asrLocal] or [AppSettingsData.asrCloud].
@@ -376,6 +438,13 @@ class SessionEngineRequest {
   /// F18 far-field profile ("اجتماع في قاعة"): the VAD is tuned for quieter,
   /// distant speech ([vadConfigFor]).
   final bool farField;
+
+  /// Groq Whisper model of cloud transcription.
+  final String cloudAsrModel;
+
+  /// The user accepted the cloud-transcription notice (audio to Groq);
+  /// cloud transcription never starts without it.
+  final bool cloudAsrAcknowledged;
 
   /// True when transcription goes to the cloud engine.
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
@@ -410,8 +479,14 @@ class SessionEngines {
     required this.segmenter,
     required this.processor,
     required this.description,
+    this.notices = const Stream<String>.empty(),
     this._onDispose,
   });
+
+  /// Arabic notices raised while the engines run (e.g. cloud transcription
+  /// switched to the device after its free quota ran out); shown as the
+  /// session warning.
+  final Stream<String> notices;
 
   /// Splits the audio stream into speech segments.
   final SpeechSegmenter segmenter;
@@ -494,13 +569,14 @@ List<String> requiredModelIds(
 }
 
 /// Production [SessionEnginesFactory] backed by sherpa-onnx and (optionally)
-/// Deepgram.
+/// Groq Whisper (free cloud transcription, with on-device fallback when its
+/// quota runs out and the Whisper model is installed).
 class SherpaSessionEnginesFactory implements SessionEnginesFactory {
   /// Creates the factory. [modelManager] resolves the app's [ModelManager]
   /// (it is created asynchronously).
   ///
   /// `keyterms` (F2) yields the custom vocabulary sent to cloud ASR
-  /// (Deepgram `keyterm`); a failure there never prevents recording.
+  /// (Groq Whisper `prompt`); a failure there never prevents recording.
   SherpaSessionEnginesFactory({
     required this._modelManager,
     required SecureSettings secureSettings,
@@ -542,11 +618,13 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
         debugDetails: 'missing models: ${missing.join(', ')}',
       );
     }
-    if (request.usesCloudAsr && await _secure.getDeepgramApiKey() == null) {
-      throw const MissingApiKeyException(
-        'اخترتَ التفريغ السحابي لكن مفتاح Deepgram غير مضبوط. أضِف المفتاح '
-        'من الإعدادات أو اختر التفريغ على الجهاز.',
-      );
+    if (request.usesCloudAsr) {
+      if (await _secure.getGroqApiKey() == null) {
+        throw const MissingApiKeyException(GS.asrKeyMissing);
+      }
+      if (!request.cloudAsrAcknowledged) {
+        throw const MissingApiKeyException(GS.asrPrivacyPending);
+      }
     }
   }
 
@@ -558,18 +636,36 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     final vadPath = await mm.filePath(ids[0]);
     final speakerPath = await mm.filePath(ids[1]);
     final whisper = request.usesCloudAsr ? null : await mm.whisperPaths(ids[2]);
+    // Cloud mode: the on-device Whisper model, when installed, takes over if
+    // the free cloud quota runs out during the meeting.
+    final fallbackSpec = ModelCatalog.tryById(request.whisperModelId);
+    final fallbackId = request.usesCloudAsr
+        ? (fallbackSpec != null &&
+                  fallbackSpec.kind == ModelKind.asr &&
+                  mm.isReady(fallbackSpec.id)
+              ? fallbackSpec.id
+              : (() {
+                  final id = pickInstalledModelId(ModelKind.asr, mm.isReady);
+                  return mm.isReady(id) ? id : null;
+                })())
+        : null;
+    final fallbackWhisper = fallbackId == null
+        ? null
+        : await mm.whisperPaths(fallbackId);
 
     final segmenter = VadSegmenter(
       modelPath: vadPath,
       firstIndex: request.firstIndex,
       config: vadConfigFor(farField: request.farField),
     );
-    CloudAsrEngine? cloud;
+    GroqAsrEngine? cloud;
+    final notices = StreamController<String>.broadcast();
     try {
       await segmenter.initialize();
       if (request.usesCloudAsr) {
-        cloud = CloudAsrEngine(
-          apiKeyProvider: _secure.getDeepgramApiKey,
+        cloud = GroqAsrEngine(
+          apiKeyProvider: _secure.getGroqApiKey,
+          model: request.cloudAsrModel,
           keyterms: await _safeKeyterms(),
         );
         await cloud.initialize();
@@ -585,6 +681,16 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
         ),
         cloudAsr: cloud,
         languageHint: request.languageHint,
+        onDeviceFallback: fallbackWhisper == null
+            ? null
+            : () => ProcessingIsolate.spawn(
+                whisperEncoder: fallbackWhisper.encoder,
+                whisperDecoder: fallbackWhisper.decoder,
+                whisperTokens: fallbackWhisper.tokens,
+                speakerModel: speakerPath,
+                languageHint: request.languageHint,
+              ),
+        onNotice: notices.add,
       );
       final asrName =
           cloud?.name ??
@@ -593,6 +699,8 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
         segmenter: segmenter,
         processor: processor,
         description: asrName,
+        notices: notices.stream,
+        onDispose: notices.close,
       );
     } catch (e) {
       // Nobody listens to the segmenter yet: never await its close blindly,
@@ -603,6 +711,7 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
       } catch (_) {
         // Best effort.
       }
+      await notices.close();
       rethrow;
     }
   }
@@ -1472,6 +1581,7 @@ class _ActiveSession {
   StreamSubscription<AudioCaptureException>? errorsSub;
   StreamSubscription<AudioCaptureState>? statesSub;
   StreamSubscription<String?>? deviceSub;
+  StreamSubscription<String>? noticesSub;
   Timer? ticker;
   bool stopping = false;
 
@@ -1503,6 +1613,8 @@ class _ActiveSession {
     await statesSub?.cancel();
     await deviceSub?.cancel();
     deviceSub = null;
+    await noticesSub?.cancel();
+    noticesSub = null;
     framesSub = null;
     levelSub = null;
     errorsSub = null;
@@ -1754,6 +1866,9 @@ class MeetingSessionController extends Notifier<SessionState> {
   }
 
   void _listen(_ActiveSession s) {
+    s.noticesSub = s.engines.notices.listen((message) {
+      if (identical(_active, s)) _set(state.copyWith(warningAr: message));
+    });
     s.segmentsSub = s.engines.segmenter.segments.listen(
       (segment) => _onSegment(s, segment),
       onError: (Object e) {
@@ -1907,7 +2022,7 @@ class MeetingSessionController extends Notifier<SessionState> {
   ///    labels, and voiceprints are still learned from them);
   /// 5. starts minutes generation in the background
   ///    ([MeetingJobsController.generateMinutes] with `automatic: true`):
-  ///    with no Anthropic key the meeting becomes `ready` with a hint. When
+  ///    with no minutes-engine key the meeting becomes `ready` with a hint. When
   ///    live transcription had to pause (backlog cap), the meeting is first
   ///    re-processed from the audio archive, then the minutes are written.
   ///

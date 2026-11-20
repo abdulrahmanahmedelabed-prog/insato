@@ -2,12 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/errors.dart';
-import 'package:insato/minutes/claude_client.dart';
+import 'package:insato/minutes/minutes_backend.dart';
 import 'package:insato/minutes/minutes_generator.dart';
 import 'package:insato/minutes/minutes_prompt.dart';
 
 import 'fixtures.dart';
-import 'sse_fixtures.dart';
 
 void main() {
   final speakers = {
@@ -26,28 +25,33 @@ void main() {
     ),
   ];
 
-  ClaudeMinutesEngine engine(
-    QueueClient q, {
+  StructuredMinutesEngine engine(
+    _ScriptedBackend b, {
     MinutesDetailLevel level = MinutesDetailLevel.detailed,
-  }) => ClaudeMinutesEngine(
-    client: ClaudeClient(apiKey: 'k', client: q.client, delay: (_) async {}),
+  }) => StructuredMinutesEngine(
+    backend: b,
     detailLevel: level,
     clock: () => DateTime(2026, 11, 19, 15),
   );
 
-  test('generates minutes from the streamed JSON with progress', () async {
+  test('generates minutes from the backend JSON with progress', () async {
     final expected = sampleMinutes();
-    final q = QueueClient([
-      () => chunkedResponse(
-        successStream(
-          jsonEncode(expected.contentJson()),
-          fallbackTo: 'claude-opus-5',
+    final b = _ScriptedBackend(
+      jsonEncode(expected.contentJson()),
+      model: 'groq/openai/gpt-oss-120b',
+      phases: const [
+        MinutesBackendProgress(MinutesBackendPhase.connecting),
+        MinutesBackendProgress(
+          MinutesBackendPhase.waitingForQuota,
+          wait: Duration(seconds: 12),
         ),
-      ),
-    ]);
+        MinutesBackendProgress(MinutesBackendPhase.thinking),
+        MinutesBackendProgress(MinutesBackendPhase.writing, receivedChars: 900),
+      ],
+    );
     final progress = <double>[];
     final statuses = <String>[];
-    final minutes = await engine(q, level: MinutesDetailLevel.concise).generate(
+    final minutes = await engine(b, level: MinutesDetailLevel.concise).generate(
       meeting: meeting(),
       segments: segments,
       speakersById: speakers,
@@ -58,28 +62,30 @@ void main() {
     );
 
     expect(minutes.contentJson(), expected.contentJson());
-    expect(minutes.model, 'claude-opus-5');
+    expect(minutes.model, 'groq/openai/gpt-oss-120b');
     expect(minutes.generatedAt, DateTime(2026, 11, 19, 15));
     expect(progress.last, 1.0);
     expect(progress.every((p) => p >= 0 && p <= 1), isTrue);
     expect(statuses.last, 'اكتمل المحضر');
-    expect(statuses, contains('يحلّل Claude مجريات الاجتماع…'));
+    expect(statuses, contains('يحلّل Groq مجريات الاجتماع…'));
+    expect(
+      statuses,
+      contains('بلغت حدّ الطلبات المجاني، ستُعاد المحاولة بعد 12 ثانية…'),
+    );
 
-    final body = jsonDecode(q.bodies.single) as Map<String, dynamic>;
-    expect((body['system'] as List).single['text'], kMinutesSystemPrompt);
-    final user = (body['messages'] as List).single['content'] as String;
-    expect(user, contains('<transcript>'));
-    expect(user, contains('"concise"'));
-    expect(body['output_config']['format']['schema'], minutesJsonSchema());
+    final request = b.requests.single;
+    expect(request.system, kMinutesSystemPrompt);
+    expect(request.user, contains('<transcript>'));
+    expect(request.user, contains('"concise"'));
+    expect(request.schema, minutesJsonSchema());
+    expect(request.context!.segments, hasLength(2));
   });
 
   test('empty title from the model falls back to the meeting title', () async {
     final content = sampleMinutes().contentJson()..['title'] = '';
-    final q = QueueClient([
-      () => chunkedResponse(successStream(jsonEncode(content))),
-    ]);
+    final b = _ScriptedBackend(jsonEncode(content));
     final minutes = await engine(
-      q,
+      b,
     ).generate(meeting: meeting(), segments: segments, speakersById: speakers);
     expect(minutes.title, 'اجتماع الميزانية');
   });
@@ -87,9 +93,9 @@ void main() {
   test(
     'empty transcript throws an Arabic InsatoException without calling the API',
     () async {
-      final q = QueueClient([]);
+      final b = _ScriptedBackend('{}');
       await expectLater(
-        engine(q).generate(
+        engine(b).generate(
           meeting: meeting(),
           segments: [seg(0, 0, 1000, '   ', speakerId: 'a')],
           speakersById: speakers,
@@ -102,14 +108,14 @@ void main() {
           ),
         ),
       );
-      expect(q.requests, isEmpty);
+      expect(b.requests, isEmpty);
     },
   );
 
   test('unparseable output throws MinutesGenerationException', () async {
-    final q = QueueClient([() => chunkedResponse(successStream('not json'))]);
+    final b = _ScriptedBackend('not json');
     await expectLater(
-      engine(q).generate(
+      engine(b).generate(
         meeting: meeting(),
         segments: segments,
         speakersById: speakers,
@@ -136,4 +142,37 @@ void main() {
       );
     });
   });
+}
+
+/// A backend that records requests and answers [text] after replaying
+/// [phases].
+class _ScriptedBackend implements MinutesBackend {
+  _ScriptedBackend(this.text, {this.model = 'fake', this.phases = const []});
+
+  final String text;
+  final String model;
+  final List<MinutesBackendProgress> phases;
+  final List<MinutesBackendRequest> requests = [];
+
+  @override
+  String get engineId => 'groq';
+
+  @override
+  String get displayName => 'Groq';
+
+  @override
+  bool get sendsDataOffDevice => true;
+
+  @override
+  Future<MinutesBackendResult> generateStructured(
+    MinutesBackendRequest request, {
+    MinutesBackendProgressCallback? onProgress,
+  }) async {
+    requests.add(request);
+    phases.forEach(onProgress ?? (_) {});
+    return MinutesBackendResult(text: text, model: model);
+  }
+
+  @override
+  void close() {}
 }

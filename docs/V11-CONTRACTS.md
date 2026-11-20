@@ -7,7 +7,9 @@ here already exists, is tested, and must not be edited by feature agents. If
 a feature needs a shared change, report it to the integrator instead.
 
 Owner decision (F14): **Google Gemini (free tier) is the default minutes
-engine**; Claude stays available as an optional engine; on-device and
+engine**. Owner decision (1.2): **cloud options are free only** — Groq (free
+plan) is the second cloud engine and Groq Whisper the cloud transcription;
+the paid Claude and Deepgram engines were removed. On-device and
 local-server engines plug in through F14. The same engine choice serves
 "Ask your meetings" (F8).
 
@@ -56,7 +58,7 @@ they go.
 | `audioplayers: ^6.8.1` | F5 playback (seek to segment start − 1 s), F18 test playback | Android, iOS, Windows |
 | `llamadart: ^0.20.1` + `llamadart_llama_cpp_flutter: ^0.20.1` | F14 GGUF via llama.cpp (`LlamaEngine.load`, structured JSON output); only the `llama_cpp` runtime is bundled (`hooks.user_defines`) | Android, iOS (≥ 16.4), Windows |
 | `archive` (existing) | F12 DOCX zip | all |
-| `http` (existing) | Gemini / Claude / Ollama | all |
+| `http` (existing) | Gemini / Groq / Ollama | all |
 | `record` (existing) | F18 `listInputDevices`, device selection | all |
 
 Read package sources in `~/.pub-cache/hosted/pub.dev/` — never guess APIs.
@@ -165,10 +167,14 @@ features only **read** these tables:
 
 | Field | Key | Default | Setter |
 |---|---|---|---|
-| `minutesEngine` (`engineGemini` \| `engineClaude` \| `engineLocal` \| `engineServer`) | `minutes_engine` | `'gemini'` | `setMinutesEngine` |
+| `minutesEngine` (`engineGemini` \| `engineGroq` \| `engineLocal` \| `engineServer`) | `minutes_engine` | `'gemini'` | `setMinutesEngine` |
 | `geminiModel` | `gemini_model` | `'gemini-flash-lite-latest'` | `setGeminiModel` (strips `models/`) |
 | `geminiPrivacyAcknowledged` | `gemini_privacy_acknowledged` | `false` | `setGeminiPrivacyAcknowledged` |
-| `claudeModel` (existing) | `claude_model` | `'claude-opus-5-5'` | `setClaudeModel` |
+| `groqModel` (null = automatic) | `groq_model` | `null` | `setGroqModel` |
+| `groqPrivacyAcknowledged` | `groq_privacy_acknowledged` | `false` | `setGroqPrivacyAcknowledged` |
+| `groqAsrModel` (`whisper-large-v3` \| `whisper-large-v3-turbo`) | `groq_asr_model` | `'whisper-large-v3'` | `setGroqAsrModel` |
+| `groqAsrPrivacyAcknowledged` | `groq_asr_privacy_acknowledged` | `false` | `setGroqAsrPrivacyAcknowledged` |
+| `cloudFallbackAuto` | `cloud_fallback_auto` | `false` | `setCloudFallbackAuto` |
 | `localLlmModelId` (null = recommended) | `local_llm_model_id` | `null` | `setLocalLlmModelId` |
 | `serverUrl` | `server_url` | `'http://127.0.0.1:11434'` | `setServerUrl` (http/https only) |
 | `serverModel` | `server_model` | `null` | `setServerModel` |
@@ -177,15 +183,19 @@ features only **read** these tables:
 | `farFieldMode` | `far_field_mode` | `false` | `setFarFieldMode` |
 | `profilesFeatureAcknowledged` | `profiles_feature_acknowledged` | `false` | `setProfilesFeatureAcknowledged` |
 
-Helpers: `minutesEngineIsCloud`, `normalizeGeminiModel`, `normalizeServerUrl`.
+Helpers: `minutesEngineIsCloud`, `usesCloudAsr`, `normalizeGeminiModel`,
+`normalizeGroqModel`, `normalizeServerUrl`. One-time upgrade:
+`AppSettings.migrateToFreeEngines(secure)` (marker `free_engines_migrated_v1`).
 
 Secure storage (`SecureSettings`, `secureSettingsProvider`):
 `getGeminiApiKey / setGeminiApiKey / clearGeminiApiKey` (key
-`insato.gemini_api_key`), plus the existing Anthropic and Deepgram keys. A
+`insato.gemini_api_key`) and `getGroqApiKey / setGroqApiKey /
+clearGroqApiKey` (`insato.groq_api_key`, minutes and transcription);
+`deleteLegacyPaidKeys` removes the old Anthropic / Deepgram keys. A
 locked keystore throws `SecureStorageUnavailableException` (never "no key").
 
 UI readiness (`lib/ui/ui_providers.dart`): `geminiKeyConfiguredProvider`,
-`anthropicKeyConfiguredProvider`, `minutesEngineReadyProvider` (bool?).
+`groqKeyConfiguredProvider`, `minutesEngineReadyProvider` (bool?).
 
 ---
 
@@ -215,7 +225,7 @@ UI readiness (`lib/ui/ui_providers.dart`): `geminiKeyConfiguredProvider`,
 
 ```dart
 abstract class MinutesBackend {
-  String get engineId;          // 'gemini' | 'claude' | 'local' | 'server'
+  String get engineId;          // 'gemini' | 'groq' | 'local' | 'server'
   String get displayName;       // shown in Arabic status lines
   bool get sendsDataOffDevice;
   Future<MinutesBackendResult> generateStructured(
@@ -231,7 +241,11 @@ abstract class MinutesBackend {
 // (map-reduce) with the helpers above.
 ```
 
-  `ClaudeMinutesBackend(ClaudeClient)` is in the same file.
+* `lib/features/groq/` — `GroqMinutesBackend` (a `LocalLlmMinutesBackend`
+  over `GroqTextGenerator` / `LlmServerClient` with an API key: json_schema
+  or json_object, map-reduce, quota waits, model chain), `groq_api.dart`
+  (`pickPreferredGroqModel`, `rankGroqModels`, `classifyGroqLimit`,
+  `GroqRateGate`, `GroqQuotaExceededException`).
 * `gemini_client.dart` — `GeminiClient` (streaming SSE,
   `responseJsonSchema` → `responseSchema` → JSON-prompt fallback, finish
   reasons, 429 handling with `GeminiRateGate`, `listModels`,
@@ -241,8 +255,7 @@ abstract class MinutesBackend {
   `kDefaultGeminiModel`, `kGeminiApiKeyUrl`.
 * `minutes_generator.dart` — `StructuredMinutesEngine(backend:,
   detailLevel:)` implements `MinutesEngine` (builds the prompt, calls the
-  backend, parses tolerantly, sanitizes). `ClaudeMinutesEngine` is a
-  compatibility subclass.
+  backend, parses tolerantly, sanitizes).
 * `MinutesEngine.generate(..., inputs: MinutesInputs)` — `PostProcessor`
   passes the effective glossary and up to 60 open tasks of earlier meetings
   (source meeting created before this one; manual tasks by their own
@@ -254,7 +267,12 @@ Engine selection (`lib/session/minutes_engines.dart` +
 * `createMinutesBackend(settings:, secure:, local:, server:, …)` → the
   selected backend, or throws `MinutesEngineNotReadyException(reason:
   noApiKey | privacyNotAcknowledged | unavailable)` with an Arabic message.
-  **Nothing is sent to Gemini before `geminiPrivacyAcknowledged`.**
+  **Nothing is sent to Gemini before `geminiPrivacyAcknowledged`, nor to
+  Groq before `groqPrivacyAcknowledged`.** Gemini / Groq come wrapped in
+  `QuotaFallbackMinutesBackend` (daily quota → the other free cloud engine,
+  automatic with `cloudFallbackAuto` or offered via
+  `MinutesQuotaExhaustedException`); `runWithMinutesEngine` forces an engine
+  for one job.
 * `minutesBackendFactoryProvider` — `Future<MinutesBackend> Function()`;
   **F8 uses this** (caller closes the backend).
 * `minutesEngineFactoryProvider` — used by `PostProcessor`.
@@ -277,7 +295,9 @@ Settings; once F14 returns a builder, Settings shows the choice and renders
   hallucination-filtered output and low-confidence text become
   `SegmentKind.unintelligible` (filtered output is never kept as a guess).
 * Sherpa Whisper reports `silence` (RMS < −60 dBFS), `noText`, `filtered`;
-  Deepgram reports `silence` (RMS) / `noText` and accepts `keyterms` (F2;
+  Groq Whisper (`GroqAsrEngine`) reports `silence` (RMS) / `noText` /
+  `filtered` (same hallucination filter) and accepts `keyterms` (F2, sent as
+  a short `prompt`;
   wired from `GlossaryRepository.getEffective(null, speakers:)` in
   `sessionEnginesFactoryProvider`).
 * The isolate protocol carries `rejection`; `SessionPipeline` stores
@@ -304,14 +324,16 @@ Settings; once F14 returns a builder, Settings shows the choice and renders
 ## 9. Privacy rules (all features)
 
 * Opt-in where the spec says: speaker profiles per speaker (default off,
-  `profilesFeatureAcknowledged` notice first), Gemini notice before first
-  use.
+  `profilesFeatureAcknowledged` notice first), Gemini, Groq and Groq Whisper
+  notices before first use.
 * Nothing leaves the device unless the user chose a cloud engine; F8 uses
   `minutesBackendFactoryProvider` and therefore the same consent.
 * Gemini free tier: Google may use prompts and responses to improve its
-  products and human reviewers may read them (de-identified); a billed Cloud
-  project is treated as paid. Say so wherever data is sent; offer the
-  on-device engine for confidential meetings.
+  products and human reviewers may read them (de-identified). Groq: its
+  stated policy is not to train on API data, but data is processed on its
+  servers (word it as the provider's policy, not a guarantee). Say so
+  wherever data is sent; offer the on-device engine for confidential
+  meetings.
 * F16 / F17 outputs are descriptive, evidence-backed hypotheses; no
   sensitive inferences.
 

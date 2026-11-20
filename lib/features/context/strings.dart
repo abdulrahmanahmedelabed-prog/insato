@@ -20,8 +20,8 @@ abstract final class CS {
   /// Intro paragraph at the top of the glossary screen.
   static const String glossaryIntro =
       'أضف الأسماء والمصطلحات التي يكثر ورودها في اجتماعاتك بالتهجئة '
-      'الصحيحة. يستعملها إنصاتو في موضعين: تُرسَل إلى خدمة التفريغ '
-      'السحابية (Deepgram) حين تكون مفعّلة لتحسين التعرّف عليها، وتُضمَّن '
+      'الصحيحة. يستعملها إنصاتو في موضعين: يُرسَل أهمها إلى خدمة التفريغ '
+      'السحابية (Groq Whisper) حين تكون مفعّلة لتحسين التعرّف عليها، وتُضمَّن '
       'في طلب كتابة المحضر ليصحّح محرّك المحاضر الأخطاء نحو هذه التهجئة '
       'حين يدعمها السياق. لا يُرسَل القاموس إلى أي خدمة لم تخترها.';
 
@@ -106,15 +106,16 @@ abstract final class CS {
   /// Section header: where terms are used.
   static const String usageHeader = 'أين يُستعمل القاموس';
 
-  /// Deepgram usage line.
-  static String deepgramUsage(int used, int total, int max) => total <= max
-      ? 'التفريغ السحابي (Deepgram): يُرسَل $used مصطلحًا مع كل مقطع.'
-      : 'التفريغ السحابي (Deepgram): يقبل $max مصطلحًا فقط لكل طلب، فيُرسَل '
-            'أول $used من أصل $total (مصطلحات الاجتماع والحضور أولًا).';
+  /// Cloud-ASR usage line.
+  static String cloudAsrUsage(int used, int total) => used >= total
+      ? 'التفريغ السحابي (Groq Whisper): يُرسَل $used مصطلحًا مع كل مقطع '
+            'كتلميح قصير.'
+      : 'التفريغ السحابي (Groq Whisper): يقبل تلميحاً قصيراً فقط، فيُرسَل أول '
+            '$used من أصل $total (مصطلحات الاجتماع والحضور أولًا).';
 
-  /// Deepgram not in use.
-  static const String deepgramOff =
-      'التفريغ السحابي (Deepgram) غير مفعّل، فلا يُرسَل القاموس إليه. '
+  /// Cloud ASR not in use.
+  static const String cloudAsrOff =
+      'التفريغ السحابي (Groq Whisper) غير مفعّل، فلا يُرسَل القاموس إليه. '
       'التفريغ على الجهاز لا يستعمل القاموس.';
 
   /// Minutes-prompt usage line.

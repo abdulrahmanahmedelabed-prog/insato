@@ -3,9 +3,9 @@
 // retry and clear.
 //
 // The engine is the one selected in Settings (`minutesBackendFactoryProvider`
-// — Gemini by default, Claude, on-device or local server), so the same
-// consent applies: nothing is sent to Gemini before its privacy notice was
-// accepted, and nothing leaves the device with a local engine. The
+// — Gemini by default, Groq, on-device or local server), so the same
+// consent applies: nothing is sent to Gemini or Groq before its privacy
+// notice was accepted, and nothing leaves the device with a local engine. The
 // conversation is kept in memory only (never written to disk).
 
 import 'dart:isolate';

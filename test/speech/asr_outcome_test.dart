@@ -80,35 +80,31 @@ void main() {
     });
   });
 
-  group('CloudAsrEngine v1.1', () {
-    test('keyterms are sent as repeated parameters, deduplicated', () {
-      final e = CloudAsrEngine(
+  group('GroqAsrEngine v1.2', () {
+    test('glossary terms become a short, deduplicated prompt', () {
+      final e = GroqAsrEngine(
         apiKeyProvider: () => 'k',
-        keyterms: const ['Insato', ' Insato ', 'KPI  report', ''],
+        keyterms: const ['Insato', ' insato ', 'KPI  report', ''],
       );
-      final uri = e.buildUri();
-      expect(uri.queryParametersAll['keyterm'], ['Insato', 'KPI report']);
-      expect(uri.queryParameters['mip_opt_out'], 'true');
-      final many = CloudAsrEngine(
+      expect(e.prompt, 'Insato، KPI report');
+      expect(e.requestFields()['prompt'], 'Insato، KPI report');
+      final many = GroqAsrEngine(
         apiKeyProvider: () => 'k',
-        keyterms: [for (var i = 0; i < 80; i++) 't$i'],
+        keyterms: [for (var i = 0; i < 80; i++) 'term$i'],
       );
+      expect(many.prompt!.length, lessThanOrEqualTo(kMaxCloudAsrPromptChars));
+      expect(many.prompt, startsWith('term0، term1'));
       expect(
-        many.buildUri().queryParametersAll['keyterm'],
-        hasLength(kMaxDeepgramKeyterms),
-      );
-      expect(
-        CloudAsrEngine(apiKeyProvider: () => 'k')
-            .buildUri()
-            .queryParameters
-            .containsKey('keyterm'),
+        GroqAsrEngine(apiKeyProvider: () => 'k')
+            .requestFields()
+            .containsKey('prompt'),
         isFalse,
       );
     });
 
     test('silent audio is reported as silence without a request', () async {
       var calls = 0;
-      final e = CloudAsrEngine(
+      final e = GroqAsrEngine(
         apiKeyProvider: () => 'k',
         client: MockClient((_) async {
           calls++;
@@ -122,12 +118,11 @@ void main() {
     });
 
     test('an empty transcript of voiced audio is no-text', () async {
-      final e = CloudAsrEngine(
+      final e = GroqAsrEngine(
         apiKeyProvider: () => 'k',
         client: MockClient(
           (_) async => http.Response(
-            '{"results":{"channels":[{"alternatives":[{"transcript":"",'
-            '"confidence":0}]}]}}',
+            '{"text":"","language":"arabic","segments":[]}',
             200,
           ),
         ),
@@ -136,6 +131,24 @@ void main() {
       expect(r.isEmpty, isTrue);
       expect(r.rejection, AsrRejection.noText);
       expect(classifyAsrOutcome(r).kind, SegmentKind.unintelligible);
+      await e.dispose();
+    });
+
+    test('a hallucination is filtered but the segment is kept', () async {
+      final e = GroqAsrEngine(
+        apiKeyProvider: () => 'k',
+        client: MockClient(
+          (_) async => http.Response.bytes(
+            '{"text":" Thanks for watching! ","language":"english"}'.codeUnits,
+            200,
+          ),
+        ),
+      );
+      final r = await e.transcribe(tone(0.3));
+      expect(r.rejection, AsrRejection.filtered);
+      final o = classifyAsrOutcome(r);
+      expect(o.kind, SegmentKind.unintelligible);
+      expect(o.text, isEmpty);
       await e.dispose();
     });
   });

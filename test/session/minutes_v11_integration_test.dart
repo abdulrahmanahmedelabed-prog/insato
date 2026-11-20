@@ -10,8 +10,9 @@ import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
 import 'package:insato/data/repositories_v11.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/features/groq/groq_api.dart';
+import 'package:insato/features/groq/groq_minutes_backend.dart';
 import 'package:insato/features/local_llm/local_minutes_backends.dart';
-import 'package:insato/minutes/claude_client.dart';
 import 'package:insato/minutes/gemini_client.dart';
 import 'package:insato/minutes/minutes_backend.dart';
 import 'package:insato/session/minutes_engines.dart';
@@ -267,28 +268,60 @@ void main() {
         secure: secure,
         httpClient: noNetwork,
       );
-      expect(b, isA<GeminiMinutesBackend>());
+      expect(b, isA<QuotaFallbackMinutesBackend>());
       expect(b.engineId, 'gemini');
-      expect((b as GeminiMinutesBackend).client.model, 'gemini-2.5-flash');
+      final primary = (b as QuotaFallbackMinutesBackend).primary;
+      expect((primary as GeminiMinutesBackend).client.model, 'gemini-2.5-flash');
+      expect(b.alternativeEngine, 'groq');
+      expect(b.automatic, isFalse);
       b.close();
     });
 
-    test('Claude needs its key', () async {
+    test('Groq needs its key and its notice', () async {
       final s = AppSettingsData.defaults.copyWith(
-        minutesEngine: AppSettingsData.engineClaude,
-        claudeModel: 'claude-x',
+        minutesEngine: AppSettingsData.engineGroq,
+        groqModel: 'llama-3.3-70b-versatile',
       );
       final e = await fails(s) as MinutesEngineNotReadyException;
       expect(e.reason, MinutesEngineNotReadyReason.noApiKey);
-      expect(e.messageAr, contains('Claude'));
-      secure.anthropic = 'sk-ant';
+      expect(e.messageAr, contains('console.groq.com/keys'));
+      secure.groq = 'gsk_1';
+      final notice = await fails(s) as MinutesEngineNotReadyException;
+      expect(notice.reason, MinutesEngineNotReadyReason.privacyNotAcknowledged);
       final b = await createMinutesBackend(
-        settings: s,
+        settings: s.copyWith(groqPrivacyAcknowledged: true),
         secure: secure,
         httpClient: noNetwork,
       );
-      expect(b, isA<ClaudeMinutesBackend>());
-      expect((b as ClaudeMinutesBackend).client.model, 'claude-x');
+      final primary = (b as QuotaFallbackMinutesBackend).primary;
+      expect(primary, isA<GroqMinutesBackend>());
+      expect((primary as GroqMinutesBackend).model, 'llama-3.3-70b-versatile');
+      expect(b.engineId, 'groq');
+      expect(b.alternativeEngine, 'gemini');
+      b.close();
+    });
+
+    test('a forced engine (accepted offer) is used without chaining', () async {
+      secure.groq = 'gsk_1';
+      final s = AppSettingsData.defaults.copyWith(groqPrivacyAcknowledged: true);
+      final b = await runWithMinutesEngine(
+        AppSettingsData.engineGroq,
+        () => createMinutesBackend(
+          settings: s,
+          secure: secure,
+          httpClient: noNetwork,
+        ),
+      );
+      expect(b, isA<GroqMinutesBackend>());
+      expect(currentMinutesEngineOverride, isNull);
+      b.close();
+    });
+
+    test('a removed claude choice behaves as Gemini', () async {
+      final e = await fails(
+        AppSettingsData.fromMap(const {AppSettings.kMinutesEngine: 'claude'}),
+      ) as MinutesEngineNotReadyException;
+      expect(e.messageAr, contains('Gemini'));
     });
 
     test('local engines come from the F14 builders', () async {
@@ -307,9 +340,7 @@ void main() {
       ) as MinutesEngineNotReadyException;
       expect(notDownloaded.messageAr, 'نزّل النموذج أولاً');
 
-      final backend = ClaudeMinutesBackend(
-        ClaudeClient(apiKey: 'x', client: noNetwork),
-      );
+      final backend = _QuotaBackend('local');
       final b = await createMinutesBackend(
         settings: s,
         secure: secure,
@@ -323,7 +354,7 @@ void main() {
 
     test('display names', () {
       expect(minutesEngineDisplayNameAr('gemini'), 'Gemini');
-      expect(minutesEngineDisplayNameAr('claude'), 'Claude');
+      expect(minutesEngineDisplayNameAr('groq'), 'Groq');
       expect(minutesEngineDisplayNameAr('local'), contains('المحلي'));
     });
 
@@ -335,6 +366,112 @@ void main() {
           secure: locked,
         ),
         throwsA(isA<SecureStorageUnavailableException>()),
+      );
+    });
+  });
+
+  group('QuotaFallbackMinutesBackend', () {
+    const request = MinutesBackendRequest(system: 's', user: 'u', schema: {});
+    const geminiDaily = GeminiQuotaExceededException('يومي', daily: true);
+    const groqDaily = GroqQuotaExceededException('يومي', daily: true);
+
+    QuotaFallbackMinutesBackend wrap(
+      _QuotaBackend primary,
+      _QuotaBackend alternative, {
+      required bool automatic,
+      bool ready = true,
+    }) => QuotaFallbackMinutesBackend(
+      primary: primary,
+      alternativeEngine: alternative.engineId,
+      automatic: automatic,
+      isAlternativeReady: () async => ready,
+      createAlternative: () async => alternative,
+    );
+
+    test('offers the other free engine when the daily quota is used up',
+        () async {
+      final gemini = _QuotaBackend('gemini', error: geminiDaily);
+      final groq = _QuotaBackend('groq');
+      final b = wrap(gemini, groq, automatic: false);
+      final e = await b
+          .generateStructured(request)
+          .then<Object?>((_) => null, onError: (Object e) => e);
+      expect(e, isA<MinutesQuotaExhaustedException>());
+      final q = e! as MinutesQuotaExhaustedException;
+      expect(q.exhaustedEngine, 'gemini');
+      expect(q.alternativeEngine, 'groq');
+      expect(q.messageAr, contains('Groq'));
+      expect(groq.calls, 0);
+    });
+
+    test('switches automatically when enabled', () async {
+      final groq = _QuotaBackend('groq', error: groqDaily);
+      final gemini = _QuotaBackend('gemini');
+      final b = wrap(groq, gemini, automatic: true);
+      final r = await b.generateStructured(request);
+      expect(r.model, 'gemini-model');
+      // Later requests go straight to the working engine.
+      await b.generateStructured(request);
+      expect(groq.calls, 1);
+      expect(gemini.calls, 2);
+      b.close();
+      expect(groq.closed && gemini.closed, isTrue);
+    });
+
+    test('per-minute limits, other errors or an unready alternative '
+        'propagate unchanged', () async {
+      const minute = GeminiQuotaExceededException('دقيقة', daily: false);
+      final a = wrap(
+        _QuotaBackend('gemini', error: minute),
+        _QuotaBackend('groq'),
+        automatic: true,
+      );
+      expect(
+        () => a.generateStructured(request),
+        throwsA(same(minute)),
+      );
+      final b = wrap(
+        _QuotaBackend('gemini', error: geminiDaily),
+        _QuotaBackend('groq'),
+        automatic: true,
+        ready: false,
+      );
+      expect(() => b.generateStructured(request), throwsA(same(geminiDaily)));
+    });
+
+    test('isDailyQuotaExhausted', () {
+      expect(isDailyQuotaExhausted(geminiDaily), isTrue);
+      expect(isDailyQuotaExhausted(groqDaily), isTrue);
+      expect(
+        isDailyQuotaExhausted(
+          const GroqQuotaExceededException('x', daily: false),
+        ),
+        isFalse,
+      );
+    });
+
+    test('cloudEngineIsReady needs the key and the notice', () async {
+      final secure = FakeSecureSettings()..groq = 'gsk';
+      const s = AppSettingsData.defaults;
+      expect(
+        await cloudEngineIsReady('groq', settings: s, secure: secure),
+        isFalse,
+      );
+      expect(
+        await cloudEngineIsReady(
+          'groq',
+          settings: s.copyWith(groqPrivacyAcknowledged: true),
+          secure: secure,
+        ),
+        isTrue,
+      );
+      expect(
+        await cloudEngineIsReady(
+          'gemini',
+          settings: s.copyWith(geminiPrivacyAcknowledged: true),
+          secure: secure,
+        ),
+        isFalse,
       );
     });
   });
@@ -351,4 +488,34 @@ class _LockedSecure extends FakeSecureSettings {
   @override
   Future<String?> getGeminiApiKey() async =>
       throw const SecureStorageUnavailableException('مقفل');
+}
+
+class _QuotaBackend implements MinutesBackend {
+  _QuotaBackend(this.engineId, {this.error});
+
+  @override
+  final String engineId;
+  final Object? error;
+  int calls = 0;
+  bool closed = false;
+
+  @override
+  String get displayName => engineId;
+
+  @override
+  bool get sendsDataOffDevice => true;
+
+  @override
+  Future<MinutesBackendResult> generateStructured(
+    MinutesBackendRequest request, {
+    MinutesBackendProgressCallback? onProgress,
+  }) async {
+    calls++;
+    final e = error;
+    if (e != null) throw e;
+    return MinutesBackendResult(text: '{}', model: '$engineId-model');
+  }
+
+  @override
+  void close() => closed = true;
 }

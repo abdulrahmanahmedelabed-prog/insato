@@ -1,5 +1,5 @@
 // The minutes engine: builds the prompt (minutes_prompt.dart), calls the
-// selected [MinutesBackend] (Gemini by default, Claude, or a local engine),
+// selected [MinutesBackend] (Gemini by default, Groq, or a local engine),
 // parses the structured answer tolerantly and validates it
 // (minutes_validation.dart) before it is stored.
 
@@ -8,7 +8,6 @@ import 'dart:math' as math;
 import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
-import 'claude_client.dart';
 import 'json_repair.dart';
 import 'minutes_backend.dart';
 import 'minutes_prompt.dart';
@@ -155,38 +154,6 @@ class StructuredMinutesEngine implements MinutesEngine {
     report(1.0, 'اكتمل المحضر');
     return minutes;
   }
-}
-
-/// [StructuredMinutesEngine] over the Claude Messages API (kept for
-/// compatibility with v1 call sites and tests).
-class ClaudeMinutesEngine extends StructuredMinutesEngine {
-  /// Creates an engine using [client].
-  ///
-  /// * [effort] — `output_config.effort` (default `high`).
-  /// * [maxTokens] — output cap (default 64000).
-  ClaudeMinutesEngine({
-    required ClaudeClient client,
-    super.detailLevel,
-    String effort = 'high',
-    int maxTokens = 64000,
-    super.clock,
-  }) : super(
-         backend: ClaudeMinutesBackend(
-           client,
-           effort: effort,
-           maxTokens: maxTokens,
-         ),
-       );
-
-  /// Convenience constructor creating its own [ClaudeClient].
-  factory ClaudeMinutesEngine.withApiKey(
-    String apiKey, {
-    String model = kDefaultClaudeModel,
-    MinutesDetailLevel detailLevel = MinutesDetailLevel.detailed,
-  }) => ClaudeMinutesEngine(
-    client: ClaudeClient(apiKey: apiKey, model: model),
-    detailLevel: detailLevel,
-  );
 }
 
 /// Parses a model's answer text into a JSON object.

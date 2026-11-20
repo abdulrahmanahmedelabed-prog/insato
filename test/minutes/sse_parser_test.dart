@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:insato/minutes/claude_client.dart';
+import 'package:insato/minutes/http_support.dart';
 
 void main() {
   group('SseParser', () {

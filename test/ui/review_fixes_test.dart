@@ -155,19 +155,19 @@ void main() {
       await pumpBare(
         t,
         ApiKeyCard(
-          label: S.anthropicKey,
+          label: S.geminiKey,
           load: () async => null,
           save: (_) async => throw PlatformException(code: 'keystore'),
           clear: () async {},
           test: (_) async => const ConnectionTestResult(
             ok: true,
             messageAr: 'ok',
-            model: 'claude-opus-5-5',
+            model: 'gemini-flash-lite-latest',
           ),
         ),
       );
       await t.pump();
-      await t.enterText(find.byType(TextField), 'sk-ant-1');
+      await t.enterText(find.byType(TextField), 'AIza-1');
       await t.tap(find.text(S.testConnection));
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
@@ -191,7 +191,7 @@ void main() {
       await pumpBare(
         t,
         ApiKeyCard(
-          label: S.anthropicKey,
+          label: S.geminiKey,
           load: () async =>
               throw const SecureStorageUnavailableException('مقفل'),
           save: (_) async {},
@@ -215,11 +215,11 @@ void main() {
         );
         addTearDown(container.dispose);
         expect(
-          await container.read(anthropicKeyConfiguredProvider.future),
+          await container.read(geminiKeyConfiguredProvider.future),
           isNull,
         );
         expect(
-          await container.read(deepgramKeyConfiguredProvider.future),
+          await container.read(groqKeyConfiguredProvider.future),
           isNull,
         );
       },
@@ -229,8 +229,8 @@ void main() {
       await pumpBare(
         t,
         ApiKeyCard(
-          label: S.anthropicKey,
-          load: () async => 'sk-ant-1',
+          label: S.geminiKey,
+          load: () async => 'AIza-1',
           save: (_) async {},
           clear: () async => throw PlatformException(code: 'keystore'),
         ),
@@ -246,34 +246,43 @@ void main() {
     testWidgets('the model field does not claim a failed save', (t) async {
       await pumpBare(
         t,
-        ClaudeModelField(value: 'claude-opus-5-5', onSave: (_) async => false),
+        ModelIdField(
+          value: 'gemini-flash-lite-latest',
+          label: S.geminiModel,
+          helper: S.geminiModelHelper,
+          defaultModel: 'gemini-flash-lite-latest',
+          onSave: (_) async => false,
+        ),
       );
-      await t.enterText(find.byType(TextField), 'claude-other');
+      await t.enterText(find.byType(TextField), 'gemini-other');
       await t.tap(find.byTooltip(S.save));
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
       expect(find.text(S.modelSaved), findsNothing);
       // The field shows the model that is really in use.
-      expect(find.text('claude-opus-5-5'), findsOneWidget);
+      expect(find.text('gemini-flash-lite-latest'), findsOneWidget);
     });
 
     testWidgets('the model field confirms a successful save', (t) async {
       String? saved;
       await pumpBare(
         t,
-        ClaudeModelField(
-          value: 'claude-opus-5-5',
+        ModelIdField(
+          value: 'gemini-flash-lite-latest',
+          label: S.geminiModel,
+          helper: S.geminiModelHelper,
+          defaultModel: 'gemini-flash-lite-latest',
           onSave: (m) async {
             saved = m;
             return true;
           },
         ),
       );
-      await t.enterText(find.byType(TextField), 'claude-other');
+      await t.enterText(find.byType(TextField), 'gemini-other');
       await t.tap(find.byTooltip(S.save));
       await t.pump();
       await t.pump(const Duration(milliseconds: 100));
-      expect(saved, 'claude-other');
+      expect(saved, 'gemini-other');
       expect(find.text(S.modelSaved), findsOneWidget);
     });
   });
@@ -606,10 +615,10 @@ void main() {
 
 class _LockedSecureSettings extends FakeSecureSettings {
   @override
-  Future<String?> getAnthropicApiKey() async =>
+  Future<String?> getGeminiApiKey() async =>
       throw const SecureStorageUnavailableException('مقفل');
 
   @override
-  Future<String?> getDeepgramApiKey() async =>
+  Future<String?> getGroqApiKey() async =>
       throw const SecureStorageUnavailableException('مقفل');
 }

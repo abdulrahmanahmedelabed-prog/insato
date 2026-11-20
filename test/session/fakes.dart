@@ -470,9 +470,8 @@ class FakeMinutesEngine implements MinutesEngine {
 
 /// Secure settings fake (in memory).
 class FakeSecureSettings extends SecureSettings {
-  String? anthropic;
-  String? deepgram;
   String? gemini;
+  String? groq;
 
   @override
   Future<String?> getGeminiApiKey() async => gemini;
@@ -483,19 +482,12 @@ class FakeSecureSettings extends SecureSettings {
   Future<void> clearGeminiApiKey() async => gemini = null;
 
   @override
-  Future<String?> getAnthropicApiKey() async => anthropic;
+  Future<String?> getGroqApiKey() async => groq;
   @override
-  Future<void> setAnthropicApiKey(String key) async =>
-      anthropic = key.trim().isEmpty ? null : key.trim();
+  Future<void> setGroqApiKey(String key) async =>
+      groq = key.trim().isEmpty ? null : key.trim();
   @override
-  Future<void> clearAnthropicApiKey() async => anthropic = null;
-  @override
-  Future<String?> getDeepgramApiKey() async => deepgram;
-  @override
-  Future<void> setDeepgramApiKey(String key) async =>
-      deepgram = key.trim().isEmpty ? null : key.trim();
-  @override
-  Future<void> clearDeepgramApiKey() async => deepgram = null;
+  Future<void> clearGroqApiKey() async => groq = null;
 }
 
 /// A fresh in-memory database.

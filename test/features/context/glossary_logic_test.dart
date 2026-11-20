@@ -196,9 +196,9 @@ void main() {
     });
   });
 
-  group('buildDeepgramKeyterms', () {
+  group('buildCloudAsrKeyterms', () {
     test('priority: meeting terms, attendees, named speakers, global', () {
-      final keys = buildDeepgramKeyterms(
+      final keys = buildCloudAsrKeyterms(
         meetingTerms: [term(1, 'Project Falcon', ar: 'مشروع الصقر')],
         expectedAttendees: ['Omar', ' sara '],
         speakers: [speaker('Sara'), speaker('متحدث 1', named: false)],
@@ -218,14 +218,14 @@ void main() {
     });
 
     test('caps at the limit, keeping the highest-priority entries', () {
-      final keys = buildDeepgramKeyterms(
+      final keys = buildCloudAsrKeyterms(
         meetingTerms: [term(1, 'M')],
         globalTerms: [for (var i = 0; i < 80; i++) term(i + 10, 'g$i')],
       );
       expect(keys, hasLength(50));
       expect(keys.first, 'M');
       expect(keys.last, 'g48');
-      expect(buildDeepgramKeyterms(globalTerms: [term(1, 'a')], limit: 0), []);
+      expect(buildCloudAsrKeyterms(globalTerms: [term(1, 'a')], limit: 0), []);
     });
   });
 

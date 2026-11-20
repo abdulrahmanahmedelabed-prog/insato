@@ -1,4 +1,4 @@
-// The custom vocabulary of a recording session (F2 → Deepgram keyterms),
+// The custom vocabulary of a recording session (F2 → cloud-ASR vocabulary),
 // including the context entered for the meeting about to start (F3), whose
 // id does not exist yet when the speech engines are created.
 //
@@ -29,9 +29,9 @@ final upcomingMeetingSetupProvider =
       UpcomingMeetingSetupNotifier.new,
     );
 
-/// Resolves the Deepgram keyterms of a session: the [upcoming] meeting's
+/// Resolves the cloud-ASR vocabulary of a session: the [upcoming] meeting's
 /// terms and expected attendees, the names of user-named speakers and the
-/// global glossary ([buildDeepgramKeyterms] priority and limit).
+/// global glossary ([buildCloudAsrKeyterms] priority and limit).
 Future<List<String>> resolveSessionKeyterms({
   required GlossaryRepository glossary,
   required SpeakerRepository speakers,
@@ -39,7 +39,7 @@ Future<List<String>> resolveSessionKeyterms({
 }) async {
   final setup = upcoming?.normalized();
   final epoch = DateTime.fromMillisecondsSinceEpoch(0);
-  return buildDeepgramKeyterms(
+  return buildCloudAsrKeyterms(
     meetingTerms: [
       for (final d in setup?.meetingTerms ?? const <GlossaryDraft>[])
         draftAsTerm(d, createdAt: epoch),

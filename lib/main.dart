@@ -42,11 +42,13 @@ Future<void> main() async {
   // old iOS keychain accessibility once. Never throws; a marker makes it a
   // no-op afterwards. Awaited so no key read races the rewrite.
   await container.read(secureSettingsProvider).migrateAccessibility();
-  // v1.0 users who used Claude stay on Claude after the upgrade (v1.0 never
-  // stored an engine choice, and the v1.1 default is Gemini). Runs once.
+  // 1.2: free cloud services only. Claude users move to Gemini (its privacy
+  // notice still has to be accepted), Deepgram users to Groq Whisper (only
+  // if its notice was accepted, else on-device); the stored Claude /
+  // Deepgram keys are deleted. Runs until it completed once.
   await container
       .read(appSettingsProvider)
-      .migrateV1MinutesEngine(container.read(secureSettingsProvider));
+      .migrateToFreeEngines(container.read(secureSettingsProvider));
   unawaited(recoverInterruptedMeetings(container));
 
   runApp(

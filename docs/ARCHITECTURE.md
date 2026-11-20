@@ -17,7 +17,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
  AudioCaptureService ──► WAV archive file      │     │                                  │
    │                                           │     ├─► AsrEngine.transcribe()         │
    ▼                                           │     │     (sherpa-onnx Whisper, or     │
- VadSegmenter (silero VAD, sherpa-onnx)  ────► │     │      cloud engine)               │
+ VadSegmenter (silero VAD, sherpa-onnx)  ────► │     │      Groq Whisper, free)         │
    speech segments 0.4 s … 30 s                │     └─► SpeakerEmbedder.embed()        │
                                                │           (sherpa-onnx speaker model)  │
                                                └───────────────┬────────────────────────┘
@@ -31,7 +31,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
                                    of all segment embeddings → relabel → update voiceprints
                                                                ▼
                                    StructuredMinutesEngine → MinutesBackend
-                                   (Gemini by default / Claude / local, structured
+                                   (Gemini by default / Groq / local, structured
                                    JSON, Arabic) → Minutes (+ tasks, codes, notes)
                                    → DB → PDF / Markdown / share
 ```
@@ -46,10 +46,10 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Secrets | `flutter_secure_storage` | API keys never stored in plain DB |
 | Capture | `record` streaming PCM16 16 kHz mono | Supported on Android/iOS/Windows |
 | VAD / ASR / speaker embeddings | `sherpa_onnx` (on-device, FFI) | Offline, private; Whisper is multilingual (99 languages, code-switching) |
-| Cloud ASR (optional) | Deepgram `nova-3`, `language=multi` | Highest accuracy where privacy policy allows |
+| Cloud ASR (optional) | Groq Whisper (`whisper-large-v3` / `-turbo`, free plan), multipart `verbose_json`; on-device fallback when the quota runs out | Free (owner decision: free services only); accuracy where privacy policy allows |
 | Diarization | VAD segments → embeddings → online cosine assignment + offline agglomerative refinement | Real-time labels during the meeting, corrected labels after |
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
-| Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
+| Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or **Groq** (free plan, OpenAI-compatible, reuses the F14 server client and map-reduce); on-device / local-server engines (F14); optional automatic switch between the two free cloud engines on a daily quota | Free only (owner decision, 1.2: Claude and Deepgram removed); faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
 | Multi-device (v1.2 C) | LAN WebSocket (dart:io) + ChaCha20-Poly1305 (package:cryptography), mDNS (bonsoir), QR (qr / mobile_scanner), pure-Dart clock sync, cross-correlation and fusion | No internet, no server; works on Android, iOS and Windows; fully unit-tested on localhost |
 | Database | drift schema v6 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`; v1.2 D: `consistency_findings`, `resolution_annotations`), migrations tested from v1–v5 snapshots (real v5 data upgraded in `test/data/migration_test.dart`) | Upgrades keep all data |
@@ -79,7 +79,7 @@ lib/
     model_manager.dart           download + verify + extract (.tar.bz2) + status
     vad_segmenter.dart           sherpa-onnx silero VAD wrapper → SpeechSegment
     sherpa_asr_engine.dart       AsrEngine via sherpa-onnx Whisper
-    cloud_asr_engine.dart        AsrEngine via Deepgram REST
+    cloud_asr_engine.dart        AsrEngine via Groq Whisper (free plan, multipart)
     sherpa_speaker_embedder.dart SpeakerEmbedder via sherpa-onnx
     processing_isolate.dart      long-lived worker isolate running ASR + embedding
   diarization/
@@ -87,16 +87,19 @@ lib/
     speaker_tracker.dart         online assignment (pure Dart, unit-tested)
     clustering.dart              agglomerative clustering (pure Dart, unit-tested)
   minutes/
-    claude_client.dart           raw-HTTP Messages API client with SSE streaming
+    http_support.dart            SSE parser, Retry-After parsing (shared)
+    gemini_client.dart           Gemini API client + GeminiMinutesBackend
+    minutes_backend.dart         MinutesBackend contract
     minutes_prompt.dart          system prompt + transcript rendering + JSON schema
-    minutes_generator.dart       orchestrates Claude call → Minutes
+    minutes_generator.dart       StructuredMinutesEngine: backend call → Minutes
     export_service.dart          Minutes → Markdown / PDF / share text (official layout when given)
   session/
     meeting_session_controller.dart  orchestrates a live recording session
-    minutes_engines.dart         engine selection (Gemini / Claude / local / server)
+    minutes_engines.dart         engine selection (Gemini / Groq / local / server),
+                                 free-cloud quota fallback, one-job engine override
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, groq/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -112,7 +115,7 @@ layers wire them in:
 | Feature | Folder | Wired in |
 |---|---|---|
 | F1 voice enrollment, F18 microphones | `voice/` | Voice library FAB «إضافة شخص بصوته» and «تحسين البصمة» menus (library, meeting speakers tab); Settings «الميكروفون» (device, far field, mic test); microphone chip on the context form and recording screen; `sessionAudioSourceProvider` → device-aware source; far field → `SessionEngineRequest.farField` → `vadConfigFor`; `Meeting.inputDevice` from `sessionInputDeviceProvider`; voiceprints learned on another microphone match with `knownSpeakerThresholdFor` (`SpeakerTracker.knownSpeakerThresholdOf`) and are re-tagged with `voiceDeviceAfterLearning` after learning |
-| F2 glossary, F3 context | `context/` | «اجتماع جديد» (`startNewMeeting` → `startNewMeetingWithContext`: consent, context form with «تخطٍّ وابدأ»); context card + edit on the minutes tab and in the meeting menu; Settings → «قاموس المصطلحات»; Deepgram keyterms via `resolveSessionKeyterms` (includes the upcoming meeting's terms and attendees) |
+| F2 glossary, F3 context | `context/` | «اجتماع جديد» (`startNewMeeting` → `startNewMeetingWithContext`: consent, context form with «تخطٍّ وابدأ»); context card + edit on the minutes tab and in the meeting menu; Settings → «قاموس المصطلحات»; cloud-ASR vocabulary (Groq Whisper `prompt`, ≤ 180 characters) via `resolveSessionKeyterms` (includes the upcoming meeting's terms and attendees) |
 | F5 evidence | `evidence/` | `EvidenceScope` around the meeting tabs (docked player); `EvidenceChips` under agenda items, topics, decisions and action items (`MinutesView.evidenceBuilder`), tasks and pending updates; `EvidenceTranscriptTab` as the transcript tab |
 | F8 ask | `ask/` | Shell destination «اسأل» (`AskMeetingsScreen(embedded: true)`) |
 | F9 tasks | `tasks/` | Shell destination «المهام»; meeting tab «المهام» (`MeetingTasksPanel` with pending updates to confirm); `OpenTasksBanner` on the recording screen |
@@ -229,8 +232,25 @@ tasks, ask, voice library, settings (`ShellTab`) — in a bottom
 from 840 px.
 
 Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
-`diarization/`, `minutes/minutes_prompt.dart`, `minutes/claude_client.dart`
-parsing) are covered by unit tests in `test/`.
+`diarization/`, `minutes/minutes_prompt.dart`, `minutes/http_support.dart`,
+`features/groq/groq_api.dart`) are covered by unit tests in `test/`.
+
+## Free cloud transcription (Groq Whisper)
+
+`GroqAsrEngine` (`lib/speech/cloud_asr_engine.dart`) sends each VAD segment
+(prepared like on-device Whisper: quiet audio amplified, short segments
+centred in 1 s) as a WAV file: `POST /openai/v1/audio/transcriptions`,
+multipart `file`, `model` (`whisper-large-v3` default, or `-turbo`),
+`response_format=verbose_json`, `temperature=0`, optional `language` and a
+short `prompt` of glossary terms. `parseGroqTranscription` runs the
+on-device hallucination filter (`WhisperOutputFilter`), derives confidence
+from the segments' `avg_logprob`, and keeps empty / filtered / no-speech
+output as unintelligible (F17). Requests are queued under 18 per minute; a
+short 429 is waited out, a daily or long refusal raises
+`CloudAsrQuotaExhaustedException`: `IsolateSegmentProcessor` then replaces
+its embedding-only worker by an on-device ASR worker (when the Whisper model
+is installed) for the rest of the meeting and shows an Arabic notice
+(`SessionEngines.notices` → session warning).
 
 ## Speaker identification details
 
@@ -281,11 +301,28 @@ parsing) are covered by unit tests in `test/`.
   plain JSON mode + tolerant repair). `finishReason` / `promptFeedback` are
   checked; 429s are waited out once when short and never hammered
   (`GeminiRateGate`). A missing model triggers `models.list` discovery.
-* Claude (optional): `model: claude-opus-5-5`, `max_tokens: 64000`,
-  `stream: true`, `thinking: {type: adaptive}`, `output_config: {effort: high,
-  format: …}`, `fallbacks: "default"` with `anthropic-beta:
-  server-side-fallback-2026-07-01`, `anthropic-version: 2026-10-21`.
-  `stop_reason` is checked (`refusal`, `max_tokens`) before parsing.
+* Groq (free plan, `lib/features/groq/`): `POST
+  https://api.groq.com/openai/v1/chat/completions` with `Authorization:
+  Bearer`, through `LlmServerClient` (the F14 local-server client with an API
+  key, non-streaming requests and provider options). `response_format:
+  json_schema` for models that support it (strict for gpt-oss), otherwise
+  `json_object` with the schema in the system prompt; a
+  `json_validate_failed` refusal hands `failed_generation` to the tolerant
+  parser / repair pass. The model is configurable; by default the largest
+  Llama / Qwen / gpt-oss model of the key's live list (`GET
+  /openai/v1/models`). Free limits are per minute (requests, tokens) and per
+  day: the per-minute token limit is learned from `x-ratelimit-limit-tokens`
+  and "request too large" refusals; a request that does not fit is processed
+  map-reduce (`LocalLlmMinutesBackend`), and an automatically chosen model
+  whose limit is too small for the minutes prompt is replaced by the next
+  one. A per-minute 429 is waited out (Retry-After ≤ 65 s,
+  `waitingForQuota`); a daily limit fails with an Arabic message and blocks
+  further requests (`GroqRateGate`).
+* Free-cloud fallback: `QuotaFallbackMinutesBackend` wraps Gemini / Groq. On
+  a daily-quota refusal, if the other free cloud engine has a key and an
+  accepted notice, it is used (setting `cloudFallbackAuto`) or offered
+  (`MinutesQuotaExhaustedException` → the minutes tab's «اكتب المحضر بـ …»,
+  which runs that job once through `runWithMinutesEngine`).
 * The answer is validated (`sanitizeMinutes`: evidence ids, agenda order,
   known task ids, opted-in speakers only) and its tasks / pending task
   updates / speaker notes / code findings are stored with the minutes
@@ -295,7 +332,7 @@ parsing) are covered by unit tests in `test/`.
 ## Privacy
 
 * Recordings, transcripts and voiceprints are stored only on device (cloud
-  ASR sends audio segments to Deepgram, see below). Data root
+  ASR sends audio segments to Groq, see below). Data root
   (`AppPaths`): the app documents directory on Android/iOS (excluded from
   backups); `%LOCALAPPDATA%\Insato\Insato` on Windows (never Documents, which
   is shared and often OneDrive-synced; v1 data is migrated from there at
@@ -306,11 +343,13 @@ parsing) are covered by unit tests in `test/`.
 * With on-device ASR only the *text transcript* is sent to the selected
   minutes engine (Google Gemini by default — on its free tier Google may use
   the content to improve its products, which Settings states and the user
-  accepts before the first request — or Anthropic Claude; nothing with a local
-  engine). With cloud ASR, audio segments go to Deepgram; every request sets
-  `mip_opt_out=true` (no use for model training), but retention is governed
-  by Deepgram's data policy. Both are explained in Settings and in the
-  consent reminder.
+  accepts before the first request — or Groq, whose stated policy is not to
+  train on API data, also behind an accepted notice; nothing with a local
+  engine). With cloud ASR, audio segments go to Groq (Whisper) after the user
+  accepted its own notice. All of this is explained in Settings and in the
+  consent reminder. 1.2 removed the paid engines (Claude, Deepgram):
+  `AppSettings.migrateToFreeEngines` moves their users to Gemini / on-device
+  (or Groq Whisper with its notice accepted) and deletes their stored keys.
 * API keys live only in flutter_secure_storage. On iOS the keychain items
   use `AfterFirstUnlockThisDeviceOnly` (readable while locked during a
   background recording; never migrated to another device); `main()` calls

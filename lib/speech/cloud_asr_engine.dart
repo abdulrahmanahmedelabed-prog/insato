@@ -1,4 +1,14 @@
-// Cloud speech recognition via Deepgram's pre-recorded REST API (nova-3).
+// Free cloud speech recognition via Groq Whisper (OpenAI-compatible
+// `POST /openai/v1/audio/transcriptions`, multipart: the WAV segment,
+// `model` = whisper-large-v3 or whisper-large-v3-turbo,
+// `response_format=verbose_json`, `temperature=0`, optional `language` and a
+// short `prompt` with glossary terms).
+//
+// Free-plan limits are low (requests per minute, audio seconds per hour and
+// per day): requests are queued under a per-minute budget, a 429 is waited
+// out when Groq's Retry-After is short, and a long or daily refusal raises
+// [CloudAsrQuotaExhaustedException] so the session continues on the device
+// for the rest of the meeting (see `IsolateSegmentProcessor`).
 
 import 'dart:async';
 import 'dart:convert';
@@ -10,57 +20,96 @@ import 'package:http/http.dart' as http;
 import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
-import 'sherpa_asr_engine.dart' show normalizeLanguageCode, rmsDbfs;
+import '../features/groq/groq_api.dart';
+import '../features/groq/strings.dart';
+import '../minutes/http_support.dart' show parseRetryAfter;
+import 'sherpa_asr_engine.dart'
+    show
+        WhisperOutputFilter,
+        normalizeLanguageCode,
+        normalizeWhisperLanguage,
+        prepareForWhisper,
+        rmsDbfs;
 
-/// Supplies the Deepgram API key (e.g. from secure storage); null or empty
-/// when not configured.
+/// Supplies the API key (e.g. from secure storage); null or empty when not
+/// configured.
 typedef ApiKeyProvider = FutureOr<String?> Function();
 
-/// [AsrEngine] that sends each segment as a WAV file to Deepgram.
-///
-/// Uses `model=nova-3` with `language=multi` (multilingual code-switching)
-/// unless a language hint is given. Retries 408/429/5xx and network errors
-/// with exponential backoff (honouring `Retry-After`). Every request opts
-/// out of Deepgram's Model Improvement Program (`mip_opt_out=true`).
-class CloudAsrEngine implements AsrEngine {
+/// The free cloud transcription quota is used up for now (a daily limit,
+/// or a wait longer than a meeting can afford). The session switches to
+/// on-device transcription for the rest of the meeting when it can.
+class CloudAsrQuotaExhaustedException extends AsrException {
+  /// Creates the exception.
+  const CloudAsrQuotaExhaustedException(
+    super.messageAr, {
+    this.daily = false,
+    this.retryAfter,
+    super.debugDetails,
+  });
+
+  /// True for a daily limit.
+  final bool daily;
+
+  /// Groq's stated wait, when known.
+  final Duration? retryAfter;
+}
+
+/// Groq transcription endpoint.
+const String kGroqTranscriptionsEndpoint = '$kGroqApiBase/audio/transcriptions';
+
+/// Maximum characters of glossary terms sent as Whisper's `prompt` (Groq
+/// limits the prompt to 224 tokens; the prompt only biases spelling).
+const int kMaxCloudAsrPromptChars = 180;
+
+/// Maximum glossary entries considered for the prompt (F2 priority order).
+const int kMaxCloudAsrKeyterms = 50;
+
+/// [AsrEngine] that sends each segment as a WAV file to Groq Whisper.
+class GroqAsrEngine implements AsrEngine {
   /// Creates the engine. [client] is injectable for tests (an internal
   /// client is created and owned otherwise).
-  CloudAsrEngine({
+  GroqAsrEngine({
     required this.apiKeyProvider,
     http.Client? client,
-    this.model = 'nova-3',
-    this.endpoint = 'https://api.deepgram.com/v1/listen',
+    this.model = 'whisper-large-v3',
+    this.endpoint = kGroqTranscriptionsEndpoint,
     this.maxAttempts = 4,
+    this.maxRateLimitWaits = 6,
     this.retryBaseDelay = const Duration(milliseconds: 800),
     this.requestTimeout = const Duration(seconds: 60),
+    this.maxQuotaWait = const Duration(seconds: 60),
+    this.requestsPerMinute = 18,
     Future<void> Function(Duration)? sleep,
+    DateTime Function()? clock,
+    GroqRateGate? gate,
     this.keyterms = const [],
     this.minRmsDbfs = -60,
-  })  : _client = client ?? http.Client(),
-        _ownsClient = client == null,
-        _sleep = sleep ?? Future<void>.delayed;
+  }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
+       _sleep = sleep ?? Future<void>.delayed,
+       _clock = clock ?? DateTime.now,
+       _gate = gate ?? GroqRateGate.shared;
 
-  /// Convenience constructor with a fixed [apiKey].
-  factory CloudAsrEngine.withKey(String? apiKey, {http.Client? client}) =>
-      CloudAsrEngine(apiKeyProvider: () => apiKey, client: client);
-
-  /// Deepgram model name.
+  /// Groq Whisper model (`whisper-large-v3` or `whisper-large-v3-turbo`).
   final String model;
 
-  /// Custom vocabulary (F2, glossary terms and speaker names) sent as
-  /// repeated `keyterm` parameters (nova-3 keyterm prompting). At most
-  /// [kMaxDeepgramKeyterms] non-blank terms are used.
+  /// Custom vocabulary (F2: glossary terms and speaker names), in priority
+  /// order; the first terms that fit [kMaxCloudAsrPromptChars] are sent as
+  /// Whisper's `prompt`.
   final List<String> keyterms;
 
   /// Segments quieter than this (RMS dBFS) are reported as silence without
   /// a request.
   final double minRmsDbfs;
 
-  /// Pre-recorded transcription endpoint.
+  /// Transcription endpoint.
   final String endpoint;
 
-  /// Total attempts for retryable failures.
+  /// Total attempts for network errors and 5xx.
   final int maxAttempts;
+
+  /// Per-minute 429s waited out per segment before giving up on it.
+  final int maxRateLimitWaits;
 
   /// First retry delay (doubles per attempt, capped at 20 s).
   final Duration retryBaseDelay;
@@ -68,21 +117,30 @@ class CloudAsrEngine implements AsrEngine {
   /// Timeout of one HTTP request.
   final Duration requestTimeout;
 
+  /// Longest 429 wait taken; a longer one means the quota is used up for
+  /// this meeting.
+  final Duration maxQuotaWait;
+
+  /// Requests started per rolling minute (below Groq's free 20 RPM).
+  final int requestsPerMinute;
+
   /// Source of the API key, queried before every request (so a key changed
   /// in the settings applies at once). When it cannot be read (e.g. the
   /// keystore is locked), the key read last is used instead.
   final ApiKeyProvider apiKeyProvider;
 
-  /// Key returned by the last successful [apiKeyProvider] call.
   String? _lastKey;
-
   final http.Client _client;
   final bool _ownsClient;
   final Future<void> Function(Duration) _sleep;
+  final DateTime Function() _clock;
+  final GroqRateGate _gate;
+  final List<DateTime> _starts = [];
+  Future<void> _slot = Future<void>.value();
   bool _disposed = false;
 
   @override
-  String get name => 'deepgram-$model (cloud)';
+  String get name => 'groq-$model (cloud)';
 
   Future<String> _key() async {
     String? k;
@@ -95,16 +153,14 @@ class CloudAsrEngine implements AsrEngine {
       final last = _lastKey;
       if (last != null) return last;
       throw AsrException(
-        'تعذّرت قراءة مفتاح Deepgram المحفوظ الآن. افتح قفل الجهاز وحاول '
-        'مجددًا.',
+        GS.asrKeyUnreadable,
         debugDetails: 'api key provider failed: $e',
         cause: e,
       );
     }
     if (k == null || k.isEmpty) {
       _lastKey = null;
-      throw const MissingApiKeyException(
-          'لم يتم إدخال مفتاح Deepgram. أضفه من الإعدادات لاستخدام التفريغ السحابي.');
+      throw const MissingApiKeyException(GS.asrKeyMissing);
     }
     return _lastKey = k;
   }
@@ -114,90 +170,145 @@ class CloudAsrEngine implements AsrEngine {
     await _key();
   }
 
-  /// Builds the request URI for an optional ISO-639-1 [language].
-  Uri buildUri({String? language}) {
+  /// The `prompt` sent with every request: glossary terms joined by «، »
+  /// up to [kMaxCloudAsrPromptChars]; null when there are none.
+  String? get prompt => buildCloudAsrPrompt(keyterms);
+
+  /// The multipart fields of a request (tests).
+  Map<String, String> requestFields({String? language}) {
+    final p = prompt;
     final lang = normalizeLanguageCode(language);
-    final terms = <String>{
-      for (final t in keyterms)
-        if (t.trim().isNotEmpty) t.trim().replaceAll(RegExp(r'\s+'), ' '),
-    }.take(kMaxDeepgramKeyterms).toList();
-    return Uri.parse(endpoint).replace(queryParameters: {
-      if (terms.isNotEmpty) 'keyterm': terms,
+    return {
       'model': model,
-      'language': lang ?? 'multi',
-      'smart_format': 'true',
-      'punctuate': 'true',
-      // Private meeting audio: opt out of Deepgram's Model Improvement
-      // Program so requests are not retained for training. Every request
-      // (retries and the multilingual fallback included) is built here.
-      'mip_opt_out': 'true',
+      'response_format': 'verbose_json',
+      'temperature': '0',
+      'language': ?lang,
+      'prompt': ?p,
+    };
+  }
+
+  void _checkGate() {
+    final b = _gate.blockOf(_lastKey ?? '', scope: 'audio');
+    if (b == null) return;
+    throw CloudAsrQuotaExhaustedException(
+      GS.asrQuotaExhausted,
+      daily: b.daily,
+      retryAfter: b.remaining,
+      debugDetails: 'blocked locally after a 429',
+    );
+  }
+
+  /// Waits for a free request slot of the per-minute budget (requests are
+  /// serialised through [_slot], so concurrent segments queue in order).
+  Future<void> _takeSlot() {
+    final next = _slot.then((_) async {
+      while (true) {
+        final now = _clock();
+        _starts.removeWhere(
+          (t) => now.difference(t) >= const Duration(minutes: 1),
+        );
+        if (_starts.length < math.max(1, requestsPerMinute)) {
+          _starts.add(now);
+          return;
+        }
+        final wait =
+            _starts.first.add(const Duration(minutes: 1)).difference(now);
+        await _sleep(wait > Duration.zero ? wait : Duration.zero);
+        if (_disposed) return;
+      }
     });
+    _slot = next.catchError((Object _) {});
+    return next;
   }
 
   @override
   Future<AsrResult> transcribe(SpeechSegment segment,
       {String? languageHint}) async {
-    if (_disposed) {
-      throw const AsrException('محرك التفريغ السحابي مُغلق.');
-    }
+    if (_disposed) throw const AsrException(GS.asrClosed);
     if (segment.samples.isEmpty || rmsDbfs(segment.samples) < minRmsDbfs) {
       return const AsrResult(text: '', rejection: AsrRejection.silence);
     }
     final key = await _key();
-    final body = encodeWav16(segment.samples);
+    _checkGate();
+    final wav = encodeWav16(prepareForWhisper(segment.samples));
     final hint = normalizeLanguageCode(languageHint);
     try {
-      return await _transcribeWith(key, body, hint);
+      return await _transcribeWith(key, wav, hint);
     } on _UnsupportedLanguage {
-      // The hinted language is not available for this model: fall back to
-      // multilingual detection rather than losing the segment.
-      return _transcribeWith(key, body, null);
+      // The hinted language is not accepted: let Whisper detect it rather
+      // than losing the segment.
+      return _transcribeWith(key, wav, null);
     }
   }
 
   Future<AsrResult> _transcribeWith(
       String key, Uint8List wav, String? language) async {
-    final uri = buildUri(language: language);
     Object? lastError;
-    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-      Duration? retryAfter;
+    var attempt = 1;
+    var rateWaits = 0;
+    while (true) {
+      if (_disposed) throw const AsrException(GS.asrClosed);
+      await _takeSlot();
+      Duration? wait;
       try {
-        final resp = await _client
-            .post(uri,
-                headers: {
-                  'Authorization': 'Token $key',
-                  'Content-Type': 'audio/wav',
-                  'Accept': 'application/json',
-                },
-                body: wav)
-            .timeout(requestTimeout);
+        final req = http.MultipartRequest('POST', Uri.parse(endpoint))
+          ..headers['Authorization'] = 'Bearer $key'
+          ..headers['Accept'] = 'application/json'
+          ..fields.addAll(requestFields(language: language))
+          ..files.add(
+            http.MultipartFile.fromBytes('file', wav, filename: 'segment.wav'),
+          );
+        final resp = await http.Response.fromStream(
+          await _client.send(req).timeout(requestTimeout),
+        ).timeout(requestTimeout);
         final code = resp.statusCode;
+        final body = utf8.decode(resp.bodyBytes, allowMalformed: true);
         if (code >= 200 && code < 300) {
-          return parseDeepgramResponse(utf8.decode(resp.bodyBytes),
-              fallbackLanguage: language);
+          return parseGroqTranscription(body, fallbackLanguage: language);
         }
         if (code == 401 || code == 403) {
           throw MissingApiKeyException(
-            'مفتاح Deepgram غير صالح أو لا يملك صلاحية. تحقّق منه في الإعدادات.',
-            debugDetails: 'HTTP $code: ${_snippet(resp.body)}',
+            GS.keyInvalid,
+            debugDetails: 'HTTP $code: ${_snippet(body)}',
           );
         }
-        if (code == 402) {
-          throw AsrException(
-            'رصيد حساب Deepgram غير كافٍ لإتمام التفريغ.',
-            debugDetails: 'HTTP 402: ${_snippet(resp.body)}',
-          );
-        }
-        if (code == 400 && language != null) {
+        if (code == 400 && language != null && _mentionsLanguage(body)) {
           throw const _UnsupportedLanguage();
         }
-        if (code == 408 || code == 429 || code >= 500) {
-          lastError = 'HTTP $code: ${_snippet(resp.body)}';
-          retryAfter = parseRetryAfter(resp.headers['retry-after']);
+        if (code == 429) {
+          final message = _errorMessage(body);
+          final limit = classifyGroqLimit(429, message);
+          final stated = parseRetryAfter(resp.headers['retry-after']) ??
+              limit.wait;
+          final w = stated ?? _backoff(rateWaits + 1);
+          if (limit.kind == GroqLimitKind.daily ||
+              w > maxQuotaWait ||
+              rateWaits >= maxRateLimitWaits) {
+            final daily = limit.kind == GroqLimitKind.daily;
+            _gate.block(
+              key,
+              stated ?? (daily ? GroqRateGate.dailyBlock : maxQuotaWait),
+              daily: daily,
+              scope: 'audio',
+            );
+            throw CloudAsrQuotaExhaustedException(
+              GS.asrQuotaExhausted,
+              daily: daily,
+              retryAfter: stated,
+              debugDetails: 'HTTP 429: ${_snippet(body)}',
+            );
+          }
+          rateWaits++;
+          await _sleep(w);
+          continue;
+        }
+        if (code == 408 || code >= 500) {
+          lastError = 'HTTP $code: ${_snippet(body)}';
+          wait = parseRetryAfter(resp.headers['retry-after']);
         } else {
           throw AsrException(
-            'رفض خادم Deepgram طلب التفريغ (رمز $code).',
-            debugDetails: 'HTTP $code: ${_snippet(resp.body)}',
+            GS.asrRejected(code),
+            debugDetails: 'HTTP $code: ${_snippet(body)}',
           );
         }
       } on InsatoException {
@@ -205,29 +316,47 @@ class CloudAsrEngine implements AsrEngine {
       } on _UnsupportedLanguage {
         rethrow;
       } on FormatException catch (e) {
-        throw AsrException('استجابة غير مفهومة من خادم Deepgram.',
+        throw AsrException(GS.asrBadResponse,
             debugDetails: e.toString(), cause: e);
       } catch (e) {
         // Network error / timeout: retryable.
         lastError = e;
       }
-      if (attempt < maxAttempts) {
-        final backoff = Duration(
-            milliseconds: math.min(
-                retryBaseDelay.inMilliseconds * (1 << (attempt - 1)), 20000));
-        final wait = retryAfter != null && retryAfter > backoff
-            ? (retryAfter > const Duration(seconds: 60)
-                ? const Duration(seconds: 60)
-                : retryAfter)
-            : backoff;
-        await _sleep(wait);
-      }
+      if (attempt >= maxAttempts) break;
+      final backoff = _backoff(attempt);
+      await _sleep(wait != null && wait > backoff
+          ? (wait > const Duration(seconds: 60)
+              ? const Duration(seconds: 60)
+              : wait)
+          : backoff);
+      attempt++;
     }
     throw AsrException(
-      'تعذّر الاتصال بخدمة التفريغ السحابي. تحقق من الاتصال بالإنترنت.',
+      GS.asrUnreachable,
       debugDetails: '$lastError',
       cause: lastError,
     );
+  }
+
+  Duration _backoff(int attempt) => Duration(
+      milliseconds:
+          math.min(retryBaseDelay.inMilliseconds * (1 << (attempt - 1)), 20000));
+
+  static bool _mentionsLanguage(String body) =>
+      (_errorMessage(body) ?? body).toLowerCase().contains('language');
+
+  static String? _errorMessage(String body) {
+    try {
+      final j = jsonDecode(body);
+      if (j is Map) {
+        final e = j['error'];
+        if (e is Map && e['message'] is String) return e['message'] as String;
+        if (e is String) return e;
+      }
+    } on FormatException {
+      // Not JSON.
+    }
+    return body.isEmpty ? null : body;
   }
 
   @override
@@ -294,56 +423,89 @@ Uint8List encodeWav16(Float32List samples, {int sampleRate = kSampleRate}) {
   return out;
 }
 
-/// Maximum `keyterm` parameters sent to Deepgram.
-const int kMaxDeepgramKeyterms = 50;
-
-/// Parses a Deepgram pre-recorded response body into an [AsrResult].
-///
-/// Reads `results.channels[0].alternatives[0].transcript` / `.confidence`
-/// and the language from `channels[0].detected_language`, then
-/// `alternatives[0].languages[0]`, then [fallbackLanguage]. Throws
-/// [FormatException] when the body is not the expected JSON shape.
-AsrResult parseDeepgramResponse(String body, {String? fallbackLanguage}) {
-  final j = jsonDecode(body);
-  if (j is! Map) throw const FormatException('Deepgram: not a JSON object');
-  final results = j['results'];
-  if (results is! Map) throw const FormatException('Deepgram: no results');
-  final channels = results['channels'];
-  if (channels is! List || channels.isEmpty) {
-    return const AsrResult(text: '', rejection: AsrRejection.noText);
+/// Whisper's `prompt` from glossary [terms] (priority order): trimmed,
+/// deduplicated (case-insensitive), joined with «، » while the result stays
+/// within [maxChars]; null when nothing fits.
+String? buildCloudAsrPrompt(
+  List<String> terms, {
+  int maxChars = kMaxCloudAsrPromptChars,
+}) {
+  final seen = <String>{};
+  final out = StringBuffer();
+  for (final raw in terms.take(kMaxCloudAsrKeyterms)) {
+    final t = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (t.isEmpty || !seen.add(t.toLowerCase())) continue;
+    final add = out.isEmpty ? t : '، $t';
+    if (out.length + add.length > maxChars) continue;
+    out.write(add);
   }
-  final ch = channels.first;
-  if (ch is! Map) throw const FormatException('Deepgram: bad channel');
-  final alts = ch['alternatives'];
-  final alt = (alts is List && alts.isNotEmpty && alts.first is Map)
-      ? alts.first as Map
-      : const {};
-  final text = ((alt['transcript'] as String?) ?? '')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-  if (text.isEmpty) {
-    return const AsrResult(text: '', rejection: AsrRejection.noText);
-  }
-  final conf = alt['confidence'];
-  String? lang = normalizeLanguageCode(ch['detected_language'] as String?);
-  if (lang == null) {
-    final langs = alt['languages'];
-    if (langs is List && langs.isNotEmpty && langs.first is String) {
-      lang = normalizeLanguageCode(langs.first as String);
-    }
-  }
-  lang ??= normalizeLanguageCode(fallbackLanguage);
-  return AsrResult(
-    text: text,
-    language: lang,
-    confidence: conf is num ? conf.toDouble().clamp(0.0, 1.0) : null,
-  );
+  return out.isEmpty ? null : out.toString();
 }
 
-/// Parses a `Retry-After` header given in seconds; null otherwise.
-Duration? parseRetryAfter(String? header) {
-  if (header == null) return null;
-  final secs = int.tryParse(header.trim());
-  if (secs == null || secs < 0) return null;
-  return Duration(seconds: secs);
+/// Parses a Groq / OpenAI `verbose_json` transcription into an [AsrResult].
+///
+/// * `text` passes the on-device hallucination filter
+///   ([WhisperOutputFilter]); an output removed entirely is
+///   [AsrRejection.filtered], an empty one [AsrRejection.noText] — both are
+///   kept as unintelligible speech by the pipeline (F17), never dropped.
+/// * `language` (a name such as `Arabic`, or a code) → ISO-639-1, else
+///   [fallbackLanguage].
+/// * confidence = exp(duration-weighted mean `avg_logprob`) of `segments`;
+///   audio Whisper itself judges as no speech (`no_speech_prob` > 0.6 with
+///   `avg_logprob` < -1) is no-text.
+///
+/// Throws [FormatException] when the body is not a JSON object.
+AsrResult parseGroqTranscription(String body, {String? fallbackLanguage}) {
+  final j = jsonDecode(body);
+  if (j is! Map) throw const FormatException('Groq: not a JSON object');
+  final raw = ((j['text'] as String?) ?? '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  final language = normalizeWhisperLanguage(j['language'] as String?) ??
+      normalizeLanguageCode(fallbackLanguage);
+  double? logprob;
+  double? noSpeech;
+  final segs = j['segments'];
+  if (segs is List && segs.isNotEmpty) {
+    var w = 0.0;
+    var lp = 0.0;
+    var ns = 0.0;
+    for (final s in segs) {
+      if (s is! Map) continue;
+      final start = (s['start'] as num?)?.toDouble() ?? 0;
+      final end = (s['end'] as num?)?.toDouble() ?? start;
+      final d = math.max(0.1, end - start);
+      final a = s['avg_logprob'];
+      final n = s['no_speech_prob'];
+      if (a is! num) continue;
+      w += d;
+      lp += a.toDouble() * d;
+      ns += (n is num ? n.toDouble() : 0) * d;
+    }
+    if (w > 0) {
+      logprob = lp / w;
+      noSpeech = ns / w;
+    }
+  }
+  final confidence =
+      logprob == null ? null : math.exp(logprob).clamp(0.0, 1.0).toDouble();
+  if (raw.isEmpty ||
+      (noSpeech != null && logprob != null && noSpeech > 0.6 && logprob < -1)) {
+    return AsrResult(
+      text: '',
+      language: language,
+      confidence: confidence,
+      rejection: AsrRejection.noText,
+    );
+  }
+  final text = WhisperOutputFilter.clean(raw);
+  if (text.isEmpty) {
+    return AsrResult(
+      text: '',
+      language: language,
+      confidence: confidence,
+      rejection: AsrRejection.filtered,
+    );
+  }
+  return AsrResult(text: text, language: language, confidence: confidence);
 }

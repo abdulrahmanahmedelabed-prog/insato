@@ -4,7 +4,7 @@
 
 **إنصاتو** تطبيق Flutter يعمل على **Android وiOS وWindows**. يسجّل كل ما يسمعه
 ميكروفون الجهاز **بأي لغة**، ويفرّغه نصياً، ويميّز المتحدثين **بأصواتهم**،
-ثم يكتب **محضر اجتماع احترافياً باللغة العربية الفصحى** باستخدام Google Gemini (مجاناً، افتراضياً) أو Claude.
+ثم يكتب **محضر اجتماع احترافياً باللغة العربية الفصحى** باستخدام محرك مجاني: Google Gemini (افتراضياً) أو Groq، أو محرك محلي دون إنترنت.
 
 [English below ↓](#insato--ai-meeting-minutes)
 
@@ -27,8 +27,9 @@
 
 - **تفريغ على الجهاز** دون إنترنت باستخدام Whisper (عبر sherpa-onnx)، يدعم
   نحو 99 لغة.
-- **تفريغ سحابي اختياري** عبر Deepgram (`nova-3`، متعدد اللغات) لمن يريد أعلى
-  دقة ويقبل إرسال الصوت إلى مزوّد الخدمة.
+- **تفريغ سحابي مجاني اختياري** عبر Groq Whisper (`whisper-large-v3` أو
+  `whisper-large-v3-turbo`) لمن يقبل إرسال الصوت إلى مزوّد الخدمة؛ وإذا نفدت
+  الحصة المجانية أثناء الاجتماع يكمل إنصاتو التفريغ على الجهاز.
 - **تمييز المتحدثين بالصوت**: تعيين فوري أثناء التسجيل، ثم تحسين نهائي بعد
   الإيقاف (تجميع هرمي للبصمات).
 - **مكتبة أصوات دائمة**: إعادة التسمية والدمج وتصحيح مقطع واحد ونسيان بصمة.
@@ -42,15 +43,17 @@
 
 ### الجديد في الإصدار 1.1
 
-- **محرك المحضر حسب اختيارك**: Google Gemini (الافتراضي، الفئة المجانية،
-  نموذج `gemini-flash-lite-latest`، مع تنبيه خصوصية يُقبل قبل أول إرسال)، أو
-  Claude (اختياري)، أو **على الجهاز بالكامل** بنموذج GGUF عبر llama.cpp دون
+- **محرك المحضر حسب اختيارك، وكل الخيارات السحابية مجانية**: Google Gemini
+  (الافتراضي، الفئة المجانية، نموذج `gemini-flash-lite-latest`)، أو Groq (الخطة
+  المجانية، أكبر نموذج Llama / Qwen / gpt-oss متاح تلقائياً، مع تقسيم الاجتماعات
+  الطويلة)، ولكلٍّ منهما تنبيه خصوصية يُقبل قبل أول إرسال، مع تبديل اختياري
+  تلقائي بينهما عند نفاد الحصة اليومية؛ أو **على الجهاز بالكامل** بنموذج GGUF عبر llama.cpp دون
   إنترنت، أو **خادم محلي** (Ollama / LM Studio). المحرك نفسه يخدم «اسأل
   اجتماعاتك».
 - **سياق الاجتماع**: جدول أعمال وحضور متوقعون وملاحظات ومصطلحات خاصة بالاجتماع
   قبل البدء (أو «تخطٍّ وابدأ»)، ويُبلَّغ في المحضر بما نوقش من جدول الأعمال.
-- **قاموس المصطلحات**: تهجئات معتمدة للأسماء والجهات والمصطلحات تُرسَل إلى
-  Deepgram وإلى محرك المحضر.
+- **قاموس المصطلحات**: تهجئات معتمدة للأسماء والجهات والمصطلحات تُرسَل (أهمها)
+  إلى التفريغ السحابي وإلى محرك المحضر.
 - **ربط كل بند بلحظته**: أزرار ▶ تحت المحاور والقرارات والمهام تشغّل التسجيل من
   لحظة القول وتبرز السطر في النص الكامل.
 - **تتبّع المهام**: شاشة للمهام مع التصفية والتعديل، وتحديثات حالة مقترحة من
@@ -112,10 +115,10 @@
 ```
 الميكروفون (PCM16، ‏16 kHz، أحادي)
   → كاشف الكلام Silero VAD
-  → خيط معالجة منفصل (Isolate): التفريغ (Whisper أو Deepgram) + البصمة الصوتية
+  → خيط معالجة منفصل (Isolate): التفريغ (Whisper على الجهاز أو Groq Whisper) + البصمة الصوتية
   → متتبّع المتحدثين (مطابقة فورية مع البصمات المحفوظة)
   → قاعدة البيانات (SQLite عبر drift) والواجهة الحية
-  → عند الإيقاف: تحسين التجميع ← محرك المحضر (Gemini / Claude) ← المحضر ← PDF / Markdown / مشاركة
+  → عند الإيقاف: تحسين التجميع ← محرك المحضر (Gemini / Groq / محلي) ← المحضر ← PDF / Markdown / مشاركة
 ```
 
 في الاجتماع متعدد الأجهزة يُدمج صوت الأجهزة الإضافية (WebSocket مشفّر على
@@ -162,7 +165,8 @@ flutter test
 - يُستخرج من أرشيفات Whisper ملفات الأوزان المضغوطة (int8) فقط، لذا تشغل
   مساحة أقل من حجم التنزيل.
 - يُفضَّل التنزيل عبر Wi-Fi. يكفي نموذج تفريغ واحد ونموذج بصمة واحد.
-- عند اختيار التفريغ السحابي (Deepgram) لا حاجة إلى نموذج Whisper.
+- عند اختيار التفريغ السحابي (Groq Whisper) لا يلزم نموذج Whisper، لكنه يُستخدم
+  احتياطياً إن نفدت الحصة المجانية أثناء الاجتماع.
 
 ## مفاتيح API
 
@@ -173,18 +177,22 @@ flutter test
 - **Google Gemini (المحرك الافتراضي للمحضر، مجاني)**: أنشئ مفتاحاً من
   <https://aistudio.google.com/apikey> ووافق على تنبيه الخصوصية في الإعدادات
   (في الفئة المجانية قد تستخدم Google النصوص لتحسين منتجاتها).
-- **Anthropic (اختياري، محرك Claude)**: من <https://console.anthropic.com>.
-  التسجيل والتفريغ يعملان دون أي مفتاح، لكن المحضر يحتاج مفتاح المحرك المختار.
-- **Deepgram (اختياري)**: فقط إن اخترت التفريغ السحابي، من
-  <https://console.deepgram.com>.
+- **Groq (محرك مجاني بديل، والتفريغ السحابي المجاني)**: أنشئ مفتاحاً مجانياً من
+  <https://console.groq.com/keys>؛ المفتاح نفسه يخدم المحضر والتفريغ السحابي،
+  ولكلٍّ منهما تنبيه خصوصية يُقبل قبل أول إرسال. الحدود المجانية منخفضة.
+  التسجيل والتفريغ على الجهاز يعملان دون أي مفتاح، لكن المحضر يحتاج مفتاح المحرك
+  السحابي المختار (أو محركاً محلياً).
+- لا يقدّم إنصاتو أي خدمة مدفوعة. أُزيل محركا Claude وDeepgram في الإصدار 1.2؛
+  ومن كان يستخدمهما ينتقل تلقائياً إلى Gemini وإلى التفريغ على الجهاز (أو Groq
+  Whisper إن وافق على تنبيهه)، وتُحذف مفاتيحهما المحفوظة.
 
 ## الخصوصية باختصار
 
 - التسجيلات والتفريغ والبصمات الصوتية تبقى **على جهازك** (قاعدة بيانات محلية
   ومجلد التطبيق)، ومستثناة من النسخ الاحتياطي السحابي.
 - مع التفريغ على الجهاز، لا يُرسَل إلى الإنترنت إلا **نص التفريغ** عند كتابة
-  المحضر (إلى Google Gemini أو Anthropic حسب المحرك المختار).
-- مع التفريغ السحابي تُرسَل **مقاطع الصوت** إلى Deepgram.
+  المحضر (إلى Google Gemini أو Groq حسب المحرك المختار).
+- مع التفريغ السحابي تُرسَل **مقاطع الصوت** إلى Groq.
 - مع محرك «على الجهاز» أو خادم على الجهاز نفسه لا يغادر الجهازَ شيء؛ ملفات
   المتحدثين اختيارية ومحلية وقابلة للحذف.
 - في الاجتماع متعدد الأجهزة لا يغادر صوت الأجهزة الإضافية **الشبكة المحلية**:
@@ -204,7 +212,7 @@ flutter test
 
 Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` (SQLite) للتخزين ·‏
 `sherpa_onnx` ‏(Silero VAD وWhisper ونماذج البصمة الصوتية، على الجهاز) ·‏ `record`
-لالتقاط الصوت ·‏ Gemini API ‏(`gemini-flash-lite-latest`، افتراضي) أو Claude API ‏(`claude-opus-5-5`) لكتابة المحضر ·‏ Deepgram
+لالتقاط الصوت ·‏ Gemini API ‏(`gemini-flash-lite-latest`، افتراضي) أو Groq API (مجاني) لكتابة المحضر ·‏ Groq Whisper
 (اختياري) ·‏ `pdf` و`printing` و`share_plus` للتصدير ·‏
 `flutter_secure_storage` للمفاتيح ·‏ `flutter_foreground_task` و`wakelock_plus`
 للتسجيل الطويل ·‏ خطوط Noto Naskh Arabic وNoto Sans (رخصة SIL OFL 1.1، انظر
@@ -223,7 +231,7 @@ Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` 
 **Insato** (Arabic: إنصاتو, from إنصات "attentive listening") is a Flutter app for **Android, iOS and
 Windows**. It records everything the device microphone hears, **in any
 language**, transcribes it, identifies speakers **by voice**, and writes
-**professional meeting minutes in Modern Standard Arabic** using Google Gemini (free, default) or Claude.
+**professional meeting minutes in Modern Standard Arabic** with a free engine: Google Gemini (default) or Groq, or an offline local engine.
 
 ## What it does
 
@@ -243,8 +251,10 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 ## Features
 
 - **On-device transcription** (offline) with Whisper via sherpa-onnx.
-- **Optional cloud transcription** with Deepgram `nova-3` (multilingual) for
-  maximum accuracy, when sending audio to a provider is acceptable.
+- **Optional free cloud transcription** with Groq Whisper (`whisper-large-v3`
+  or `whisper-large-v3-turbo`), when sending audio to a provider is
+  acceptable; if the free quota runs out during a meeting, Insato finishes it
+  on the device.
 - **Voice-based diarization**: online assignment while recording, offline
   agglomerative refinement after stopping.
 - **Persistent voice library**: rename, merge, reassign a segment, forget a
@@ -259,16 +269,19 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 
 ### New in 1.1
 
-- **Choose the minutes engine**: Google Gemini (default, free tier,
-  `gemini-flash-lite-latest`, with a privacy notice accepted before the first
-  request), Claude (optional), **fully on-device** with a GGUF model through
+- **Choose the minutes engine — every cloud option is free**: Google Gemini
+  (default, free tier, `gemini-flash-lite-latest`) or Groq (free plan, the
+  largest available Llama / Qwen / gpt-oss model picked automatically, long
+  meetings split to fit the free limits), each with a privacy notice accepted
+  before the first request and an optional automatic switch between them
+  when a daily quota runs out; **fully on-device** with a GGUF model through
   llama.cpp (offline), or a **local server** (Ollama / LM Studio). The same
   engine answers "Ask your meetings".
 - **Meeting context**: agenda, expected attendees, notes and meeting-only
   terms before recording (or "skip and start"); the minutes report agenda
   coverage.
-- **Custom vocabulary**: canonical spellings sent to Deepgram and to the
-  minutes engine.
+- **Custom vocabulary**: canonical spellings sent (the most important ones) to
+  cloud transcription and to the minutes engine.
 - **Evidence links**: ▶ chips under topics, decisions and action items play
   the recording from that moment and highlight the transcript line.
 - **Task tracking**: a tasks screen with filters and editing, status updates
@@ -338,10 +351,10 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 ```
 microphone (PCM16, 16 kHz, mono)
   → Silero VAD speech segmenter
-  → worker isolate: ASR (Whisper or Deepgram) + speaker embedding
+  → worker isolate: ASR (on-device Whisper or Groq Whisper) + speaker embedding
   → speaker tracker (online matching against stored voiceprints)
   → database (SQLite via drift) + live UI
-  → on stop: re-clustering → minutes engine (Gemini / Claude) → minutes → PDF / Markdown / share
+  → on stop: re-clustering → minutes engine (Gemini / Groq / local) → minutes → PDF / Markdown / share
 ```
 
 In a multi-device meeting the guests' audio (encrypted WebSocket on the LAN)
@@ -389,7 +402,8 @@ models on the "Models" screen):
   on-disk size is smaller than the download.
 - Wi-Fi is recommended. One transcription model and one voiceprint model are
   enough.
-- With cloud transcription (Deepgram) no Whisper model is needed.
+- With cloud transcription (Groq Whisper) no Whisper model is needed, but an
+  installed one takes over if the free quota runs out during a meeting.
 
 ## API keys
 
@@ -401,20 +415,25 @@ or in source code.
 - **Google Gemini (default minutes engine, free)**: create a key at
   <https://aistudio.google.com/apikey> and accept the privacy notice in
   Settings (on the free tier Google may use the text to improve its products).
-- **Anthropic (optional, Claude engine)**: <https://console.anthropic.com>.
-  Recording and transcription work without any key; minutes need the key of
-  the selected engine.
-- **Deepgram (optional)**: only for cloud transcription,
-  <https://console.deepgram.com>.
+- **Groq (alternative free minutes engine, and free cloud transcription)**:
+  create a free key at <https://console.groq.com/keys>; the same key serves
+  minutes and transcription, each with its own privacy notice accepted before
+  the first request. Free limits are low.
+  Recording and on-device transcription work without any key; minutes need
+  the key of the selected cloud engine (or a local engine).
+- Insato offers no paid service. The Claude and Deepgram engines were removed
+  in 1.2; their users are moved to Gemini and to on-device transcription (or
+  Groq Whisper if its notice was accepted), and their stored keys are
+  deleted.
 
 ## Privacy summary
 
 - Recordings, transcripts and voiceprints stay **on your device** (local
   database and app folder) and are excluded from cloud backups.
 - With on-device transcription, only the **transcript text** leaves the
-  device, sent to Google Gemini or Anthropic (the selected engine) when
+  device, sent to Google Gemini or Groq (the selected engine) when
   minutes are generated.
-- With cloud transcription, **audio segments** are sent to Deepgram.
+- With cloud transcription, **audio segments** are sent to Groq.
 - With the on-device engine (or a server on the same machine) nothing leaves
   the device; speaker profiles are opt-in, local and deletable.
 - In a multi-device meeting the extra devices' audio never leaves the
@@ -436,8 +455,8 @@ recording. You are responsible for complying with applicable law.
 
 Flutter / Dart · `flutter_riverpod` (state) · `drift` (SQLite) ·
 `sherpa_onnx` (Silero VAD, Whisper, speaker-embedding models, on device) ·
-`record` (audio capture) · Gemini API (`gemini-flash-lite-latest`, default) or Claude API (`claude-opus-5-5`) for minutes ·
-Deepgram (optional) · `pdf`, `printing`, `share_plus` (export) ·
+`record` (audio capture) · Gemini API (`gemini-flash-lite-latest`, default) or Groq API (free) for minutes ·
+Groq Whisper (optional) · `pdf`, `printing`, `share_plus` (export) ·
 `flutter_secure_storage` (API keys) · `flutter_foreground_task`,
 `wakelock_plus` (long recordings) · Noto Naskh Arabic and Noto Sans fonts
 (SIL OFL 1.1, see [assets/fonts/OFL.txt](assets/fonts/OFL.txt)).

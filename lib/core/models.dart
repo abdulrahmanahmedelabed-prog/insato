@@ -533,7 +533,7 @@ class Minutes {
         'model': model,
       };
 
-  /// Parses either the stored JSON ([toJson]) or Claude's raw content JSON
+  /// Parses either the stored JSON ([toJson]) or an engine's raw content JSON
   /// (then [generatedAt]/[model] must be supplied).
   factory Minutes.fromJson(
     Map<String, dynamic> j, {

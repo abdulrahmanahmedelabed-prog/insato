@@ -40,17 +40,18 @@ final missingModelsProvider = Provider<List<String>?>((ref) {
   return missingModelIds(settings, states);
 });
 
-/// Whether an Anthropic API key is stored; null when the keystore cannot be
+/// Whether a Gemini API key is stored; null when the keystore cannot be
 /// read right now (e.g. a locked iOS device), so the UI does not claim the
 /// key is missing. Invalidate after changing it.
-final anthropicKeyConfiguredProvider = FutureProvider<bool?>(
-  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getAnthropicApiKey),
-);
-
-/// Whether a Gemini API key is stored; null when unknown (see
-/// [anthropicKeyConfiguredProvider]). Invalidate after changing it.
 final geminiKeyConfiguredProvider = FutureProvider<bool?>(
   (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getGeminiApiKey),
+);
+
+/// Whether a Groq API key is stored (minutes and cloud transcription); null
+/// when unknown (see [geminiKeyConfiguredProvider]). Invalidate after
+/// changing it.
+final groqKeyConfiguredProvider = FutureProvider<bool?>(
+  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getGroqApiKey),
 );
 
 /// Whether the minutes engine selected in Settings can run, and if not,
@@ -70,20 +71,26 @@ class MinutesEngineReadiness {
 /// specific to the engine: its key stored (and, for Gemini, the free-tier
 /// data notice accepted), the on-device model downloaded, the server model
 /// chosen. Null while unknown (a locked keystore, model states loading).
-/// Invalidate [anthropicKeyConfiguredProvider] /
-/// [geminiKeyConfiguredProvider] after changing a key.
+/// Invalidate [geminiKeyConfiguredProvider] / [groqKeyConfiguredProvider]
+/// after changing a key.
 final minutesEngineReadinessProvider = Provider<MinutesEngineReadiness?>((
   ref,
 ) {
   final s = ref.watch(appSettingsDataProvider).value;
   if (s == null) return null;
   switch (s.minutesEngine) {
-    case AppSettingsData.engineClaude:
-      final key = ref.watch(anthropicKeyConfiguredProvider).value;
+    case AppSettingsData.engineGroq:
+      final key = ref.watch(groqKeyConfiguredProvider).value;
       if (key == null) return null;
+      if (!key) {
+        return const MinutesEngineReadiness(
+          ready: false,
+          messageAr: S.groqKeyMissingBody,
+        );
+      }
       return MinutesEngineReadiness(
-        ready: key,
-        messageAr: key ? null : S.claudeKeyMissingBody,
+        ready: s.groqPrivacyAcknowledged,
+        messageAr: s.groqPrivacyAcknowledged ? null : S.groqPrivacyPendingBody,
       );
     case AppSettingsData.engineLocal:
       if (ref.watch(localMinutesBackendBuilderProvider) == null) {
@@ -133,12 +140,6 @@ final minutesEngineReadinessProvider = Provider<MinutesEngineReadiness?>((
 /// [minutesEngineReadinessProvider]); null while unknown.
 final minutesEngineReadyProvider = Provider<bool?>(
   (ref) => ref.watch(minutesEngineReadinessProvider)?.ready,
-);
-
-/// Whether a Deepgram API key is stored; null when unknown (see
-/// [anthropicKeyConfiguredProvider]). Invalidate after changing it.
-final deepgramKeyConfiguredProvider = FutureProvider<bool?>(
-  (ref) => _keyConfigured(ref.watch(secureSettingsProvider).getDeepgramApiKey),
 );
 
 Future<bool?> _keyConfigured(Future<String?> Function() read) async {

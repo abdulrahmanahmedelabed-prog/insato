@@ -18,7 +18,13 @@ void main() {
       expect(d.consentAcknowledged, isFalse);
       expect(d.minutesDetail, 'detailed');
       expect(d.conciseMinutes, isFalse);
-      expect(d.claudeModel, 'claude-opus-5-5');
+      expect(d.minutesEngine, 'gemini');
+      expect(d.groqModel, isNull);
+      expect(d.groqPrivacyAcknowledged, isFalse);
+      expect(d.groqAsrModel, 'whisper-large-v3');
+      expect(d.groqAsrPrivacyAcknowledged, isFalse);
+      expect(d.cloudFallbackAuto, isFalse);
+      expect(AppSettingsData.minutesEngines, ['gemini', 'groq', 'local', 'server']);
       expect(AppSettingsData.fromMap(const {}), d);
     });
 
@@ -43,7 +49,8 @@ void main() {
         AppSettings.kMatchThreshold: '1.5',
         AppSettings.kConsentAcknowledged: '1',
         AppSettings.kMinutesDetail: 'verbose',
-        AppSettings.kClaudeModel: '',
+        AppSettings.kGroqModel: 'bad model id',
+        AppSettings.kGroqAsrModel: 'nova-3',
       });
       expect(d, AppSettingsData.defaults.copyWith(consentAcknowledged: true));
     });
@@ -57,11 +64,35 @@ void main() {
         matchThreshold: 0.62,
         consentAcknowledged: true,
         minutesDetail: 'concise',
-        claudeModel: 'claude-sonnet-4-6',
+        minutesEngine: 'groq',
+        groqModel: 'openai/gpt-oss-120b',
+        groqPrivacyAcknowledged: true,
+        groqAsrModel: 'whisper-large-v3-turbo',
+        groqAsrPrivacyAcknowledged: true,
+        cloudFallbackAuto: true,
       );
       expect(AppSettingsData.fromMap(d.toMap()), d);
+      expect(d.copyWith(clearGroqModel: true).groqModel, isNull);
+      expect(d.minutesEngineIsCloud, isTrue);
+      expect(d.usesCloudAsr, isTrue);
       expect(const AppSettingsData().toMap()
           .containsKey(AppSettings.kLanguageHint), isFalse);
+    });
+
+    test('a stored claude engine (removed) falls back to Gemini', () {
+      final d = AppSettingsData.fromMap(const {
+        AppSettings.kMinutesEngine: 'claude',
+      });
+      expect(d.minutesEngine, 'gemini');
+    });
+
+    test('normalizeGroqModel', () {
+      expect(AppSettingsData.normalizeGroqModel(' openai/gpt-oss-120b '),
+          'openai/gpt-oss-120b');
+      expect(AppSettingsData.normalizeGroqModel('llama-3.3-70b-versatile'),
+          'llama-3.3-70b-versatile');
+      expect(AppSettingsData.normalizeGroqModel(''), isNull);
+      expect(AppSettingsData.normalizeGroqModel('a b'), isNull);
     });
 
     test('normalizeLanguageHint', () {
@@ -91,7 +122,12 @@ void main() {
       await settings.setMatchThreshold(0.7);
       await settings.setConsentAcknowledged(true);
       await settings.setMinutesDetail('concise');
-      await settings.setClaudeModel('claude-x');
+      await settings.setMinutesEngine('groq');
+      await settings.setGroqModel(' llama-3.3-70b-versatile ');
+      await settings.setGroqPrivacyAcknowledged(true);
+      await settings.setGroqAsrModel('whisper-large-v3-turbo');
+      await settings.setGroqAsrPrivacyAcknowledged(true);
+      await settings.setCloudFallbackAuto(true);
 
       expect(await settings.asrEngine, 'cloud');
       expect(await settings.whisperModelId, 'whisper-medium');
@@ -100,7 +136,15 @@ void main() {
       expect(await settings.matchThreshold, 0.7);
       expect(await settings.consentAcknowledged, isTrue);
       expect(await settings.minutesDetail, 'concise');
-      expect(await settings.claudeModel, 'claude-x');
+      final loaded = await settings.load();
+      expect(loaded.minutesEngine, 'groq');
+      expect(loaded.groqModel, 'llama-3.3-70b-versatile');
+      expect(loaded.groqPrivacyAcknowledged, isTrue);
+      expect(loaded.groqAsrModel, 'whisper-large-v3-turbo');
+      expect(loaded.groqAsrPrivacyAcknowledged, isTrue);
+      expect(loaded.cloudFallbackAuto, isTrue);
+      await settings.setGroqModel(null);
+      expect((await settings.load()).groqModel, isNull);
 
       await settings.setLanguageHint(null);
       expect(await settings.languageHint, isNull);
@@ -129,6 +173,7 @@ void main() {
         localLlmModelId: 'qwen',
         serverModel: 'llama',
         inputDeviceId: 'usb-mic',
+        groqModel: 'openai/gpt-oss-120b',
       );
       expect(AppSettings.preferenceKeys.toSet(), full.toMap().keys.toSet());
     });
@@ -139,7 +184,9 @@ void main() {
       expect(() => settings.setMatchThreshold(0), throwsArgumentError);
       expect(() => settings.setMatchThreshold(double.nan), throwsArgumentError);
       expect(() => settings.setWhisperModelId(' '), throwsArgumentError);
-      expect(() => settings.setClaudeModel(''), throwsArgumentError);
+      expect(() => settings.setMinutesEngine('claude'), throwsArgumentError);
+      expect(() => settings.setGroqModel('a b'), throwsArgumentError);
+      expect(() => settings.setGroqAsrModel('nova-3'), throwsArgumentError);
     });
 
     test('save writes a full snapshot', () async {
@@ -169,20 +216,20 @@ void main() {
 
     test('get/set/clear API keys', () async {
       final s = SecureSettings();
-      expect(await s.getAnthropicApiKey(), isNull);
-      expect(await s.getDeepgramApiKey(), isNull);
+      expect(await s.getGeminiApiKey(), isNull);
+      expect(await s.getGroqApiKey(), isNull);
 
-      await s.setAnthropicApiKey('  sk-ant-123 ');
-      await s.setDeepgramApiKey('dg-456');
-      expect(await s.getAnthropicApiKey(), 'sk-ant-123');
-      expect(await s.getDeepgramApiKey(), 'dg-456');
+      await s.setGeminiApiKey('  AIza-123 ');
+      await s.setGroqApiKey('gsk_456');
+      expect(await s.getGeminiApiKey(), 'AIza-123');
+      expect(await s.getGroqApiKey(), 'gsk_456');
 
-      await s.clearAnthropicApiKey();
-      expect(await s.getAnthropicApiKey(), isNull);
-      expect(await s.getDeepgramApiKey(), 'dg-456');
+      await s.clearGeminiApiKey();
+      expect(await s.getGeminiApiKey(), isNull);
+      expect(await s.getGroqApiKey(), 'gsk_456');
 
-      await s.setDeepgramApiKey('   ');
-      expect(await s.getDeepgramApiKey(), isNull);
+      await s.setGroqApiKey('   ');
+      expect(await s.getGroqApiKey(), isNull);
     });
 
     test('default storage: readable after first unlock, never backed up',
@@ -198,22 +245,22 @@ void main() {
       final storage = _FlakyStorage();
       final s = SecureSettings(storage: storage);
       storage.fail = true;
-      await expectLater(s.getDeepgramApiKey(),
+      await expectLater(s.getGroqApiKey(),
           throwsA(isA<SecureStorageUnavailableException>()));
 
       storage.fail = false;
-      await s.setDeepgramApiKey('dg-1');
-      expect(await s.getDeepgramApiKey(), 'dg-1');
+      await s.setGroqApiKey('gsk-1');
+      expect(await s.getGroqApiKey(), 'gsk-1');
       // Device locked mid-meeting: the value read earlier stays available.
       storage.fail = true;
-      expect(await s.getDeepgramApiKey(), 'dg-1');
-      await expectLater(s.getAnthropicApiKey(),
+      expect(await s.getGroqApiKey(), 'gsk-1');
+      await expectLater(s.getGeminiApiKey(),
           throwsA(isA<SecureStorageUnavailableException>()));
     });
 
     test('migrateAccessibility rewrites stored keys once', () async {
       final storage = _FlakyStorage()
-        ..values[SecureSettings.anthropicApiKeyKey] = 'sk-1';
+        ..values[SecureSettings.groqApiKeyKey] = 'gsk-1';
       final s = SecureSettings(storage: storage);
       storage.fail = true;
       await s.migrateAccessibility(); // locked: retried later, never throws
@@ -221,79 +268,127 @@ void main() {
       storage.fail = false;
       await s.migrateAccessibility();
       expect(storage.writes, [
-        SecureSettings.anthropicApiKeyKey,
+        SecureSettings.groqApiKeyKey,
         SecureSettings.accessibilityMigratedKey,
       ]);
-      expect(storage.values[SecureSettings.anthropicApiKeyKey], 'sk-1');
+      expect(storage.values[SecureSettings.groqApiKeyKey], 'gsk-1');
       await s.migrateAccessibility();
       expect(storage.writes.length, 2);
     });
 
-    group('migrateV1MinutesEngine', () {
+    group('migrateToFreeEngines', () {
       late AppDatabase db;
       late AppSettings settings;
       setUp(() async {
         db = AppDatabase.forExecutor(NativeDatabase.memory());
         settings = AppSettings(db);
-        // A v1.0 settings table: some rows, no minutes_engine.
         await settings.setKeepAudio(false);
-        await settings.setClaudeModel('claude-sonnet-4-6');
       });
       tearDown(() => db.close());
 
-      Future<String?> row() async => (await (db.select(db.settings)
-                ..where((s) => s.key.equals(AppSettings.kMinutesEngine)))
-              .getSingleOrNull())
-          ?.value;
+      Future<Map<String, String>> rows() async => {
+            for (final r in await db.select(db.settings).get()) r.key: r.value,
+          };
 
-      test('a v1 user with an Anthropic key stays on Claude', () async {
-        final storage = _FlakyStorage()
-          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1';
-        await settings.migrateV1MinutesEngine(SecureSettings(storage: storage));
-        expect((await settings.load()).minutesEngine, 'claude');
-        expect((await settings.load()).keepAudio, isFalse);
+      Future<void> putRaw(String key, String value) => db
+          .into(db.settings)
+          .insertOnConflictUpdate(
+              SettingsCompanion.insert(key: key, value: value));
+
+      _FlakyStorage paidKeys() => _FlakyStorage()
+        ..values[SecureSettings.legacyAnthropicApiKeyKey] = 'sk-ant-1'
+        ..values[SecureSettings.legacyDeepgramApiKeyKey] = 'dg-1'
+        ..values[SecureSettings.geminiApiKeyKey] = 'AIza-1';
+
+      test('Claude → Gemini (notice still required), keys deleted', () async {
+        await putRaw(AppSettings.kMinutesEngine, 'claude');
+        await putRaw(AppSettings.kLegacyClaudeModel, 'claude-opus-5-5');
+        final storage = paidKeys();
+        await settings.migrateToFreeEngines(SecureSettings(storage: storage));
+        final s = await settings.load();
+        expect(s.minutesEngine, 'gemini');
+        expect(s.geminiPrivacyAcknowledged, isFalse);
+        expect(s.keepAudio, isFalse);
+        final r = await rows();
+        expect(r[AppSettings.kMinutesEngine], 'gemini');
+        expect(r.containsKey(AppSettings.kLegacyClaudeModel), isFalse);
+        expect(r[AppSettings.kFreeEnginesMigrated], '1');
+        expect(storage.values.keys, [SecureSettings.geminiApiKeyKey]);
       });
 
-      test('no Anthropic key: Gemini, and the row is written', () async {
-        await settings.migrateV1MinutesEngine(SecureSettings(storage: _FlakyStorage()));
-        expect(await row(), 'gemini');
-        expect((await settings.load()).minutesEngine, 'gemini');
+      test('an accepted Gemini notice is kept', () async {
+        await putRaw(AppSettings.kMinutesEngine, 'claude');
+        await settings.setGeminiPrivacyAcknowledged(true);
+        await settings.migrateToFreeEngines(
+            SecureSettings(storage: _FlakyStorage()));
+        final s = await settings.load();
+        expect(s.minutesEngine, 'gemini');
+        expect(s.geminiPrivacyAcknowledged, isTrue);
       });
 
-      test('an explicit choice is never overridden', () async {
-        await settings.setMinutesEngine('gemini');
-        final storage = _FlakyStorage()
-          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1';
-        await settings.migrateV1MinutesEngine(SecureSettings(storage: storage));
-        expect((await settings.load()).minutesEngine, 'gemini');
+      test('Deepgram cloud ASR → on-device without the Groq notice', () async {
+        await settings.setAsrEngine('cloud');
+        await settings.migrateToFreeEngines(SecureSettings(storage: paidKeys()));
+        expect((await settings.load()).asrEngine, 'local');
       });
 
-      test('idempotent: a Claude key added later does not switch', () async {
+      test('Deepgram cloud ASR → Groq Whisper with the notice accepted',
+          () async {
+        await settings.setAsrEngine('cloud');
+        await settings.setGroqAsrPrivacyAcknowledged(true);
+        await settings.migrateToFreeEngines(SecureSettings(storage: paidKeys()));
+        final s = await settings.load();
+        expect(s.asrEngine, 'cloud');
+        expect(s.usesCloudAsr, isTrue);
+      });
+
+      test('free choices are untouched; runs once', () async {
+        await settings.setMinutesEngine('server');
         final storage = _FlakyStorage();
         final secure = SecureSettings(storage: storage);
-        await settings.migrateV1MinutesEngine(secure);
-        await secure.setAnthropicApiKey('sk-ant-2');
-        await settings.migrateV1MinutesEngine(secure);
-        expect((await settings.load()).minutesEngine, 'gemini');
+        await settings.migrateToFreeEngines(secure);
+        expect((await settings.load()).minutesEngine, 'server');
+        // A later run is a no-op (marker), even for a changed choice.
+        await settings.setAsrEngine('cloud');
+        await settings.migrateToFreeEngines(secure);
+        expect((await settings.load()).asrEngine, 'cloud');
       });
 
-      test('locked keystore: no row written, retried later', () async {
-        final storage = _FlakyStorage()
-          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1'
-          ..fail = true;
+      test('locked keystore: settings migrated, retried until keys deleted',
+          () async {
+        await putRaw(AppSettings.kMinutesEngine, 'claude');
+        final storage = paidKeys()..fail = true;
         final secure = SecureSettings(storage: storage);
-        await settings.migrateV1MinutesEngine(secure);
-        expect(await row(), isNull);
+        await settings.migrateToFreeEngines(secure); // never throws
+        expect((await settings.load()).minutesEngine, 'gemini');
+        expect((await rows()).containsKey(AppSettings.kFreeEnginesMigrated),
+            isFalse);
+        expect(
+            storage.values.containsKey(SecureSettings.legacyAnthropicApiKeyKey),
+            isTrue);
         storage.fail = false;
-        await settings.migrateV1MinutesEngine(secure);
-        expect(await row(), 'claude');
+        await settings.migrateToFreeEngines(secure);
+        expect(
+            storage.values.containsKey(SecureSettings.legacyAnthropicApiKeyKey),
+            isFalse);
+        expect(
+            storage.values.containsKey(SecureSettings.legacyDeepgramApiKeyKey),
+            isFalse);
+        expect((await rows())[AppSettings.kFreeEnginesMigrated], '1');
+      });
+
+      test('reset keeps the migration marker', () async {
+        await settings.migrateToFreeEngines(
+            SecureSettings(storage: _FlakyStorage()));
+        await settings.resetToDefaults();
+        expect((await rows())[AppSettings.kFreeEnginesMigrated], '1');
       });
     });
 
     test('reads pre-existing values', () async {
       FlutterSecureStorage.setMockInitialValues(
-          {SecureSettings.anthropicApiKeyKey: 'abc'});
-      expect(await SecureSettings().getAnthropicApiKey(), 'abc');
+          {SecureSettings.groqApiKeyKey: 'abc'});
+      expect(await SecureSettings().getGroqApiKey(), 'abc');
     });
   });
 }
@@ -350,6 +445,7 @@ class _FlakyStorage extends FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
+    if (fail) throw PlatformException(code: '-25308');
     values.remove(key);
   }
 }

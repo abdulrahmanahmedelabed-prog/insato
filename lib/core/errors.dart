@@ -36,7 +36,8 @@ class MissingApiKeyException extends InsatoException {
   const MissingApiKeyException(super.messageAr, {super.debugDetails, super.cause});
 }
 
-/// Claude API / network failure while generating minutes.
+/// Minutes-engine (cloud API, local model) or network failure while
+/// generating minutes.
 class MinutesGenerationException extends InsatoException {
   const MinutesGenerationException(super.messageAr,
       {super.debugDetails, super.cause, this.retryable = false});

@@ -1,7 +1,7 @@
 // Glossary screen (F2): global custom vocabulary — search, category
 // filters, add / edit / delete, plain-text import and export — plus the
 // names of user-named speakers (included automatically) and where the
-// glossary is used (Deepgram keyterms, minutes prompt).
+// glossary is used (cloud-transcription prompt, minutes prompt).
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -9,7 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/models.dart';
 import '../../data/secure_settings.dart';
 import '../../session/providers.dart';
-import '../../speech/cloud_asr_engine.dart' show kMaxDeepgramKeyterms;
+import '../../speech/cloud_asr_engine.dart' show buildCloudAsrPrompt;
 import '../../ui/services/share_gateway.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/ui_providers.dart';
@@ -406,8 +406,8 @@ class GlossaryTermTile extends StatelessWidget {
   }
 }
 
-/// Explains where the glossary goes: the Deepgram keyterm list (with its
-/// limit) and the minutes prompt.
+/// Explains where the glossary goes: the cloud-transcription prompt (with
+/// its length limit) and the minutes prompt.
 class GlossaryUsageCard extends StatelessWidget {
   /// Creates the card.
   const GlossaryUsageCard({
@@ -423,25 +423,20 @@ class GlossaryUsageCard extends StatelessWidget {
   /// All speakers (named ones are part of the glossary).
   final List<Speaker> speakers;
 
-  /// True when cloud ASR (Deepgram) is the selected recogniser.
+  /// True when cloud ASR (Groq Whisper) is the selected recogniser.
   final bool cloudAsr;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final all = buildDeepgramKeyterms(
-      speakers: speakers,
-      globalTerms: terms,
-      limit: 1 << 30,
-    );
-    final sent = all.length < kMaxDeepgramKeyterms
-        ? all.length
-        : kMaxDeepgramKeyterms;
+    final all = buildCloudAsrKeyterms(speakers: speakers, globalTerms: terms);
+    final prompt = buildCloudAsrPrompt(all);
+    final sent = prompt == null ? 0 : prompt.split('، ').length;
     final effective = mergeGlossary(terms, const [], speakers: speakers);
     final lines = [
       cloudAsr
-          ? CS.deepgramUsage(sent, all.length, kMaxDeepgramKeyterms)
-          : CS.deepgramOff,
+          ? CS.cloudAsrUsage(sent, all.length)
+          : CS.cloudAsrOff,
       CS.minutesUsage(effective.length),
     ];
     return Card(

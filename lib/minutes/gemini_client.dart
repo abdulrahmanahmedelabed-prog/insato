@@ -39,7 +39,7 @@ import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
 import '../core/errors.dart';
-import 'claude_client.dart' show RetryDelay, SseParser, parseRetryAfter;
+import 'http_support.dart' show RetryDelay, SseParser, parseRetryAfter;
 import 'minutes_backend.dart';
 
 /// Default Gemini model: Google's alias of the newest Flash-Lite model
