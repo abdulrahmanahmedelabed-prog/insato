@@ -19,6 +19,7 @@ import '../../features/consistency/consistency.dart'
 import '../../features/context/glossary_screen.dart' show GlossaryScreen;
 import '../../features/context/strings.dart' show CS;
 import '../../features/groq/groq_settings.dart';
+import '../../features/live_call/widgets.dart' show LiveCallSettingsTile;
 import '../../features/local_llm/local_minutes_backends.dart';
 import '../../features/official/entity_settings_screen.dart'
     show EntitySettingsTile;
@@ -202,6 +203,7 @@ class SettingsScreen extends ConsumerWidget {
               // ------------------------------------- Microphone & source
               const MicSettingsSection(),
               const AudioSourceSelector(),
+              const LiveCallSettingsTile(),
 
               // -------------------------------------------------- Speakers
               const SectionHeader(

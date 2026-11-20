@@ -410,6 +410,7 @@ class SessionEngineRequest {
     this.cloudAsrModel = AppSettingsData.defaultGroqAsrModel,
     this.cloudAsrAcknowledged = false,
     this.vadConfig,
+    this.maxSegmentSeconds,
   });
 
   /// Builds a request from the user's settings.
@@ -453,14 +454,21 @@ class SessionEngineRequest {
   /// mode: the telephone audio profile); null = [vadConfigFor].
   final VadSegmenterConfig? vadConfig;
 
+  /// v1.2 live call: hard cap (seconds) of a speech segment, so text
+  /// appears within a few seconds even while someone talks on (null = the
+  /// VAD profile's own cap, ~20 s).
+  final double? maxSegmentSeconds;
+
   /// True when transcription goes to the cloud engine.
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
 
-  /// A copy with [languageHint] / [vadConfig] replaced (phone-call mode).
+  /// A copy with [languageHint] / [vadConfig] (phone-call mode) or
+  /// [maxSegmentSeconds] (live call) replaced.
   SessionEngineRequest withOverrides({
     String? languageHint,
     bool clearLanguageHint = false,
     VadSegmenterConfig? vadConfig,
+    double? maxSegmentSeconds,
   }) => SessionEngineRequest(
     asrEngine: asrEngine,
     whisperModelId: whisperModelId,
@@ -472,6 +480,24 @@ class SessionEngineRequest {
     cloudAsrModel: cloudAsrModel,
     cloudAsrAcknowledged: cloudAsrAcknowledged,
     vadConfig: vadConfig ?? this.vadConfig,
+    maxSegmentSeconds: maxSegmentSeconds ?? this.maxSegmentSeconds,
+  );
+}
+
+/// [base] with segments cut after at most [maxSeconds] of speech.
+VadSegmenterConfig cappedVadConfig(VadSegmenterConfig base, double? maxSeconds) {
+  if (maxSeconds == null || maxSeconds <= 0) return base;
+  return VadSegmenterConfig(
+    threshold: base.threshold,
+    minSilenceDuration: base.minSilenceDuration,
+    minSpeechDuration: base.minSpeechDuration,
+    maxSpeechDuration: math.min(base.maxSpeechDuration, maxSeconds),
+    windowSize: base.windowSize,
+    bufferSizeInSeconds: base.bufferSizeInSeconds,
+    prePaddingMs: base.prePaddingMs,
+    postPaddingMs: base.postPaddingMs,
+    maxSegmentSeconds: math.min(base.maxSegmentSeconds, maxSeconds + 1),
+    numThreads: base.numThreads,
   );
 }
 
@@ -681,7 +707,10 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     final segmenter = VadSegmenter(
       modelPath: vadPath,
       firstIndex: request.firstIndex,
-      config: request.vadConfig ?? vadConfigFor(farField: request.farField),
+      config: cappedVadConfig(
+        request.vadConfig ?? vadConfigFor(farField: request.farField),
+        request.maxSegmentSeconds,
+      ),
     );
     GroqAsrEngine? cloud;
     final notices = StreamController<String>.broadcast();

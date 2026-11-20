@@ -53,6 +53,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
 | Multi-device (v1.2 C) | LAN WebSocket (dart:io) + ChaCha20-Poly1305 (package:cryptography), mDNS (bonsoir), QR (qr / mobile_scanner), pure-Dart clock sync, cross-correlation and fusion | No internet, no server; works on Android, iOS and Windows; fully unit-tested on localhost |
 | Phone-call mode | Windows: microphone + WASAPI loopback as two aligned channels, side per segment by activity with echo suppression; elsewhere bandwidth of the speakerphone audio; hard diarization partition per side; telephone audio profile | Remote and local voices never mixed; no internet on the remote side, no telephony API |
+| Live call (v1.2) | flutter_webrtc 1.6 (audio + data channel, DTLS-SRTP, STUN / optional TURN); signaling over a configurable WebSocket relay we do not operate (`tools/signaling_server.dart` or the Cloudflare Worker), sealed with a key from the call code | Internet calls between two devices with no Insato server; the relay can neither read nor impersonate |
 | Database | drift schema v6 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`; v1.2 D: `consistency_findings`, `resolution_annotations`), migrations tested from v1–v5 snapshots (real v5 data upgraded in `test/data/migration_test.dart`) | Upgrades keep all data |
 
 ## Module layout (`lib/`)
@@ -100,7 +101,7 @@ lib/
                                  free-cloud quota fallback, one-job engine override
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, groq/, import_audio/, meeting_bot/, phone_call/, meeting_package/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, groq/, import_audio/, meeting_bot/, phone_call/, meeting_package/, live_call/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -304,6 +305,70 @@ Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom
 `NavigationBar` on phones and a `NavigationRail` with list / detail panes
 from 840 px.
+
+## v1.2 live call («مكالمة إنصاتو الحية»)
+
+`lib/features/live_call/` (strings `LCS`). Two devices on the internet:
+a WebRTC voice call, each device transcribing its own microphone, the text
+exchanged live, one merged meeting saved on each device.
+
+```
+ device A (caller)                 relay (wss, free; we run nothing)          device B (callee)
+ «بدء مكالمة» → code + QR                                                     «الانضمام» → code / QR
+ K = PBKDF2(code); K_call, room = HKDF(K)   ← same on both sides, code never sent →
+ join(room) ───────────────────────► pairs ≤ 2 sockets ◄─────────────────── join(room)
+      ◄──── sealed hello / welcome / ready (ChaCha20-Poly1305, K_call, then per-connection keys) ────►
+      ──── sealed offer (SDP + DTLS fingerprint) ────►   ◄──── sealed answer ────   ⇄ sealed ICE
+ ═══════════════════ WebRTC: audio (AEC/NS/AGC) + data channel, DTLS-SRTP, P2P or TURN ═══════════════════
+ data channel: auth = MAC(K_call, role ‖ own fp ‖ peer fp) both ways → active; safety code on both screens
+ mic → CallTranscriber (VAD ≤ 7 s → Whisper / cloud ASR + embedding → SpeakerTracker)
+        → pend / seg / drop ─────────────────── data channel ───────────────────► remote lines
+ ping / pong (1 Hz) → ClockSyncEstimator (multi_device) → remote times on the local timeline
+ LiveTranscriptBook (both screens) · echo retraction · CallMeetingWriter (rows live, ordered at the end)
+ stop → drain → retime → reorder by time → call log → refine → minutes (selected engine)
+```
+
+| Piece | File | Notes |
+|---|---|---|
+| Code, invite, keys | `call_code.dart` | 12-char Crockford code (multi_device helpers), QR `insato://call?v=1&k=&u=&n=`, K_call / room id by HKDF over the multi_device PBKDF2 key (domain-separated), signaling URL normalisation |
+| Signaling protocol | `signaling_protocol.dart` | Relay frames (join / joined / peer / relay / ping / error), sealed call messages, SDP fingerprint parsing, fingerprint MACs, six-digit safety code |
+| Signaling client | `signaling_client.dart` | `RelaySocket` (dart:io WebSocket; `?room=` added for sharded relays), `CallSignaling`: callee hello → caller welcome → callee ready (reuses multi_device `SecureChannel`: handshake under K_call, per-connection keys, strict counters), refuses a second hello while a callee is connected, frames processed strictly in order |
+| Reference relay | `tools/signaling_server.dart`, `tools/signaling/{worker.js,wrangler.toml,Dockerfile}` | Self-contained dart:io relay (≤ 2 per room, size / rate / join / idle limits, logs counts only); Cloudflare Worker + Durable Object per room with the same protocol; Docker image for free container hosts |
+| Peer link | `peer_transport.dart`, `webrtc_peer_transport.dart` | `PeerTransport` seam (fake in tests); flutter_webrtc: `getUserMedia` with echoCancellation / noiseSuppression / autoGainControl, negotiated data channel id 0, unified plan, max-bundle, STUN `stun.l.google.com:19302` + optional TURN / relay-only, W3C stats → RTT, loss, jitter, relayed |
+| Data channel | `data_messages.dart` | auth, ping / pong, pend, seg (text, language, kind, confidence, speaker id + name), drop, act (speaking / level), mute, bye |
+| State machine | `call_engine.dart` | `LiveCallEngine`: idle → preparing → waitingForPeer / connecting → active ⇄ reconnecting → ended / failed; timeouts (caller wait, callee find, handshake, media, auth, reconnect); end reasons; events serialised; clock sync; echo rules; `CallSnapshot` for the UI |
+| Merge | `transcript_merge.dart` | `LiveTranscriptBook` ordered by local time, pending → final, provisional remote times fixed once the clock estimate is ready, echo = similar text (≥ 3 words, bigram Dice ≥ 0.75) within 4 s and not earlier (ties: the callee's line) |
+| Local transcription | `call_transcriber.dart` | Normal engines with `SessionEngineRequest.maxSegmentSeconds = 7` (`cappedVadConfig`), `SessionPipeline` with a sink that asks the engine first (echo → not stored), pending ids reused as row ids, mute = silence to the VAD |
+| Meeting | `call_meeting_writer.dart` | Remote rows `speakerLocked` (no embedding, refinement never moves them), remote speakers by name or «متحدث N (<device>)», deletions for retractions, final renumbering by start time |
+| Log, settings, platform | `call_log.dart`, `call_settings.dart`, `call_platform.dart` | `live_call_log:<meeting id>` (deleted with the meeting); `live_call_settings` (relay URL, TURN URL / user, relay-only, device name, consent) + TURN credential in secure storage, `--dart-define=INSATO_SIGNALING_URL` default; Android FGS microphone + mediaPlayback with a «إيقاف البث» button (communication port), wakelock |
+| UI | `live_call_screens.dart`, `live_call_settings_screen.dart`, `widgets.dart` | Entry button on the meetings app bar, start / join (QR scan on Android / iOS), consent notice, call screen (code + QR, indicator with one-tap stop, quality, safety code, live transcript, mute, stop; cannot be left while streaming), outcome + open meeting, settings tile, `LiveCallLogCard` on the minutes tab |
+
+Why this signaling. Requirement: free, no server operated by us, no manual
+offer/answer copying. Options checked: manual / QR SDP exchange (rejected
+for usability: two large blobs each way, and trickle ICE impossible);
+public third-party brokers (PeerJS cloud, public MQTT, ntfy) — free but
+outside our control, with message-size and rate limits that SDPs hit, and
+their availability is not ours to promise; Firebase-style services need an
+account and an SDK per platform. Chosen: a configurable WebSocket URL with
+a ~250-line reference relay in the repo that anyone deploys once for free
+(Cloudflare Workers free plan, or the Docker image on a free container
+host), and that is *untrusted by design*: it relays sealed blobs between
+the two sockets of a room id, so a malicious or compromised relay can only
+deny service. A distributor can bake the URL in with `--dart-define`.
+
+Raw remote audio. flutter_webrtc exposes no remote PCM to Dart on any
+platform (audio is rendered natively; `MediaRecorder` writes an AAC file of
+the playout on Android and needs a video track on iOS; nothing on Windows).
+So each device archives only its own microphone; the other side's speech is
+in the meeting as the transcript that device produced (its microphone is
+archived there). With speakers instead of headphones the remote voice is
+also faintly present in the local recording.
+
+Microphone sharing. WebRTC and the transcription each open the microphone:
+Android uses the `voiceCommunication` source for the transcription capture
+(platform AEC), iOS gives the audio session to WebRTC
+(`AudioRecorder.ios.manageAudioSession(false)`), Windows allows shared
+capture. To verify on devices (see the report).
 
 Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
 `diarization/`, `minutes/minutes_prompt.dart`, `minutes/http_support.dart`,
@@ -545,3 +610,10 @@ loses the side attribution; a call is not combined with a multi-device hub.
   (speaker centroids and segment embeddings) only when the user opts in on
   that export (never remembered). A password encrypts every entry
   (AES-256-GCM); without one the file is readable by whoever holds it.
+* Live call (v1.2): started by a person on each device (consent notice
+  before the first call); audio DTLS-SRTP peer-to-peer or via the user's
+  TURN; the signaling relay only sees a room id, IP addresses and sealed,
+  authenticated setup messages; text and speaker names cross the encrypted
+  data channel, voiceprints never; each device stores its own microphone,
+  the merged transcript and the call log; persistent indicator + one-tap
+  stop, Android ongoing notification; the call ends with the app.

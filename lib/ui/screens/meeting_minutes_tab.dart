@@ -12,6 +12,7 @@ import '../../features/consistency/consistency.dart'
     show SupersededResolutionsCard;
 import '../../features/context/meeting_context_card.dart';
 import '../../features/evidence/evidence.dart' show EvidenceChips;
+import '../../features/live_call/widgets.dart' show LiveCallLogCard;
 import '../../features/multi_device/widgets.dart' show MultiDeviceLogCard;
 import '../../features/phone_call/phone_call_widgets.dart'
     show PhoneCallMeetingCard;
@@ -67,6 +68,7 @@ class MeetingMinutesTab extends ConsumerWidget {
       MeetingContextCard(meeting: meeting),
       MultiDeviceLogCard(meetingId: meeting.id),
       PhoneCallMeetingCard(meetingId: meeting.id),
+      LiveCallLogCard(meetingId: meeting.id),
       const SizedBox(height: 12),
     ];
 

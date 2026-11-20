@@ -67,6 +67,7 @@ dependencies:
   bonsoir: ^7.1.6
   mobile_scanner: ^7.5.0
   qr: ^3.0.2
+  flutter_webrtc: ^1.6.3
 
 dev_dependencies:
   flutter_test:

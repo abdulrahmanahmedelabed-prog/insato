@@ -157,6 +157,21 @@
   معاينة الدمج الجهاز والمدة والتداخل وفرق التوقيت، ويمكن التراجع عن الدمج
   من قائمة الاجتماع، ثم إعادة إنشاء المحضر.
 
+- **مكالمة إنصاتو الحية**: اتصال صوتي عبر الإنترنت بين جهازين عليهما إنصاتو
+  (هاتف مع هاتف أو هاتف مع حاسوب) مع تفريغ لحظي لكلام الطرفين ومن حول كل
+  جهاز: يفرّغ كل جهاز ميكروفونه محلياً بمقاطع قصيرة (≤ 7 ثوانٍ) ويرسل النص
+  وأسماء المتحدثين عبر قناة بيانات WebRTC، فيظهر نص مشترك مرتّب زمنياً على
+  الشاشتين خلال ثانية إلى ثلاث، ثم يُحفظ الاجتماع ويُكتب المحضر بالمحرك
+  المختار. يبدأ أحدهما المكالمة فيظهر رمز من 12 حرفاً ورمز QR، وينضم الآخر
+  بنفسه بكتابة الرمز أو مسحه — لا ردّ تلقائي ولا تشغيل خفي. صوت مشفّر DTLS-SRTP
+  مباشرةً بين الجهازين (أو عبر خادم TURN اختياري)، وإعداد الاتصال عبر خادم
+  إشارة صغير مجاني تنشره بنفسك (`tools/signaling_server.dart` أو Cloudflare
+  Worker في `tools/signaling/`) لا يرى إلا رسائل مشفّرة وموثّقة بمفتاح مشتق من
+  الرمز، مع «رمز أمان» يظهر متطابقاً على الشاشتين. مؤشر «يتم البث والتفريغ»
+  وزر إيقاف بلمسة واحدة طوال المكالمة (وإشعار دائم على Android)، وسجل للمكالمة
+  بأسماء الجهازين ووقتي البدء والإيقاف. من زر «مكالمة إنصاتو الحية» أعلى قائمة
+  الاجتماعات؛ الإعداد في «الإعدادات ← إعدادات المكالمة الحية».
+
 ## البنية باختصار
 
 ```
@@ -445,6 +460,24 @@ through Microsoft Edge. Joins can be scheduled while the app is open. See
   tagged with the source device; what both devices heard is kept once
   (better-SNR text). A preview shows device, duration, overlap and offset;
   the merge can be undone from the meeting menu; minutes can be regenerated.
+
+- **Live Insato call**: an internet voice call between two Insato devices
+  (phone↔phone, phone↔PC) with real-time transcription of both sides and of
+  the people around each device: each device transcribes its own microphone
+  locally in short segments (≤ 7 s) and sends text + speaker labels over a
+  WebRTC data channel, so both screens show one time-ordered transcript
+  within 1–3 s; afterwards each device saves the meeting and writes the
+  minutes with the selected engine. One side starts the call (12-character
+  code + QR); the other joins by typing or scanning it — no auto-answer, no
+  hidden mode. Audio is DTLS-SRTP peer-to-peer (or through an optional TURN
+  server); setup goes through a tiny free signaling relay you deploy
+  yourself (`tools/signaling_server.dart`, or the Cloudflare Worker in
+  `tools/signaling/`) that only sees messages sealed and authenticated with
+  a key derived from the code, and both screens show the same safety code.
+  A «يتم البث والتفريغ» indicator with one-tap stop stays on screen
+  (ongoing notification on Android); the call log keeps both device names
+  and start/stop. Entry: the call button above the meetings list; settings
+  under Settings → live call.
 
 ## Architecture summary
 

@@ -107,7 +107,7 @@ abstract final class S {
 
   /// Meetings app bar on narrow screens: the menu of meeting sources.
   static const String meetingSourcesMenu =
-      'مصادر الاجتماع: استيراد، روبوت، مكالمة، عدة أجهزة';
+      'مصادر الاجتماع: استيراد، روبوت، مكالمات، عدة أجهزة';
 
   /// Select a meeting (wide layout placeholder).
   static const String selectMeetingTitle = 'اختر اجتماعًا';

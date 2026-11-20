@@ -73,7 +73,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>يستخدم إنصاتو الميكروفون لتسجيل الاجتماع وتفريغه نصياً والتعرّف على المتحدثين بأصواتهم، ثم إعداد محضر الاجتماع. — Insato records the meeting through the microphone to transcribe it, recognise speakers by voice and write the minutes.</string>
+	<string>يستخدم إنصاتو الميكروفون لتسجيل الاجتماع وتفريغه نصياً والتعرّف على المتحدثين بأصواتهم، ثم إعداد محضر الاجتماع، وفي المكالمة الحية التي تبدؤها أو تنضم إليها بنفسك لبث صوتك إلى الطرف الآخر وتفريغه. — Insato records the meeting through the microphone to transcribe it, recognise speakers by voice and write the minutes, and, in a live call you start or join yourself, to send your voice to the other device and transcribe it.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>يستخدم إنصاتو الشبكة المحلية لربط الهواتف والحواسيب في القاعة كميكروفونات لاجتماع واحد. يبقى الصوت داخل الشبكة المحلية مشفّراً. — Insato uses the local network to connect the phones and computers in the room as microphones of one meeting; audio stays on the local network, encrypted.</string>
 	<key>NSBonjourServices</key>

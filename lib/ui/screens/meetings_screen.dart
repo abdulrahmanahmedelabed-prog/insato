@@ -14,16 +14,19 @@ import '../../features/import_audio/import_audio.dart'
         ImportedBadge,
         importRecordingFlow,
         isImportedMeeting;
+import '../../features/live_call/live_call_screens.dart' show openLiveCallHome;
+import '../../features/live_call/strings.dart' show LCS;
+import '../../features/live_call/widgets.dart' show LiveCallMenuButton;
 import '../../features/meeting_bot/meeting_bot_screen.dart'
     show MeetingBotButton, openMeetingBotScreen;
 import '../../features/meeting_bot/strings.dart' show BotStrings;
+import '../../features/meeting_package/meeting_package.dart'
+    show MeetingPackageImportButton, PS, importMeetingPackageFlow;
 import '../../features/multi_device/guest_screens.dart'
     show openGuestJoinScreen;
 import '../../features/multi_device/host_lobby_screen.dart'
     show openHostLobbyScreen;
 import '../../features/multi_device/strings.dart' show MS;
-import '../../features/meeting_package/meeting_package.dart'
-    show MeetingPackageImportButton, PS, importMeetingPackageFlow;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
 import '../../features/phone_call/phone_call_setup_screen.dart'
     show startPhoneCallFlow;
@@ -79,6 +82,21 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
   Widget build(BuildContext context) {
     final meetings = ref.watch(meetingsProvider);
     final theme = Theme.of(context);
+    // The pane's own width (the desktop two-pane layout gives the list far
+    // less than the window), so the sources collapse whenever they would
+    // crowd the title.
+    return LayoutBuilder(
+      builder: (context, box) =>
+          _scaffold(context, meetings, theme, box.maxWidth),
+    );
+  }
+
+  Widget _scaffold(
+    BuildContext context,
+    AsyncValue<List<Meeting>> meetings,
+    ThemeData theme,
+    double width,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -88,7 +106,11 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             const Text(S.appName),
           ],
         ),
-        actions: const [_MeetingSourcesActions()],
+        actions: [
+          _MeetingSourcesActions(
+            collapsed: width < _MeetingSourcesActions.wideEnough,
+          ),
+        ],
       ),
       floatingActionButton: Tooltip(
         message: S.newMeetingShortcut,
@@ -398,13 +420,18 @@ class _SourceEntry {
 }
 
 /// The meeting-source actions of the app bar: recording import, meeting
-/// package import, meeting bot, phone call and multi-device. Shown as separate icons when there is room; on narrow
+/// package import, meeting bot, phone call, live Insato call and
+/// multi-device. Shown as separate icons when there is room; on narrow
 /// phones they collapse into one menu so the title never overflows.
 class _MeetingSourcesActions extends ConsumerWidget {
-  const _MeetingSourcesActions();
+  const _MeetingSourcesActions({required this.collapsed});
 
-  /// Narrower than this, the sources collapse into one menu.
-  static const double wideEnough = 520;
+  /// One menu instead of separate icons.
+  final bool collapsed;
+
+  /// Narrower than this (six 48 px icons plus the title), the sources
+  /// collapse into one menu.
+  static const double wideEnough = 600;
 
   static final List<_SourceEntry> _entries = [
     _SourceEntry(
@@ -432,6 +459,12 @@ class _MeetingSourcesActions extends ConsumerWidget {
       (c, r) => startPhoneCallFlow(c, r),
     ),
     _SourceEntry(
+      'live-call',
+      Icons.wifi_calling_3_rounded,
+      LCS.menuTooltip,
+      (c, _) => openLiveCallHome(c),
+    ),
+    _SourceEntry(
       'multi-device-host',
       Icons.cast_connected_rounded,
       MS.hostEntry,
@@ -447,8 +480,7 @@ class _MeetingSourcesActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final width = MediaQuery.sizeOf(context).width;
-    if (width >= wideEnough) {
+    if (!collapsed) {
       return const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -456,6 +488,7 @@ class _MeetingSourcesActions extends ConsumerWidget {
           MeetingPackageImportButton(),
           MeetingBotButton(),
           PhoneCallMenuButton(),
+          LiveCallMenuButton(),
           MultiDeviceMenuButton(),
         ],
       );

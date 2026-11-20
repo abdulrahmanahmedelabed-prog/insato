@@ -132,6 +132,10 @@ const String kImportInfoKeyPrefix = 'import_info:';
 /// with the meeting.
 const String kPhoneCallLogKeyPrefix = 'phone_call_log:';
 
+/// Settings key prefix of a live call's log (v1.2,
+/// `lib/features/live_call/call_log.dart`), deleted with the meeting.
+const String kLiveCallLogKeyPrefix = 'live_call_log:';
+
 /// Prefix of a ledger tombstone value. Never starts a real (UUID) speaker id.
 const String kVoiceprintLedgerTombstonePrefix = '!';
 
@@ -498,6 +502,10 @@ class MeetingRepository {
       currentAudioPath: row.audioPath,
       recordingsDir: _recordingsDir,
     );
+    // v1.2 live call: the call log (device names, start / stop).
+    await (_db.delete(_db.settings)
+          ..where((s) => s.key.equals('$kLiveCallLogKeyPrefix$id')))
+        .go();
     final stored = row.audioPath;
     if (stored != null && stored.isNotEmpty) {
       for (final path in await _audioCandidates(stored)) {
