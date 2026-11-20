@@ -106,6 +106,18 @@
   ويُسجَّل الانقطاع، ويرى المضيف حالة كل جهاز (الاتصال، البطارية، جودة الشبكة،
   مستوى الصوت) ويستطيع إزالته. من القائمة أعلى قائمة الاجتماعات: «اجتماع متعدد
   الأجهزة» و«الانضمام كجهاز إضافي».
+- **استيراد تسجيل**: حوّل تسجيلاً موجوداً — مكالمة هاتفية (تسجيل مكالمات
+  iPhone منذ iOS 18.1، أو مسجّل المكالمات في Samsung وXiaomi وPixel)، أو مذكرة
+  صوتية، أو تسجيلاً منزّلاً من Zoom — إلى اجتماع يُعالَج تماماً كالاجتماع
+  المسجّل: تفريغ بمحرك التفريغ الذي اخترته، وتمييز المتحدثين ببصماتهم، والمحضر
+  وكل مزايا 1.1 و1.2. من زر «استيراد تسجيل» أعلى قائمة الاجتماعات (كل
+  الأنظمة)، أو بمشاركة الملف إلى إنصاتو من تطبيق آخر (Android: «مشاركة» /
+  «فتح باستخدام»؛ iOS: «فتح في إنصاتو» من ورقة المشاركة أو تطبيق الملفات).
+  الصيغ: M4A/AAC وMP3 وWAV وAMR وOGG/Opus وFLAC و3GP/MP4 وCAF (بحسب ما يدعمه
+  الجهاز). يُفكّ الترميز على الجهاز بمفكّكات النظام نفسه دون أي خدمة مدفوعة،
+  وتعمل المعالجة في الخلفية مع شريط تقدّم وزر إلغاء، ويحمل الاجتماع شارة
+  «مستورد». تذكير: تختلف قوانين تسجيل المكالمات من بلد إلى آخر، فأبلغ
+  المشاركين بالتسجيل.
 
 ## البنية باختصار
 
@@ -332,6 +344,19 @@ language**, transcribes it, identifies speakers **by voice**, and writes
   dropping out does not stop the meeting (the gap is logged); the host sees
   each device's link, battery, network quality and level and can remove it.
   Entries: the devices menu above the meetings list.
+- **Import a recording**: turn an existing recording — a phone call (iPhone
+  call recording since iOS 18.1, or the Samsung / Xiaomi / Pixel call
+  recorder), a voice memo, a Zoom download — into a meeting processed
+  exactly like a recorded one: transcription with your chosen ASR engine,
+  speaker identification with voiceprints, minutes and every 1.1 / 1.2
+  feature. Use «استيراد تسجيل» above the meetings list (all platforms), or
+  share the file to Insato from another app (Android "Share" / "Open with";
+  iOS "Open in Insato" from the share sheet or Files). Formats: M4A/AAC,
+  MP3, WAV, AMR, OGG/Opus, FLAC, 3GP/MP4, CAF (as supported by the device).
+  Decoding happens on the device with the OS's own decoders — no paid
+  service, no ffmpeg; processing runs in the background with progress and
+  cancel, and the meeting carries an «مستورد» badge. Reminder: call
+  recording laws vary — inform the participants.
 
 ## Architecture summary
 

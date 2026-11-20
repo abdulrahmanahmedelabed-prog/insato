@@ -96,7 +96,7 @@ lib/
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, import_audio/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -222,6 +222,50 @@ act as one microphone array; everything stays on the LAN.
 Single-device meetings are untouched: without an open hub the session source
 is the usual one; a segment without a `ChannelProfile` leaves the tracker
 and the refinement exactly as before.
+
+## Recording import («استيراد تسجيل»)
+
+`lib/features/import_audio/` (strings `IS`). An existing audio file (phone
+call, voice memo, Zoom download) becomes a meeting processed by the same
+pipeline as a recording.
+
+```
+ file chooser (file_selector)        OS share / "Open in" → native copy into the cache
+        │                                   │  MethodChannel insato/shared_audio (takePending / onShared)
+        └──────────────► ImportJobController (one job, progress, cancel) ◄── SharedAudioListener (shell)
+                                   │
+                         RecordingImporter.importFile
+   size ≤ 2 GiB, magic bytes (audio_formats) → SessionEnginesFactory.ensureReady
+   → ImportAudioDecoder: WAV in pure Dart (readWavChunks) │ else MethodChannel insato/audio_decoder
+       (Android MediaExtractor+MediaCodec, iOS AVAssetReader, Windows IMFSourceReader → PCM16)
+       → pcmChunksToMono (PcmStreamConverter: downmix + StreamingResampler → 16 kHz mono)
+   → meeting (status processing, title/date from container metadata or file name,
+     inputDevice = kImportedInputDevice) → recordings/<id>.wav (WavWriter)
+   → PostProcessor.reprocessFromAudio(isCancelled:) (VAD → ASR + embeddings → SpeakerTracker
+     → refinement → voiceprints) → WAV dropped when "keep audio" is off
+   → MeetingJobsController.generateMinutes(automatic: true) (tasks, codes, official, consistency)
+```
+
+| Piece | File | Notes |
+|---|---|---|
+| Formats & limits | `audio_formats.dart` | `AudioContainer` (wav, mp3, aac, mp4/m4a, 3gp, amr-nb/wb, ogg, opus, flac, caf, aiff, webm, wma), `sniffAudioHeader` (magic bytes win; PDF/ZIP/images refused), `kMaxImportBytes` 2 GiB, `kMaxImportDuration` 8 h, `kImportedInputDevice` |
+| Decoding | `audio_decoder.dart` | Pull protocol `open → read* → close` (PCM16 at the file's own rate; a chunk never mixes formats, a later chunk may change format, e.g. HE-AAC), `pcmChunksToMono`, `ImportException` / `ImportFailure` with Arabic messages; WAV that Dart cannot read (µ-law, ADPCM) goes to the platform |
+| Metadata | `import_metadata.dart` | `parseContainerDate` (ISO 8601, Android `yyyyMMddTHHmmss.SSSZ`; dates before 2000 or in the future ignored), `dateFromFileName` (Samsung `yyMMdd_HHmmss`, Xiaomi / Pixel `yyyyMMdd[_]HHmmss`, `yyyy-MM-dd HH.mm`), `suggestImportTitle` («مكالمة: الاسم» for call recordings) |
+| Service | `recording_importer.dart` | Cancel / decode failure deletes the new meeting and its WAV; a transcription failure keeps the meeting (status failed, audio kept) for «إعادة المعالجة» |
+| Store | `import_store.dart` | `import_info:<id>` in the settings table (file name, format, codec, rate, size, call / share flags), deleted by `MeetingRepository.delete`; the badge reads `Meeting.inputDevice` |
+| Jobs & UI | `import_controller.dart`, `import_ui.dart` | One import at a time, refused during a live recording; confirmation with the legal reminder (checkbox); `ImportProgressCard` (meetings screen), `ImportedBadge` (list and detail), `SharedAudioListener` (shell) |
+| Native | `AudioDecoderChannel.kt`, `SharedAudioChannel.kt` (+ `MainActivity.kt`, manifest SEND / SEND_MULTIPLE / VIEW `audio/*`); `AppDelegate.swift` (`AudioDecoderChannel`, `SharedAudioInbox` as a `FlutterSceneLifeCycleDelegate`, `CFBundleDocumentTypes`); `windows/runner/audio_decoder_channel.cpp` (mfplat / mfreadwrite / mfuuid) | No ffmpeg (retired), no paid service. Windows has no share target (picker only) |
+
+Imported meetings use the device key `unknown|imported`: voiceprints learned
+on the device microphone are matched against a phone-call recording with the
+relaxed cross-device threshold (`knownSpeakerThresholdFor`), and voiceprints
+learned mostly from imports are tagged with that key.
+
+receive_sharing_intent was not used: on iOS it needs a Share Extension target
+with an App Group (new Xcode target, entitlements, signing — not creatable or
+verifiable without Xcode), whereas document types reach the app through the
+scene's `openURLContexts` with no extension; the Android side is a few lines
+of intent handling.
 
 Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom

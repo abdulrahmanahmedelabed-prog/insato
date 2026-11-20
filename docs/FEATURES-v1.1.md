@@ -332,3 +332,35 @@ v1.1 is verified on real devices.
 * Each finding cites both sides (meeting, resolution number, timestamp) and a
   severity; the user can dismiss or confirm (“تم الإلغاء رسمياً”) which
   updates the earlier resolution's status.
+
+## I — Import a recording (استيراد تسجيل)
+* Status: implemented in `lib/features/import_audio/` (see ARCHITECTURE.md,
+  "Recording import"); native decoders written but not yet run on devices.
+* Sources: phone-call recordings (iOS 18.1+ Phone app via Notes / Files,
+  Samsung / Xiaomi / Pixel call recorders), voice memos, meeting downloads
+  (Zoom, Teams). Entry points: «استيراد تسجيل» on the meetings screen (file
+  chooser, all platforms; also in the empty state); Android share / "Open
+  with" (ACTION_SEND, ACTION_SEND_MULTIPLE — first file only — and
+  ACTION_VIEW for `audio/*`); iOS "Open in Insato" (CFBundleDocumentTypes).
+  Windows: chooser only.
+* Formats: M4A/AAC, MP3, WAV (pure Dart; compressed WAV via the platform),
+  AMR-NB/WB, OGG/Opus, FLAC, 3GP/MP4 audio, CAF, AIFF, WebM, WMA — decoded to
+  16 kHz mono on the device with the OS decoders (Android MediaCodec, iOS
+  AVAssetReader, Windows Media Foundation). Platform gaps are reported in
+  Arabic with a conversion hint (iOS: no Ogg/Opus/WebM; Windows: AMR, Ogg
+  and CAF only with extra codecs installed).
+* Limits: 2 GiB, 8 h, ≥ 1 s of audio; PDFs / images / archives renamed to
+  .mp3 are refused by magic bytes.
+* Metadata: title from the file name («مكالمة: الاسم» for call recordings,
+  dates stripped, editable before starting), recording time from container
+  metadata → date in the file name → file time; `import_info:<id>` keeps the
+  original file name, format, codec, rate, size; «مستورد» badge in the list
+  and the meeting header.
+* Processing: the user's ASR engine (on-device Whisper or Deepgram), the
+  same VAD, speaker tracking against voiceprints (cross-device threshold),
+  refinement, voiceprint learning, then automatic minutes with all v1.1 /
+  v1.2 steps. Background job with progress and «إلغاء الاستيراد»; one import
+  at a time; refused while a meeting is being recorded. The converted WAV
+  stays in the recordings folder when «الاحتفاظ بالتسجيل الصوتي» is on.
+* Consent: the confirmation dialog reminds that call-recording laws vary and
+  that participants should be informed; a checkbox must be ticked.

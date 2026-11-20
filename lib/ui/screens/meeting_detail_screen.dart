@@ -23,6 +23,8 @@ import '../../features/evidence/evidence.dart'
     show EvidenceScope, EvidenceTranscriptTab;
 import '../../features/export_docx/export_docx.dart' show showExportShareSheet;
 import '../../features/export_docx/strings.dart' show XS;
+import '../../features/import_audio/import_audio.dart'
+    show ImportedBadge, isImportedMeeting;
 import '../../features/official/official_document.dart' show OfficialDocument;
 import '../../features/official/official_minutes_screen.dart'
     show openOfficialMinutesScreen;
@@ -107,7 +109,20 @@ class _MeetingDetail extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !embedded,
-          title: Text(meeting.title, overflow: TextOverflow.ellipsis),
+          title: isImportedMeeting(meeting)
+              ? Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        meeting.title,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const ImportedBadge(),
+                  ],
+                )
+              : Text(meeting.title, overflow: TextOverflow.ellipsis),
           actions: [
             if (!isLive) ...[
               IconButton(

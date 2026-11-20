@@ -44,3 +44,9 @@ class MinutesGenerationException extends InsatoException {
   /// True for transient failures (429, 5xx, network) worth retrying.
   final bool retryable;
 }
+
+/// The user cancelled a long-running operation (e.g. importing a
+/// recording). Not an error to report; callers clean up and stay quiet.
+class OperationCancelledException extends InsatoException {
+  const OperationCancelledException([super.messageAr = 'أُلغيت العملية.']);
+}
