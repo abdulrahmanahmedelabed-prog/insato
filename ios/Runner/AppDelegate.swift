@@ -396,7 +396,10 @@ final class SharedAudioInbox: NSObject, FlutterSceneLifeCycleDelegate {
   }
 
   private func receive(_ urls: [URL]) -> Bool {
-    let files = urls.filter { $0.isFileURL }
+    // Meeting packages (.insato) stay in Documents/Inbox for the package
+    // import, which looks there at start and on resume
+    // (lib/features/meeting_package/package_providers.dart).
+    let files = urls.filter { $0.isFileURL && $0.pathExtension.lowercased() != "insato" }
     if files.isEmpty { return false }
     DispatchQueue.global(qos: .userInitiated).async {
       let entries = files.prefix(5).map { SharedAudioInbox.copy($0) }

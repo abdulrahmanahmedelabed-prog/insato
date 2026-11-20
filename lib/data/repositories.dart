@@ -17,6 +17,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/models.dart';
 import 'database.dart';
+import 'meeting_package_store.dart' show MeetingPackageStore;
 
 const Uuid _uuid = Uuid();
 
@@ -489,6 +490,14 @@ class MeetingRepository {
     await (_db.delete(_db.settings)
           ..where((s) => s.key.equals('$kPhoneCallLogKeyPrefix$id')))
         .go();
+    // Meeting packages: undo snapshots of merges and the recordings they
+    // keep (best effort, never throws).
+    await MeetingPackageStore.deleteForMeeting(
+      _db,
+      id,
+      currentAudioPath: row.audioPath,
+      recordingsDir: _recordingsDir,
+    );
     final stored = row.audioPath;
     if (stored != null && stored.isNotEmpty) {
       for (final path in await _audioCandidates(stored)) {

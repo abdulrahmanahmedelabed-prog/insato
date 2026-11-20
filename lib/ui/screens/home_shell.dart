@@ -12,6 +12,8 @@ import '../../core/time_format.dart';
 import '../../features/ask/ask.dart' show AskMeetingsScreen;
 import '../../features/import_audio/import_audio.dart'
     show SharedAudioListener;
+import '../../features/meeting_package/meeting_package.dart'
+    show IncomingPackageListener;
 import '../../features/tasks/tasks.dart' show TasksScreen;
 import '../../session/meeting_session_controller.dart';
 import '../../session/providers.dart';
@@ -168,11 +170,15 @@ class HomeShell extends ConsumerWidget {
             startNewMeeting(context, ref),
       },
       // Audio files shared to Insato by other apps (Android / iOS) are
-      // offered for import; the meetings tab shows the progress.
+      // offered for import; the meetings tab shows the progress. Meeting
+      // packages opened from other apps (Android / iOS) are offered too.
       child: SharedAudioListener(
         onImport: () =>
             ref.read(shellTabProvider.notifier).show(ShellTab.meetings),
-        child: Focus(autofocus: true, child: scaffold),
+        child: Focus(
+          autofocus: true,
+          child: IncomingPackageListener(child: scaffold),
+        ),
       ),
     );
   }

@@ -22,6 +22,8 @@ import '../../features/multi_device/guest_screens.dart'
 import '../../features/multi_device/host_lobby_screen.dart'
     show openHostLobbyScreen;
 import '../../features/multi_device/strings.dart' show MS;
+import '../../features/meeting_package/meeting_package.dart'
+    show MeetingPackageImportButton, PS, importMeetingPackageFlow;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
 import '../../features/phone_call/phone_call_setup_screen.dart'
     show startPhoneCallFlow;
@@ -395,8 +397,8 @@ class _SourceEntry {
   final void Function(BuildContext context, WidgetRef ref) run;
 }
 
-/// The meeting-source actions of the app bar: import, meeting bot, phone call
-/// and multi-device. Shown as separate icons when there is room; on narrow
+/// The meeting-source actions of the app bar: recording import, meeting
+/// package import, meeting bot, phone call and multi-device. Shown as separate icons when there is room; on narrow
 /// phones they collapse into one menu so the title never overflows.
 class _MeetingSourcesActions extends ConsumerWidget {
   const _MeetingSourcesActions();
@@ -410,6 +412,12 @@ class _MeetingSourcesActions extends ConsumerWidget {
       Icons.upload_file_rounded,
       IS.importTooltip,
       (c, r) => importRecordingFlow(c, r),
+    ),
+    _SourceEntry(
+      'meeting-package',
+      Icons.move_to_inbox_rounded,
+      PS.importTooltip,
+      (c, r) => importMeetingPackageFlow(c, r),
     ),
     _SourceEntry(
       'meeting-bot',
@@ -445,6 +453,7 @@ class _MeetingSourcesActions extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ImportRecordingButton(),
+          MeetingPackageImportButton(),
           MeetingBotButton(),
           PhoneCallMenuButton(),
           MultiDeviceMenuButton(),

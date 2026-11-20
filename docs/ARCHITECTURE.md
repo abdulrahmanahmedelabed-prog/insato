@@ -100,8 +100,7 @@ lib/
                                  free-cloud quota fallback, one-job engine override
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, groq/, import_audio/, meeting_bot/)
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, phone_call/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, groq/, import_audio/, meeting_bot/, phone_call/, meeting_package/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -271,6 +270,35 @@ with an App Group (new Xcode target, entitlements, signing — not creatable or
 verifiable without Xcode), whereas document types reach the app through the
 scene's `openURLContexts` with no extension; the Android side is a few lines
 of intent handling.
+
+## v1.2 meeting packages — «حزمة الاجتماع» (offline export / import / merge)
+
+`lib/features/meeting_package/` (strings `PS`), undo storage in
+`lib/data/meeting_package_store.dart`. For sites with no internet and no
+mobile network: a remote group records on its own device; the recording is
+moved as one `.insato` file by any means and merged into the main meeting.
+
+| Piece | File | Notes |
+|---|---|---|
+| Format | `package_format.dart` | ZIP: `manifest.json` (format / app / schema version, device name + platform, export wall clock + monotonic µs, meeting id / title / start wall clock (`started_at_ms`, time 0 of segments and of `audio.wav`) / duration / context, `includes`, `entries` = SHA-256 + size of every other entry), `transcript.json` (times, text, language, kind, confidences, lock, local speaker key, per-segment SNR, embedding only with voiceprints), `speakers.json` (name, colour, named-by-user, centroid only with voiceprints), optional `minutes.json`, optional `audio.wav` (stored, not deflated) |
+| Encryption | `package_crypto.dart` | Optional password: `envelope.json` (PBKDF2-HMAC-SHA256, 150 000 iterations, 16-byte salt; AES-256-GCM) + every entry as `<name>.enc`, encrypted in 1 MiB chunks (nonce = 8 random bytes ‖ chunk index, AAD = entry name ‖ index ‖ last flag: no swapping, reordering or truncation). Pure Dart (`DartAesGcm` / `DartPbkdf2`), run in an isolate |
+| Codec | `package_codec.dart` | `encodeMeetingPackage` (recomputes the entry table), `peekMeetingPackage` (encrypted? manifest), `decodeMeetingPackage` verifies every listed entry's size and SHA-256 → `PackageException(tampered / corrupt / notAPackage / unsupportedVersion / passwordRequired / wrongPassword)` |
+| Audio | `package_audio.dart` | `WavFileAlignmentAudio` (20 ms profile in one streaming pass, random-access windows), `segmentSnrDb` (90th-percentile level over the 10th-percentile noise floor), `alignRecordings`: wall-clock offset → coarse log-onset xcorr of a busy ≤ 60 s excerpt over ±5 min → fine `estimateLag` (multi-device aligner, 1 ms, ±300 ms) with `AlignmentTracker` thresholds; falls back to the wall clock (different rooms / no audio). `writeMergedWav` (same room: main audio, remote fills gaps; different rooms: mix) |
+| Merge rules | `merge_planner.dart` | `planMerge`: main timeline shifted when the remote started earlier; remote segments placed at offset; a duplicate = ≥ 50 % overlap of the shorter segment and similar text (bigram Dice ≥ 0.45), or ≥ 80 % overlap in a same-room recording → the better-SNR text is kept (replaces the main text or is dropped); chronological renumbering. `mapRemoteSpeakers`: voiceprint match (≥ match threshold + 0.05, each library voice once), same user-given name, else new `متحدث N (جهاز: …)`. `remapEvidenceJson` rewrites segment-index references |
+| Service | `package_service.dart` | `export` (SNR per segment from the recording, even without the audio), `open`, `importAsNewMeeting`, `previewMerge`, `merge` (snapshot → merged WAV `<id>-merged-<ms>.wav` → segment updates / inserts, minutes + tasks / pending updates / code findings / speaker notes / official record references renumbered, in one transaction → `PostProcessor.refine`), `undoLastMerge`. Segments without embeddings keep the remote attribution (locked) so refinement never treats their speaker as a disposable live label |
+| Undo | `lib/data/meeting_package_store.dart` | `meeting_package_undo:<meeting id>` (settings, stack of ≤ 5): meeting fields, all segment fields but embeddings, the voice library rows, the meeting's voiceprint ledger and the renumbered references; restoring re-inserts removed speakers, restores voiceprints, deletes merge-only speakers once unused. `MeetingRepository.delete` → `deleteForMeeting` removes the stack and the pre-merge recordings it kept |
+| UI | `package_ui.dart`, `package_providers.dart` | Meeting menu «تصدير حزمة الاجتماع» (options: recording, minutes, voiceprints — off, biometric warning — password), «دمج حزمة اجتماع هنا», «التراجع عن دمج الحزمة»; meetings app bar «استيراد حزمة اجتماع» (summary → new meeting / merge → meeting choice → `MergePreviewDialog` → progress → regenerate minutes?). `PackageFiles` seam: file_selector (any file on Android, `insato` on Windows, UTIs on iOS); export = share sheet on mobile, save dialog on Windows. `IncomingPackageListener` (home shell): Android `insato/open_file` MethodChannel (MainActivity copies VIEW / SEND content to the cache; intent filters for `.insato`, `application/x-insato-package`, zip and octet-stream), iOS document type `app.insato.meeting-package` (copied into `Documents/Inbox`, polled at start / resume) |
+
+Limitations: alignment uses one offset per package (a recording paused on
+either device shifts the later part by the pause; such segments fall back
+to the order of the clocks); Windows has no file association (use the
+import button).
+
+Sharing with the recording import: on Android `MainActivity.isAudioShare`
+sends audio types (and SEND_MULTIPLE) to `SharedAudioChannel` and everything
+else (`.insato`, the package / zip / octet-stream types) to
+`insato/open_file`; on iOS `SharedAudioInbox` ignores `.insato` URLs and
+leaves them in `Documents/Inbox` for the package poller.
 
 Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom
@@ -511,3 +539,9 @@ loses the side attribution; a call is not combined with a multi-device hub.
   LAN, encrypted and authenticated with a key derived from the join code
   (never transmitted); guests store nothing; the host advertises only its
   device name and session id over mDNS while the lobby is open.
+* Meeting packages: a `.insato` file leaves the device only when the user
+  shares or saves it. It contains the transcript, speaker names, the device
+  name and, as chosen on export, the recording and minutes; voiceprints
+  (speaker centroids and segment embeddings) only when the user opts in on
+  that export (never remembered). A password encrypts every entry
+  (AES-256-GCM); without one the file is readable by whoever holds it.

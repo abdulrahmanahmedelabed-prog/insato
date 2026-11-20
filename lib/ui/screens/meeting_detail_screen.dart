@@ -25,6 +25,13 @@ import '../../features/export_docx/export_docx.dart' show showExportShareSheet;
 import '../../features/export_docx/strings.dart' show XS;
 import '../../features/import_audio/import_audio.dart'
     show ImportedBadge, isImportedMeeting;
+import '../../features/meeting_package/meeting_package.dart'
+    show
+        PS,
+        exportMeetingPackageFlow,
+        importMeetingPackageFlow,
+        latestPackageMergeProvider,
+        undoMeetingPackageMergeFlow;
 import '../../features/official/official_document.dart' show OfficialDocument;
 import '../../features/official/official_minutes_screen.dart'
     show openOfficialMinutesScreen;
@@ -318,6 +325,9 @@ enum _MenuAction {
   copyMinutes,
   editContext,
   copyTranscript,
+  exportPackage,
+  mergePackage,
+  undoPackageMerge,
   rename,
   refine,
   reprocess,
@@ -333,6 +343,9 @@ class _MoreMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasMinutes = meeting.minutes != null;
+    // Meeting packages: a merge that can be undone.
+    final canUndoMerge =
+        ref.watch(latestPackageMergeProvider(meeting.id)).value != null;
     return PopupMenuButton<_MenuAction>(
       tooltip: 'المزيد',
       icon: const Icon(Icons.more_vert_rounded),
@@ -369,6 +382,32 @@ class _MoreMenu extends ConsumerWidget {
             title: Text(S.copyTranscript),
           ),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: _MenuAction.exportPackage,
+          enabled: !jobRunning,
+          child: const ListTile(
+            leading: Icon(Icons.inventory_2_outlined),
+            title: Text(PS.exportEntry),
+          ),
+        ),
+        PopupMenuItem(
+          value: _MenuAction.mergePackage,
+          enabled: !jobRunning,
+          child: const ListTile(
+            leading: Icon(Icons.merge_rounded),
+            title: Text(PS.mergeEntry),
+          ),
+        ),
+        if (canUndoMerge)
+          PopupMenuItem(
+            value: _MenuAction.undoPackageMerge,
+            enabled: !jobRunning,
+            child: const ListTile(
+              leading: Icon(Icons.undo_rounded),
+              title: Text(PS.undoEntry),
+            ),
+          ),
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: _MenuAction.editContext,
@@ -447,6 +486,12 @@ class _MoreMenu extends ConsumerWidget {
         } catch (_) {
           if (context.mounted) showSnack(context, S.exportFailed, error: true);
         }
+      case _MenuAction.exportPackage:
+        await exportMeetingPackageFlow(context, ref, meeting);
+      case _MenuAction.mergePackage:
+        await importMeetingPackageFlow(context, ref, intoMeetingId: meeting.id);
+      case _MenuAction.undoPackageMerge:
+        await undoMeetingPackageMergeFlow(context, ref, meeting.id);
       case _MenuAction.rename:
         await renameMeetingFlow(context, ref, meeting);
       case _MenuAction.refine:
