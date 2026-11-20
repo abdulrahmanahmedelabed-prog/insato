@@ -58,8 +58,7 @@ Future<void> startRecording(WidgetTester t, UiTestEnv env) async {
     ).save(const AppSettingsData(consentAcknowledged: true, keepAudio: false));
   });
   await pumpApp(t, env);
-  await t.tap(find.byType(FloatingActionButton));
-  await settle(t, rounds: 10);
+  await startFromFab(t);
   expect(find.byType(RecordingScreen), findsOneWidget);
 }
 
@@ -477,8 +476,7 @@ void main() {
             .save(const AppSettingsData(consentAcknowledged: true));
       });
       await pumpApp(t, env);
-      await t.tap(find.byType(FloatingActionButton));
-      await settle(t, rounds: 10);
+      await startFromFab(t);
       final gate = env.engines.asr.gate = Completer<void>();
       env.audio.emit(voiceSamples(0, 2000));
       env.audio.emit(voiceSamples(1, 2000));

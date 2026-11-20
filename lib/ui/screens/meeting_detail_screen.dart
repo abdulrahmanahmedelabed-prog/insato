@@ -1,17 +1,26 @@
-// Meeting details: tabs for the minutes, the full transcript and the
-// speakers, plus share / export / print / copy, rename, re-process and
-// delete actions and the progress of background jobs.
+// Meeting details: tabs for the minutes (with the meeting context and
+// evidence chips), the full transcript (evidence highlight), the speakers,
+// the meeting's tasks with pending task updates (F9) and the codes (F17),
+// all under one evidence scope with a docked audio player (F5); plus share /
+// export (PDF, Word, Markdown — F12) / print / copy, edit context, rename,
+// re-process and delete actions and the progress of background jobs.
 
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/errors.dart';
 import '../../core/models.dart';
-import '../../minutes/export_service.dart';
+import '../../features/codes/codes.dart' show CodesTab, KS;
+import '../../features/context/meeting_context_flows.dart'
+    show editMeetingContextFlow;
+import '../../features/context/strings.dart' show CS;
+import '../../features/evidence/evidence.dart'
+    show EvidenceScope, EvidenceTranscriptTab;
+import '../../features/export_docx/export_docx.dart' show showExportShareSheet;
+import '../../features/export_docx/strings.dart' show XS;
+import '../../features/tasks/tasks.dart' show MeetingTasksPanel, TS;
 import '../../session/post_processor.dart';
 import '../../session/providers.dart';
 import '../actions.dart';
@@ -22,7 +31,6 @@ import '../widgets/common.dart';
 import '../widgets/dialogs.dart';
 import 'meeting_minutes_tab.dart';
 import 'meeting_speakers_tab.dart';
-import 'meeting_transcript_tab.dart';
 
 /// Details of one meeting. With [embedded] (wide two-pane layout) the page
 /// has no back button.
@@ -86,7 +94,7 @@ class _MeetingDetail extends ConsumerWidget {
     final session = ref.watch(meetingSessionControllerProvider);
     final isLive = session.isActive && session.meetingId == meeting.id;
     return DefaultTabController(
-      length: 3,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !embedded,
@@ -107,6 +115,9 @@ class _MeetingDetail extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const TabBar(
+                  // Five tabs do not fit a phone's width.
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
                   tabs: [
                     Tab(
                       icon: Icon(Icons.description_outlined, size: 20),
@@ -125,6 +136,18 @@ class _MeetingDetail extends ConsumerWidget {
                       iconMargin: EdgeInsets.zero,
                       height: 48,
                       text: S.tabSpeakers,
+                    ),
+                    Tab(
+                      icon: Icon(Icons.task_alt_rounded, size: 20),
+                      iconMargin: EdgeInsets.zero,
+                      height: 48,
+                      text: TS.tasksTitle,
+                    ),
+                    Tab(
+                      icon: Icon(Icons.password_rounded, size: 20),
+                      iconMargin: EdgeInsets.zero,
+                      height: 48,
+                      text: KS.tabTitle,
                     ),
                   ],
                 ),
@@ -176,12 +199,20 @@ class _MeetingDetail extends ConsumerWidget {
                 ),
               ),
             Expanded(
-              child: TabBarView(
-                children: [
-                  MeetingMinutesTab(meeting: meeting),
-                  MeetingTranscriptTab(meetingId: meeting.id),
-                  MeetingSpeakersTab(meetingId: meeting.id),
-                ],
+              // Evidence chips in every tab play through one controller; the
+              // player bar is docked under the tabs and "show in transcript"
+              // switches to the transcript tab (index 1).
+              child: EvidenceScope(
+                meetingId: meeting.id,
+                child: TabBarView(
+                  children: [
+                    MeetingMinutesTab(meeting: meeting),
+                    EvidenceTranscriptTab(meetingId: meeting.id),
+                    MeetingSpeakersTab(meetingId: meeting.id),
+                    MeetingTasksPanel(meetingId: meeting.id),
+                    CodesTab(meetingId: meeting.id),
+                  ],
+                ),
               ),
             ),
           ],
@@ -197,7 +228,12 @@ class _MeetingDetail extends ConsumerWidget {
       final export = ref.read(exportServiceProvider);
       final m = data.meeting.minutes;
       final text = m != null
-          ? export.toPlainText(data.meeting, m, data.speakersById)
+          ? export.toPlainText(
+              data.meeting,
+              m,
+              data.speakersById,
+              segments: data.segments,
+            )
           : export.fullTranscriptText(
               data.meeting,
               data.segments,
@@ -241,6 +277,7 @@ class _ExportData {
 enum _MenuAction {
   export,
   copyMinutes,
+  editContext,
   copyTranscript,
   rename,
   refine,
@@ -266,8 +303,8 @@ class _MoreMenu extends ConsumerWidget {
           value: _MenuAction.export,
           enabled: hasMinutes,
           child: const ListTile(
-            leading: Icon(Icons.picture_as_pdf_outlined),
-            title: Text('${S.exportPdf} / ${S.exportMarkdown}'),
+            leading: Icon(Icons.ios_share_rounded),
+            title: Text(XS.sheetTitle),
           ),
         ),
         PopupMenuItem(
@@ -286,6 +323,13 @@ class _MoreMenu extends ConsumerWidget {
           ),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: _MenuAction.editContext,
+          child: ListTile(
+            leading: Icon(Icons.event_note_rounded),
+            title: Text(CS.editTitle),
+          ),
+        ),
         const PopupMenuItem(
           value: _MenuAction.rename,
           child: ListTile(
@@ -327,12 +371,9 @@ class _MoreMenu extends ConsumerWidget {
   Future<void> _run(BuildContext context, WidgetRef ref, _MenuAction a) async {
     switch (a) {
       case _MenuAction.export:
-        await showModalBottomSheet<void>(
-          context: context,
-          showDragHandle: true,
-          isScrollControlled: true,
-          builder: (_) => ExportSheet(meetingId: meeting.id),
-        );
+        await showExportShareSheet(context, meeting.id);
+      case _MenuAction.editContext:
+        await editMeetingContextFlow(context, ref, meeting);
       case _MenuAction.copyMinutes:
       case _MenuAction.copyTranscript:
         try {
@@ -340,7 +381,12 @@ class _MoreMenu extends ConsumerWidget {
           final export = ref.read(exportServiceProvider);
           final m = data.meeting.minutes;
           final text = a == _MenuAction.copyMinutes && m != null
-              ? export.toPlainText(data.meeting, m, data.speakersById)
+              ? export.toPlainText(
+                  data.meeting,
+                  m,
+                  data.speakersById,
+                  segments: data.segments,
+                )
               : export.fullTranscriptText(
                   data.meeting,
                   data.segments,
@@ -381,153 +427,5 @@ class _MoreMenu extends ConsumerWidget {
         final deleted = await deleteMeetingFlow(context, ref, meeting);
         if (deleted && !wide && nav.mounted) unawaited(nav.maybePop());
     }
-  }
-}
-
-/// Bottom sheet exporting the minutes as PDF (share or print) or Markdown,
-/// optionally with the full transcript appended.
-class ExportSheet extends ConsumerStatefulWidget {
-  /// Creates the sheet.
-  const ExportSheet({super.key, required this.meetingId});
-
-  /// Meeting exported.
-  final String meetingId;
-
-  @override
-  ConsumerState<ExportSheet> createState() => _ExportSheetState();
-}
-
-class _ExportSheetState extends ConsumerState<ExportSheet> {
-  bool _withTranscript = false;
-  bool _busy = false;
-
-  Future<void> _do(String kind, Rect? origin) async {
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final nav = Navigator.of(context);
-    String? message;
-    var isError = false;
-    try {
-      final data = await _ExportData.load(ref, widget.meetingId);
-      final minutes = data.meeting.minutes;
-      if (minutes == null) throw const InsatoException(S.noMinutesToExport);
-      final export = ref.read(exportServiceProvider);
-      final gateway = ref.read(shareGatewayProvider);
-      Future<Uint8List> pdf() => export.toPdf(
-        data.meeting,
-        minutes,
-        data.speakersById,
-        segments: data.segments,
-        includeTranscript: _withTranscript,
-      );
-      switch (kind) {
-        case 'pdf':
-          final r = await gateway.sharePdf(
-            bytes: await pdf(),
-            fileName: ExportService.suggestedFileName(data.meeting, 'pdf'),
-            origin: origin,
-          );
-          if (r.savedPath != null) {
-            message = S.savedTo(r.savedPath!);
-          } else if (!r.shared) {
-            isError = true;
-            message = S.exportFailed;
-          }
-        case 'print':
-          await gateway.printPdf(build: pdf, name: data.meeting.title);
-        case 'md':
-          final md = export.toMarkdown(
-            data.meeting,
-            minutes,
-            data.speakersById,
-            segments: data.segments,
-            includeTranscript: _withTranscript,
-          );
-          final r = await gateway.shareFile(
-            bytes: utf8.encode(md),
-            fileName: ExportService.suggestedFileName(data.meeting, 'md'),
-            mimeType: 'text/markdown',
-            subject: data.meeting.title,
-            origin: origin,
-          );
-          if (r.savedPath != null) {
-            message = S.savedTo(r.savedPath!);
-          } else if (!r.shared) {
-            isError = true;
-            message = S.exportFailed;
-          }
-      }
-    } catch (e) {
-      isError = true;
-      message = e is InsatoException ? e.messageAr : S.exportFailed;
-    }
-    if (!mounted) return;
-    setState(() => _busy = false);
-    nav.maybePop();
-    if (message != null && messenger != null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: Duration(seconds: isError ? 6 : 4),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '${S.exportPdf} / ${S.exportMarkdown}',
-                style: theme.textTheme.titleMedium,
-              ),
-            ),
-            SwitchListTile(
-              value: _withTranscript,
-              onChanged: _busy
-                  ? null
-                  : (v) => setState(() => _withTranscript = v),
-              title: const Text(S.includeTranscript),
-            ),
-            if (_busy)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: LinearProgressIndicator(),
-              ),
-            Builder(
-              builder: (context) => ListTile(
-                enabled: !_busy,
-                leading: const Icon(Icons.picture_as_pdf_rounded),
-                title: const Text(S.exportPdf),
-                onTap: () => _do('pdf', shareOriginOf(context)),
-              ),
-            ),
-            ListTile(
-              enabled: !_busy,
-              leading: const Icon(Icons.print_rounded),
-              title: const Text(S.printPdf),
-              onTap: () => _do('print', null),
-            ),
-            Builder(
-              builder: (context) => ListTile(
-                enabled: !_busy,
-                leading: const Icon(Icons.code_rounded),
-                title: const Text(S.exportMarkdown),
-                onTap: () => _do('md', shareOriginOf(context)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

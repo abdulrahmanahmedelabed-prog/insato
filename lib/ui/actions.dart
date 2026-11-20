@@ -10,6 +10,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/errors.dart';
 import '../core/models.dart';
+import '../features/context/meeting_context_flows.dart'
+    show startNewMeetingWithContext;
 import '../session/providers.dart';
 import 'navigation.dart';
 import 'strings_ar.dart';
@@ -20,36 +22,13 @@ String _messageOf(Object e) =>
     e is InsatoException ? e.messageAr : S.unexpectedError;
 
 /// Starts a new meeting: shows the consent reminder on first use (the
-/// recording only starts once accepted), starts the session and opens the
-/// recording screen, which shows preparation progress and any start error.
-/// While a session is already running, just reopens the recording screen.
-Future<void> startNewMeeting(BuildContext context, WidgetRef ref) async {
-  final session = ref.read(meetingSessionControllerProvider);
-  if (session.isActive) {
-    await openRecordingScreen(context);
-    return;
-  }
-  var consentGiven = false;
-  try {
-    final settings = await ref.read(appSettingsProvider).load();
-    consentGiven = settings.consentAcknowledged;
-  } catch (_) {
-    consentGiven = false;
-  }
-  if (!consentGiven) {
-    if (!context.mounted) return;
-    consentGiven = await showConsentDialog(context);
-    if (!consentGiven) return;
-  }
-  if (!context.mounted) return;
-  final controller = ref.read(meetingSessionControllerProvider.notifier);
-  // The controller switches to `preparing` synchronously; the recording
-  // screen shows its progress and, on failure, the Arabic error.
-  unawaited(
-    controller.start(consentGiven: true).then<void>((_) {}, onError: (_) {}),
-  );
-  await openRecordingScreen(context);
-}
+/// recording only starts once accepted), then the optional meeting-context
+/// form (F3: title, agenda, expected attendees, notes, meeting-only terms;
+/// "skip" starts at once), starts the session and opens the recording
+/// screen, which shows preparation progress and any start error. While a
+/// session is already running, just reopens the recording screen.
+Future<void> startNewMeeting(BuildContext context, WidgetRef ref) =>
+    startNewMeetingWithContext(context, ref);
 
 /// Renames [speaker] (remembered for future meetings).
 Future<void> renameSpeakerFlow(

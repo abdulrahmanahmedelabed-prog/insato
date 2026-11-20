@@ -157,6 +157,32 @@ void main() {
   );
 
   test(
+    'undecodable and low-confidence speech is kept as unintelligible (F17)',
+    () async {
+      final p = pipeline(
+        asr: FakeAsr(undecodableIndices: {1}, lowConfidenceIndices: {2}),
+      );
+      p.submit(speech(0, 0, 2000, 0));
+      p.submit(speech(1, 2500, 2000, 0)); // voiced, no text
+      p.submit(speech(2, 5000, 2000, 0)); // low-confidence guess
+      p.submit(speech(3, 7500, 2000, null)); // silence → dropped
+      await p.drain();
+      final stored = await segments.getForMeeting(meeting.id);
+      expect(stored.map((s) => s.kind), [
+        SegmentKind.speech,
+        SegmentKind.unintelligible,
+        SegmentKind.unintelligible,
+      ]);
+      expect(stored.map((s) => s.text), ['كلام 0', '', 'تخمين 2']);
+      expect(stored[2].asrConfidence, closeTo(0.1, 1e-9));
+      expect(stored.every((s) => s.speakerId != null), isTrue);
+      expect(p.skippedCount, 1);
+      final un = await segments.getUnintelligible(meeting.id);
+      expect(un.map((s) => (s.startMs, s.endMs)), [(2500, 4500), (5000, 7000)]);
+    },
+  );
+
+  test(
     'short segments inherit the previous speaker without new speakers',
     () async {
       final p = pipeline();

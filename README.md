@@ -4,7 +4,7 @@
 
 **إنصاتو** تطبيق Flutter يعمل على **Android وiOS وWindows**. يسجّل كل ما يسمعه
 ميكروفون الجهاز **بأي لغة**، ويفرّغه نصياً، ويميّز المتحدثين **بأصواتهم**،
-ثم يكتب **محضر اجتماع احترافياً باللغة العربية الفصحى** باستخدام Claude.
+ثم يكتب **محضر اجتماع احترافياً باللغة العربية الفصحى** باستخدام Google Gemini (مجاناً، افتراضياً) أو Claude.
 
 [English below ↓](#insato--ai-meeting-minutes)
 
@@ -40,6 +40,36 @@
 - **تسجيل طويل موثوق**: خدمة مقدّمة (Foreground Service) على Android، ووضع
   الصوت في الخلفية على iOS، ومنع السكون أثناء التسجيل.
 
+### الجديد في الإصدار 1.1
+
+- **محرك المحضر حسب اختيارك**: Google Gemini (الافتراضي، الفئة المجانية،
+  نموذج `gemini-flash-lite-latest`، مع تنبيه خصوصية يُقبل قبل أول إرسال)، أو
+  Claude (اختياري)، أو **على الجهاز بالكامل** بنموذج GGUF عبر llama.cpp دون
+  إنترنت، أو **خادم محلي** (Ollama / LM Studio). المحرك نفسه يخدم «اسأل
+  اجتماعاتك».
+- **سياق الاجتماع**: جدول أعمال وحضور متوقعون وملاحظات ومصطلحات خاصة بالاجتماع
+  قبل البدء (أو «تخطٍّ وابدأ»)، ويُبلَّغ في المحضر بما نوقش من جدول الأعمال.
+- **قاموس المصطلحات**: تهجئات معتمدة للأسماء والجهات والمصطلحات تُرسَل إلى
+  Deepgram وإلى محرك المحضر.
+- **ربط كل بند بلحظته**: أزرار ▶ تحت المحاور والقرارات والمهام تشغّل التسجيل من
+  لحظة القول وتبرز السطر في النص الكامل.
+- **تتبّع المهام**: شاشة للمهام مع التصفية والتعديل، وتحديثات حالة مقترحة من
+  الاجتماع التالي تُطبَّق بعد تأكيدك، وتنبيه بالمهام المفتوحة للحضور عند بدء
+  التسجيل.
+- **اسأل اجتماعاتك**: محادثة تجيب بالعربية مع استشهادات تفتح اللحظة المذكورة.
+- **تصدير Word** (DOCX عربي من اليمين إلى اليسار مع جدول المهام وكتلة التوقيع)
+  إلى جانب PDF وMarkdown، عبر نافذة المشاركة (والبريد).
+- **بصمة صوتية مسبقة** («إضافة شخص بصوته») و«تحسين البصمة».
+- **المايكات الخارجية**: اختيار جهاز الإدخال، و«اختبار المايك»، ووضع «اجتماع في
+  قاعة»، والتنبيه إلى سماعات البلوتوث.
+- **صوت النظام على Windows**: تسجيل صوت Zoom/Teams وحده أو مع الميكروفون.
+- **ملف المتحدث** (اختياري لكل متحدث، معطّل افتراضياً): المعارف والمهارات
+  الظاهرة في الكلام، واللغات، وأسلوب التواصل، والإسهامات، مع دليل لكل ادعاء
+  وضوابط تمنع أي استنتاج حساس.
+- **الرموز والشيفرات**: كلام مرمّز أو غير مفهوم (لا يُحذف أبداً)، ومصطلحات
+  داخلية، وكود برمجي يُقال شفهياً، وكلام مُلمَّح، وأرقام مرجعية — كلها فرضيات
+  موسومة بقائلها ولحظتها.
+
 ## البنية باختصار
 
 ```
@@ -48,7 +78,7 @@
   → خيط معالجة منفصل (Isolate): التفريغ (Whisper أو Deepgram) + البصمة الصوتية
   → متتبّع المتحدثين (مطابقة فورية مع البصمات المحفوظة)
   → قاعدة البيانات (SQLite عبر drift) والواجهة الحية
-  → عند الإيقاف: تحسين التجميع ← Claude ← المحضر ← PDF / Markdown / مشاركة
+  → عند الإيقاف: تحسين التجميع ← محرك المحضر (Gemini / Claude) ← المحضر ← PDF / Markdown / مشاركة
 ```
 
 التفاصيل الكاملة في [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -67,7 +97,7 @@ flutter test
 | المنصة | المتطلبات | أمر البناء |
 |---|---|---|
 | Android | ‏JDK 17، ‏Android SDK 36؛ أدنى إصدار Android 7.0 (API 24) | `flutter build apk --release --split-per-abi` |
-| iOS | ‏macOS مع Xcode حديث؛ أدنى إصدار iOS 15 | `flutter build ios --release` |
+| iOS | ‏macOS مع Xcode حديث؛ أدنى إصدار iOS 16.4 (حدّ llama.cpp للمحرك على الجهاز) | `flutter build ios --release` |
 | Windows | ‏Visual Studio 2022 مع «Desktop development with C++»؛ ‏Windows 10 (1903) أو أحدث | `flutter build windows --release` |
 
 نسخ الإصدار الجاهزة تُبنى تلقائياً عبر GitHub Actions عند دفع وسم `vX.Y.Z`
@@ -99,8 +129,11 @@ flutter test
 (Android Keystore، ‏iOS Keychain، وتشفير DPAPI لحساب المستخدم على Windows)، ولا تُحفظ في قاعدة
 البيانات ولا في الكود.
 
-- **Anthropic (مطلوب لكتابة المحضر)**: من <https://console.anthropic.com>.
-  التسجيل والتفريغ يعملان دونه، لكن المحضر يحتاجه.
+- **Google Gemini (المحرك الافتراضي للمحضر، مجاني)**: أنشئ مفتاحاً من
+  <https://aistudio.google.com/apikey> ووافق على تنبيه الخصوصية في الإعدادات
+  (في الفئة المجانية قد تستخدم Google النصوص لتحسين منتجاتها).
+- **Anthropic (اختياري، محرك Claude)**: من <https://console.anthropic.com>.
+  التسجيل والتفريغ يعملان دون أي مفتاح، لكن المحضر يحتاج مفتاح المحرك المختار.
 - **Deepgram (اختياري)**: فقط إن اخترت التفريغ السحابي، من
   <https://console.deepgram.com>.
 
@@ -109,8 +142,10 @@ flutter test
 - التسجيلات والتفريغ والبصمات الصوتية تبقى **على جهازك** (قاعدة بيانات محلية
   ومجلد التطبيق)، ومستثناة من النسخ الاحتياطي السحابي.
 - مع التفريغ على الجهاز، لا يُرسَل إلى الإنترنت إلا **نص التفريغ** عند كتابة
-  المحضر (إلى Anthropic).
+  المحضر (إلى Google Gemini أو Anthropic حسب المحرك المختار).
 - مع التفريغ السحابي تُرسَل **مقاطع الصوت** إلى Deepgram.
+- مع محرك «على الجهاز» أو خادم على الجهاز نفسه لا يغادر الجهازَ شيء؛ ملفات
+  المتحدثين اختيارية ومحلية وقابلة للحذف.
 - لا إعلانات ولا تتبّع ولا تحليلات استخدام.
 
 التفاصيل في [docs/PRIVACY.md](docs/PRIVACY.md).
@@ -126,7 +161,7 @@ flutter test
 
 Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` (SQLite) للتخزين ·‏
 `sherpa_onnx` ‏(Silero VAD وWhisper ونماذج البصمة الصوتية، على الجهاز) ·‏ `record`
-لالتقاط الصوت ·‏ Claude API ‏(`claude-opus-5-5`) لكتابة المحضر ·‏ Deepgram
+لالتقاط الصوت ·‏ Gemini API ‏(`gemini-flash-lite-latest`، افتراضي) أو Claude API ‏(`claude-opus-5-5`) لكتابة المحضر ·‏ Deepgram
 (اختياري) ·‏ `pdf` و`printing` و`share_plus` للتصدير ·‏
 `flutter_secure_storage` للمفاتيح ·‏ `flutter_foreground_task` و`wakelock_plus`
 للتسجيل الطويل ·‏ خطوط Noto Naskh Arabic وNoto Sans (رخصة SIL OFL 1.1، انظر
@@ -145,7 +180,7 @@ Flutter وDart ·‏ `flutter_riverpod` لإدارة الحالة ·‏ `drift` 
 **Insato** (Arabic: إنصاتو, from إنصات "attentive listening") is a Flutter app for **Android, iOS and
 Windows**. It records everything the device microphone hears, **in any
 language**, transcribes it, identifies speakers **by voice**, and writes
-**professional meeting minutes in Modern Standard Arabic** using Claude.
+**professional meeting minutes in Modern Standard Arabic** using Google Gemini (free, default) or Claude.
 
 ## What it does
 
@@ -179,6 +214,39 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 - **Reliable long recordings**: Android foreground service, iOS background
   audio mode, wake lock while recording.
 
+### New in 1.1
+
+- **Choose the minutes engine**: Google Gemini (default, free tier,
+  `gemini-flash-lite-latest`, with a privacy notice accepted before the first
+  request), Claude (optional), **fully on-device** with a GGUF model through
+  llama.cpp (offline), or a **local server** (Ollama / LM Studio). The same
+  engine answers "Ask your meetings".
+- **Meeting context**: agenda, expected attendees, notes and meeting-only
+  terms before recording (or "skip and start"); the minutes report agenda
+  coverage.
+- **Custom vocabulary**: canonical spellings sent to Deepgram and to the
+  minutes engine.
+- **Evidence links**: ▶ chips under topics, decisions and action items play
+  the recording from that moment and highlight the transcript line.
+- **Task tracking**: a tasks screen with filters and editing, status updates
+  proposed by the next meeting and applied after your confirmation, and a
+  banner of attendees' open tasks when recording starts.
+- **Ask your meetings**: chat answered in Arabic with citations that open the
+  cited moment.
+- **Word export** (RTL Arabic DOCX with the action-items table and a
+  signature block) next to PDF and Markdown, through the share sheet (mail).
+- **Voice enrollment** ("add a person by voice") and "improve voice".
+- **External microphones**: input-device choice, microphone test, the
+  "meeting room" far-field profile, Bluetooth warning.
+- **Windows system audio**: record Zoom/Teams audio alone or mixed with the
+  microphone.
+- **Speaker profiles** (opt-in per speaker, off by default): demonstrated
+  knowledge, languages, communication style and contributions, every claim
+  with evidence and guardrails against sensitive inferences.
+- **Codes & jargon**: coded or unintelligible speech (never dropped),
+  internal jargon, spoken source code, implied speech and reference numbers,
+  as labelled hypotheses with speaker and timestamp.
+
 ## Architecture summary
 
 ```
@@ -187,7 +255,7 @@ microphone (PCM16, 16 kHz, mono)
   → worker isolate: ASR (Whisper or Deepgram) + speaker embedding
   → speaker tracker (online matching against stored voiceprints)
   → database (SQLite via drift) + live UI
-  → on stop: re-clustering → Claude → minutes → PDF / Markdown / share
+  → on stop: re-clustering → minutes engine (Gemini / Claude) → minutes → PDF / Markdown / share
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design.
@@ -206,7 +274,7 @@ flutter test
 | Platform | Requirements | Build command |
 |---|---|---|
 | Android | JDK 17, Android SDK 36; runs on Android 7.0+ (API 24) | `flutter build apk --release --split-per-abi` |
-| iOS | macOS with a recent Xcode; runs on iOS 15+ | `flutter build ios --release` |
+| iOS | macOS with a recent Xcode; runs on iOS 16.4+ (llama.cpp floor for the on-device engine) | `flutter build ios --release` |
 | Windows | Visual Studio 2022 with "Desktop development with C++"; Windows 10 1903+ | `flutter build windows --release` |
 
 Release artifacts are built by GitHub Actions when a `vX.Y.Z` tag is pushed
@@ -240,8 +308,12 @@ Keystore, iOS Keychain, Windows DPAPI encryption bound to your Windows
 user account) — never in the database
 or in source code.
 
-- **Anthropic (required for minutes)**: <https://console.anthropic.com>.
-  Recording and transcription work without it; minutes need it.
+- **Google Gemini (default minutes engine, free)**: create a key at
+  <https://aistudio.google.com/apikey> and accept the privacy notice in
+  Settings (on the free tier Google may use the text to improve its products).
+- **Anthropic (optional, Claude engine)**: <https://console.anthropic.com>.
+  Recording and transcription work without any key; minutes need the key of
+  the selected engine.
 - **Deepgram (optional)**: only for cloud transcription,
   <https://console.deepgram.com>.
 
@@ -250,8 +322,11 @@ or in source code.
 - Recordings, transcripts and voiceprints stay **on your device** (local
   database and app folder) and are excluded from cloud backups.
 - With on-device transcription, only the **transcript text** leaves the
-  device, sent to Anthropic when minutes are generated.
+  device, sent to Google Gemini or Anthropic (the selected engine) when
+  minutes are generated.
 - With cloud transcription, **audio segments** are sent to Deepgram.
+- With the on-device engine (or a server on the same machine) nothing leaves
+  the device; speaker profiles are opt-in, local and deletable.
 - No ads, no tracking, no usage analytics.
 
 Details: [docs/PRIVACY.md](docs/PRIVACY.md).
@@ -268,7 +343,7 @@ recording. You are responsible for complying with applicable law.
 
 Flutter / Dart · `flutter_riverpod` (state) · `drift` (SQLite) ·
 `sherpa_onnx` (Silero VAD, Whisper, speaker-embedding models, on device) ·
-`record` (audio capture) · Claude API (`claude-opus-5-5`) for minutes ·
+`record` (audio capture) · Gemini API (`gemini-flash-lite-latest`, default) or Claude API (`claude-opus-5-5`) for minutes ·
 Deepgram (optional) · `pdf`, `printing`, `share_plus` (export) ·
 `flutter_secure_storage` (API keys) · `flutter_foreground_task`,
 `wakelock_plus` (long recordings) · Noto Naskh Arabic and Noto Sans fonts

@@ -38,11 +38,13 @@ import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
 import '../data/database.dart';
+import '../data/minutes_artifacts.dart';
 import '../data/repositories.dart';
 import '../data/secure_settings.dart';
 import '../diarization/clustering.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../features/voice/voice_devices.dart' show knownSpeakerThresholdFor, voiceDeviceAfterLearning;
 import 'meeting_session_controller.dart';
 import 'providers.dart';
 
@@ -69,6 +71,12 @@ int maxToleratedReprocessFailures(int attempted) =>
 /// Default average-linkage similarity for offline re-clustering.
 const double kDefaultRefineClusterThreshold = 0.5;
 
+/// Shortest segment (ms) the offline refinement clusters. Shorter segments
+/// that still have an embedding (sub-second replies such as «نعم») are too
+/// noisy to shape clusters; they are attached afterwards by
+/// [scoreRefinedSegments].
+const int kMinClusterSegmentMs = 800;
+
 // ===========================================================================
 // Minutes engine seam
 // ===========================================================================
@@ -91,24 +99,75 @@ class MinutesEngineHandle {
   }
 }
 
-/// Creates a minutes engine, or returns null when no API key is configured.
+/// Creates the minutes engine selected in Settings, or returns null when
+/// its API key is not configured. May throw [MinutesEngineNotReadyException]
+/// when the engine cannot be used yet for another reason (privacy notice
+/// not accepted, local engine unavailable), and
+/// [SecureStorageUnavailableException] when the keystore is locked.
 typedef MinutesEngineFactory = Future<MinutesEngineHandle?> Function();
+
+/// Why the selected minutes engine cannot run yet.
+enum MinutesEngineNotReadyReason {
+  /// Its API key is not configured.
+  noApiKey,
+
+  /// The user has not accepted the engine's data notice yet (Gemini free
+  /// tier: Google may use the data to improve its products).
+  privacyNotAcknowledged,
+
+  /// The engine is not available on this device / build (e.g. a local
+  /// engine whose model is not downloaded).
+  unavailable,
+}
+
+/// The selected minutes engine cannot be used yet; [messageAr] says what
+/// to do in Settings. A [MissingApiKeyException], so the UI offers to open
+/// Settings.
+class MinutesEngineNotReadyException extends MissingApiKeyException {
+  /// Creates the exception.
+  const MinutesEngineNotReadyException(
+    super.messageAr, {
+    required this.reason,
+    super.debugDetails,
+  });
+
+  /// Why.
+  final MinutesEngineNotReadyReason reason;
+}
+
+/// Message used when the factory returns null (no key for the engine).
+const String kMinutesNoKeyMessageAr =
+    'مفتاح محرك المحضر غير مضبوط. أضِفه من الإعدادات لإنشاء المحضر.';
 
 /// Result of [PostProcessor.generateMinutesIfPossible].
 enum MinutesOutcome {
   /// Minutes were generated and saved.
   generated,
 
-  /// No Anthropic API key: the meeting is `ready` without minutes.
+  /// No API key for the selected engine, or the engine is not ready (see
+  /// [MinutesRun.noticeAr]): the meeting is `ready` without minutes.
   skippedNoApiKey,
 
   /// The meeting has no transcript: the meeting is `ready` without minutes.
   skippedEmpty,
 
-  /// The stored Anthropic key could not be read right now (the keystore is
+  /// The stored API key could not be read right now (the keystore is
   /// locked, e.g. iOS before the first unlock): the meeting is `ready`
   /// without minutes and the user can generate them later.
   postponedKeyUnavailable,
+}
+
+/// Outcome of [PostProcessor.runMinutesIfPossible] with the reason when the
+/// engine was not ready.
+class MinutesRun {
+  /// Creates a result.
+  const MinutesRun(this.outcome, {this.noticeAr});
+
+  /// What happened.
+  final MinutesOutcome outcome;
+
+  /// For [MinutesOutcome.skippedNoApiKey]: what the user must do (Arabic).
+  final String? noticeAr;
 }
 
 // ===========================================================================
@@ -318,11 +377,15 @@ Map<String, String?> planClusterSpeakers({
 /// in [removableSpeakerIds] and no clustered segment keeps it — then they
 /// take the speaker of the nearest neighbouring segment, so the removable
 /// speaker can be deleted.
+///
+/// [extraClusterBySegment] adds cluster memberships decided outside the
+/// clustering (short segments attached by [scoreRefinedSegments]).
 Map<String, String> computeSegmentAssignments({
   required List<TranscriptSegment> segments,
   required RefinementResult result,
   required Map<String, String> speakerByCluster,
   required Set<String> removableSpeakerIds,
+  Map<String, String> extraClusterBySegment = const {},
 }) {
   final finalSpeaker = <String?>[];
   final anchored = <bool>[];
@@ -332,7 +395,7 @@ Map<String, String> computeSegmentAssignments({
       anchored.add(true);
       continue;
     }
-    final cid = result.clusterIdBySegment[s.id];
+    final cid = result.clusterIdBySegment[s.id] ?? extraClusterBySegment[s.id];
     final sid = cid == null ? null : speakerByCluster[cid];
     finalSpeaker.add(sid ?? s.speakerId);
     anchored.add(sid != null);
@@ -380,6 +443,92 @@ Map<String, String> computeSegmentAssignments({
           finalSpeaker[i] != segments[i].speakerId)
         segments[i].id: finalSpeaker[i]!,
   };
+}
+
+/// Output of [scoreRefinedSegments].
+typedef RefinedSegmentScores = ({
+  /// Unclustered segment id → cluster id it was attached to.
+  Map<String, String> attach,
+
+  /// Segment id → speaker confidence after refinement.
+  Map<String, double> confidence,
+});
+
+/// Scores every unlocked segment with a usable embedding against the
+/// refined cluster centroids of [result].
+///
+/// * A clustered segment keeps its cluster. Its confidence grows with its
+///   similarity to its own centroid (relative to [matchThreshold]) and with
+///   the margin over the closest other centroid (relative to
+///   [ambiguityMargin]); a segment that sounds like two people (overlap, or
+///   a turn change without a pause) gets a low confidence.
+/// * An unclustered segment (shorter than [kMinClusterSegmentMs], or skipped)
+///   is attached to the best centroid when it reaches [attachThreshold] and
+///   beats the runner-up by [attachMargin]; its confidence is scaled down
+///   because short embeddings are noisy. When no cluster wins it keeps its
+///   current speaker with a doubtful confidence ([doubtfulConfidence]).
+///
+/// Segments without a usable embedding are not scored (their live
+/// confidence stays).
+RefinedSegmentScores scoreRefinedSegments({
+  required List<TranscriptSegment> segments,
+  required RefinementResult result,
+  double matchThreshold = kDefaultRefineClusterThreshold,
+  double ambiguityMargin = 0.05,
+  double attachThreshold = 0.45,
+  double attachMargin = 0.08,
+  double doubtfulConfidence = 0.3,
+}) {
+  final attach = <String, String>{};
+  final confidence = <String, double>{};
+  final clusters = result.clusters;
+  if (clusters.isEmpty) return (attach: attach, confidence: confidence);
+  final dim = clusters.first.centroid.length;
+  double clamp01(double v) => v.isNaN ? 0 : v.clamp(0.0, 1.0);
+  double score(double sim, double margin) =>
+      clamp01(0.5 + (sim - matchThreshold) / 0.5) *
+      clamp01(0.5 + margin / math.max(1e-6, 4 * ambiguityMargin));
+
+  for (final s in segments) {
+    if (s.speakerLocked) continue;
+    final e = s.embedding;
+    if (!isUsableEmbedding(e, dimension: dim)) continue;
+    final ne = l2Normalize(e!);
+    final own = result.clusterIdBySegment[s.id];
+    var bestId = '';
+    var best = double.negativeInfinity;
+    var second = double.negativeInfinity;
+    var ownSim = double.negativeInfinity;
+    var otherBest = double.negativeInfinity;
+    for (final c in clusters) {
+      final sim = cosine(ne, c.centroid);
+      if (sim > best) {
+        second = best;
+        best = sim;
+        bestId = c.id;
+      } else if (sim > second) {
+        second = sim;
+      }
+      if (c.id == own) {
+        ownSim = sim;
+      } else if (sim > otherBest) {
+        otherBest = sim;
+      }
+    }
+    if (own != null) {
+      final margin = otherBest.isFinite ? ownSim - otherBest : 1.0;
+      confidence[s.id] = score(ownSim, margin);
+      continue;
+    }
+    final margin = second.isFinite ? best - second : 1.0;
+    if (best >= attachThreshold && margin >= attachMargin) {
+      attach[s.id] = bestId;
+      confidence[s.id] = 0.8 * score(best, margin);
+    } else {
+      confidence[s.id] = doubtfulConfidence;
+    }
+  }
+  return (attach: attach, confidence: confidence);
 }
 
 /// Removes [removed] embeddings from a voiceprint ([centroid] averaged over
@@ -452,6 +601,8 @@ TranscriptSegment _carryLock(
     language: n.language,
     embedding: n.embedding,
     speakerLocked: true,
+    kind: n.kind,
+    asrConfidence: n.asrConfidence,
   );
 }
 
@@ -502,6 +653,8 @@ class PostProcessor {
     this._paths,
     bool Function(String meetingId)? isMeetingActive,
     RefinementRunner? runRefinement,
+    this._onMinutesSaved,
+    this._onMeetingDeleted,
   }) : _minutesFactory = minutesEngineFactory,
        _isActive = isMeetingActive ?? ((_) => false),
        _runRefinement = runRefinement ?? runRefinementInBackground;
@@ -516,6 +669,16 @@ class PostProcessor {
   final AppPaths? _paths;
   final bool Function(String meetingId) _isActive;
   final RefinementRunner _runRefinement;
+
+  /// Runs after new minutes (and their artifacts) were saved: the speaker
+  /// profiles (F16) of opted-in speakers are merged with the meeting's
+  /// notes. Best-effort: a failure never fails the minutes.
+  final Future<void> Function(String meetingId)? _onMinutesSaved;
+
+  /// Runs after a meeting was deleted: drops it from the stored speaker
+  /// profiles (F16), so its content no longer shows in anyone's profile.
+  /// Best-effort: a failure never fails the delete (profiles can be rebuilt).
+  final Future<void> Function(String meetingId)? _onMeetingDeleted;
 
   // -------------------------------------------------------------------------
   // Refinement
@@ -537,7 +700,8 @@ class PostProcessor {
     final speakersById = await _speakers.getAllById();
     final items = <(String, Float32List, int)>[
       for (final s in segs)
-        if (isUsableEmbedding(s.embedding))
+        if (isUsableEmbedding(s.embedding) &&
+            s.endMs - s.startMs >= kMinClusterSegmentMs)
           (s.id, s.embedding!, math.max(0, s.endMs - s.startMs)),
     ];
     if (items.isEmpty) {
@@ -639,13 +803,16 @@ class PostProcessor {
       for (final id in reusable)
         if (!speakersById[id]!.isNamedByUser) id,
     };
+    final scores = scoreRefinedSegments(segments: segs, result: result);
     final changes = computeSegmentAssignments(
       segments: segs,
       result: result,
       speakerByCluster: resolved,
       removableSpeakerIds: removable,
+      extraClusterBySegment: scores.attach,
     );
     final relabeled = await _segments.bulkAssignSpeakers(changes);
+    await _segments.bulkSetSpeakerConfidence(scores.confidence);
 
     final counts = await _segmentCountsBySpeaker();
     final removed = <String>[];
@@ -692,6 +859,7 @@ class PostProcessor {
       final segs = await _segments.getForMeeting(meetingId);
       final speakers = await _speakers.getAllById();
       final ledger = await _loadLedger(meetingId);
+      final meetingDevice = (await _meetings.get(meetingId))?.inputDevice;
       final speechMs = <String, int>{};
       for (final s in segs) {
         final sid = s.speakerId;
@@ -750,6 +918,17 @@ class PostProcessor {
             cap: kMaxVoiceprintEmbeddingCount,
           );
           await _speakers.updateVoiceprint(id, c, n);
+          // F18: the voiceprint remembers the microphone it has adapted to.
+          final hadVoice = centroid != null && isUsableEmbedding(centroid);
+          final device = voiceDeviceAfterLearning(
+            currentDevice: hadVoice ? sp.voiceDevice : null,
+            sessionDeviceKey: meetingDevice,
+            previousCount: hadVoice ? count : 0,
+            learnedCount: add.length,
+          );
+          if (device != sp.voiceDevice) {
+            await _speakers.setVoiceDevice(id, device);
+          }
         } else if (centroid == null) {
           // forgetVoice turns this speaker's entries in every stored ledger
           // into tombstones; do the same in the in-memory ledger, or saving
@@ -888,6 +1067,13 @@ class PostProcessor {
         // The row is gone; never fail the user's delete because of the file.
       }
     }
+    if (deleted) {
+      try {
+        await _onMeetingDeleted?.call(meetingId);
+      } catch (_) {
+        // Profiles are best-effort; the user can rebuild them.
+      }
+    }
     return deleted;
   }
 
@@ -899,10 +1085,15 @@ class PostProcessor {
   /// (status `ready`). While generating the status is `processing`.
   ///
   /// Throws [InsatoException] when the transcript is empty,
-  /// [MissingApiKeyException] without an Anthropic key, and the engine's
+  /// [MissingApiKeyException] (possibly a [MinutesEngineNotReadyException])
+  /// when the selected engine has no key or is not ready, and the engine's
   /// [MinutesGenerationException] on API failure — then the meeting keeps
   /// its previous minutes (status `ready`) or, without minutes, becomes
   /// `failed` with the Arabic error. The transcript is never touched.
+  ///
+  /// v1.1: the glossary and open tasks are passed to the engine, and the
+  /// tasks / pending task updates / speaker notes / code findings of the
+  /// minutes are stored with them ([MinutesArtifactsWriter]).
   Future<Minutes> regenerateMinutes(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
@@ -917,27 +1108,36 @@ class PostProcessor {
     }
     final handle = await _minutesFactory?.call();
     if (handle == null) {
-      throw const MissingApiKeyException(
-        'مفتاح Claude غير مضبوط. أضِفه من الإعدادات لإنشاء المحضر.',
+      throw const MinutesEngineNotReadyException(
+        kMinutesNoKeyMessageAr,
+        reason: MinutesEngineNotReadyReason.noApiKey,
       );
     }
     return _generate(meeting, segs, handle, onProgress);
   }
 
   /// Automatic minutes after recording: generates them when there is a
-  /// transcript and an Anthropic key; otherwise marks the meeting `ready`
-  /// (it was `processing`) and reports why nothing was generated. API errors
-  /// propagate like [regenerateMinutes].
+  /// transcript and the selected engine is ready; otherwise marks the
+  /// meeting `ready` (it was `processing`) and reports why nothing was
+  /// generated. API errors propagate like [regenerateMinutes].
   Future<MinutesOutcome> generateMinutesIfPossible(
+    String meetingId, {
+    void Function(double progress, String statusAr)? onProgress,
+  }) async =>
+      (await runMinutesIfPossible(meetingId, onProgress: onProgress)).outcome;
+
+  /// Like [generateMinutesIfPossible], with the reason when the engine was
+  /// not ready ([MinutesRun.noticeAr]).
+  Future<MinutesRun> runMinutesIfPossible(
     String meetingId, {
     void Function(double progress, String statusAr)? onProgress,
   }) async {
     final meeting = await _meetings.get(meetingId);
     if (meeting == null) throw const InsatoException('الاجتماع غير موجود.');
     final segs = await _segments.getForMeeting(meetingId);
-    if (segs.isEmpty) {
+    if (!segs.any((s) => s.hasContent)) {
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.skippedEmpty;
+      return const MinutesRun(MinutesOutcome.skippedEmpty);
     }
     final MinutesEngineHandle? handle;
     try {
@@ -945,14 +1145,68 @@ class PostProcessor {
     } on SecureStorageUnavailableException {
       // The key may well exist: postpone instead of reporting "no key".
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.postponedKeyUnavailable;
+      return const MinutesRun(MinutesOutcome.postponedKeyUnavailable);
+    } on MinutesEngineNotReadyException catch (e) {
+      await _markReadyIfProcessing(meetingId);
+      return MinutesRun(MinutesOutcome.skippedNoApiKey, noticeAr: e.messageAr);
     }
     if (handle == null) {
       await _markReadyIfProcessing(meetingId);
-      return MinutesOutcome.skippedNoApiKey;
+      return const MinutesRun(
+        MinutesOutcome.skippedNoApiKey,
+        noticeAr: kMinutesNoKeyMessageAr,
+      );
     }
     await _generate(meeting, segs, handle, onProgress);
-    return MinutesOutcome.generated;
+    return const MinutesRun(MinutesOutcome.generated);
+  }
+
+  /// Maximum open tasks of earlier meetings given to the minutes engine
+  /// (newest first), to keep the prompt bounded.
+  static const int maxOpenTasksInPrompt = 60;
+
+  /// The v1.1 engine inputs of [meeting]: the effective glossary (global +
+  /// meeting terms + named speakers) and the open tasks of earlier meetings
+  /// (source meeting created before this one; manual tasks by their own
+  /// creation time), newest first, up to [maxOpenTasksInPrompt].
+  Future<MinutesInputs> minutesInputsFor(
+    Meeting meeting,
+    Map<String, Speaker> speakersById,
+  ) async {
+    final glossary = await GlossaryRepository(
+      _db,
+    ).getEffective(meeting.id, speakers: speakersById.values);
+    // Only tasks that existed before this meeting: regenerating an older
+    // meeting must not propose updates for tasks of later meetings. A task
+    // is dated by its source meeting (regeneration re-creates task rows with
+    // a fresh timestamp), a manual task (or one whose meeting was deleted)
+    // by its own creation time. Filtered before the cap, newest first.
+    final meetingsById = <String, Meeting?>{};
+    final open = <TrackedTask>[];
+    for (final t in await TaskRepository(_db).getOpen()) {
+      final src = t.sourceMeetingId;
+      if (src == meeting.id) continue;
+      DateTime origin = t.createdAt;
+      if (src != null) {
+        final m = meetingsById.containsKey(src)
+            ? meetingsById[src]
+            : (meetingsById[src] = await _meetings.get(src));
+        if (m != null) origin = m.createdAt;
+      }
+      if (!origin.isBefore(meeting.createdAt)) continue;
+      open.add(t);
+      if (open.length >= maxOpenTasksInPrompt) break;
+    }
+    final titles = <String, String>{
+      for (final t in open)
+        if (t.sourceMeetingId case final id?)
+          if (meetingsById[id] case final m?) id: m.title,
+    };
+    return MinutesInputs(
+      glossary: glossary,
+      openTasks: open,
+      taskSourceTitles: titles,
+    );
   }
 
   Future<Minutes> _generate(
@@ -963,13 +1217,30 @@ class PostProcessor {
   ) async {
     await _meetings.updateStatus(meeting.id, MeetingStatus.processing);
     try {
+      final speakersById = await _speakers.getAllById();
+      final inputs = await minutesInputsFor(meeting, speakersById);
       final minutes = await handle.engine.generate(
         meeting: meeting,
         segments: segs,
-        speakersById: await _speakers.getAllById(),
+        speakersById: speakersById,
         onProgress: onProgress,
+        inputs: inputs,
       );
-      await _meetings.saveMinutes(meeting.id, minutes);
+      await _db.transaction(() async {
+        await _meetings.saveMinutes(meeting.id, minutes);
+        await MinutesArtifactsWriter(_db).persist(
+          meetingId: meeting.id,
+          minutes: minutes,
+          speakersById: await _speakers.getAllById(),
+          openTaskIds: {for (final t in inputs.openTasks) t.id},
+          meetingSpeakerIds: {for (final s in segs) ?s.speakerId},
+        );
+      });
+      try {
+        await _onMinutesSaved?.call(meeting.id);
+      } catch (_) {
+        // Profiles are best-effort; the user can rebuild them.
+      }
       return minutes;
     } catch (e) {
       final err = e is InsatoException
@@ -1067,6 +1338,11 @@ class PostProcessor {
       tracker: SpeakerTracker(
         knownSpeakers: known,
         matchThreshold: settings.matchThreshold,
+        knownSpeakerThresholdOf: (sp) => knownSpeakerThresholdFor(
+          sp,
+          sessionDeviceKey: meeting.inputDevice,
+          base: settings.matchThreshold,
+        ),
       ),
       speakers: _speakers,
       segments: _segments,
@@ -1232,6 +1508,8 @@ class PostProcessor {
         text: s.text,
         language: s.language,
         embedding: s.embedding,
+        kind: s.kind,
+        asrConfidence: s.asrConfidence,
       );
 
   /// Removes [oldSegments]' contributions from voiceprints and clears the
@@ -1511,25 +1789,24 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           noticeAr: 'تم إنشاء المحضر.',
         );
       }
-      final outcome = await post.generateMinutesIfPossible(
+      final run = await post.runMinutesIfPossible(
         meetingId,
         onProgress: progress,
       );
-      return switch (outcome) {
+      return switch (run.outcome) {
         MinutesOutcome.generated => const MeetingJobState(
           kind: MeetingJobKind.minutes,
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           noticeAr: 'تم إنشاء المحضر.',
         ),
-        MinutesOutcome.skippedNoApiKey => const MeetingJobState(
+        MinutesOutcome.skippedNoApiKey => MeetingJobState(
           kind: MeetingJobKind.minutes,
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           needsApiKey: true,
           noticeAr:
-              'لم يُنشأ المحضر لأن مفتاح Claude غير مضبوط. أضِفه من '
-              'الإعدادات ثم اضغط «إنشاء المحضر».',
+              'لم يُنشأ المحضر. ${run.noticeAr ?? kMinutesNoKeyMessageAr}',
         ),
         MinutesOutcome.skippedEmpty => const MeetingJobState(
           kind: MeetingJobKind.minutes,
@@ -1542,7 +1819,7 @@ class MeetingJobsController extends Notifier<MeetingJobState> {
           phase: MeetingJobPhase.succeeded,
           progress: 1,
           noticeAr:
-              'تعذّرت قراءة مفتاح Claude المحفوظ الآن لأن الجهاز مقفل، فأُجّل '
+              'تعذّرت قراءة مفتاح محرك المحضر المحفوظ الآن لأن الجهاز مقفل، فأُجّل '
               'المحضر. افتح قفل الجهاز ثم اضغط «إنشاء المحضر».',
         ),
       };

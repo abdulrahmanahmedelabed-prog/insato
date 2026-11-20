@@ -124,7 +124,12 @@ void main() {
     });
 
     test('preferenceKeys covers every key written by save', () {
-      final full = AppSettingsData.defaults.copyWith(languageHint: 'ar');
+      final full = AppSettingsData.defaults.copyWith(
+        languageHint: 'ar',
+        localLlmModelId: 'qwen',
+        serverModel: 'llama',
+        inputDeviceId: 'usb-mic',
+      );
       expect(AppSettings.preferenceKeys.toSet(), full.toMap().keys.toSet());
     });
 
@@ -222,6 +227,67 @@ void main() {
       expect(storage.values[SecureSettings.anthropicApiKeyKey], 'sk-1');
       await s.migrateAccessibility();
       expect(storage.writes.length, 2);
+    });
+
+    group('migrateV1MinutesEngine', () {
+      late AppDatabase db;
+      late AppSettings settings;
+      setUp(() async {
+        db = AppDatabase.forExecutor(NativeDatabase.memory());
+        settings = AppSettings(db);
+        // A v1.0 settings table: some rows, no minutes_engine.
+        await settings.setKeepAudio(false);
+        await settings.setClaudeModel('claude-sonnet-4-6');
+      });
+      tearDown(() => db.close());
+
+      Future<String?> row() async => (await (db.select(db.settings)
+                ..where((s) => s.key.equals(AppSettings.kMinutesEngine)))
+              .getSingleOrNull())
+          ?.value;
+
+      test('a v1 user with an Anthropic key stays on Claude', () async {
+        final storage = _FlakyStorage()
+          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1';
+        await settings.migrateV1MinutesEngine(SecureSettings(storage: storage));
+        expect((await settings.load()).minutesEngine, 'claude');
+        expect((await settings.load()).keepAudio, isFalse);
+      });
+
+      test('no Anthropic key: Gemini, and the row is written', () async {
+        await settings.migrateV1MinutesEngine(SecureSettings(storage: _FlakyStorage()));
+        expect(await row(), 'gemini');
+        expect((await settings.load()).minutesEngine, 'gemini');
+      });
+
+      test('an explicit choice is never overridden', () async {
+        await settings.setMinutesEngine('gemini');
+        final storage = _FlakyStorage()
+          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1';
+        await settings.migrateV1MinutesEngine(SecureSettings(storage: storage));
+        expect((await settings.load()).minutesEngine, 'gemini');
+      });
+
+      test('idempotent: a Claude key added later does not switch', () async {
+        final storage = _FlakyStorage();
+        final secure = SecureSettings(storage: storage);
+        await settings.migrateV1MinutesEngine(secure);
+        await secure.setAnthropicApiKey('sk-ant-2');
+        await settings.migrateV1MinutesEngine(secure);
+        expect((await settings.load()).minutesEngine, 'gemini');
+      });
+
+      test('locked keystore: no row written, retried later', () async {
+        final storage = _FlakyStorage()
+          ..values[SecureSettings.anthropicApiKeyKey] = 'sk-ant-1'
+          ..fail = true;
+        final secure = SecureSettings(storage: storage);
+        await settings.migrateV1MinutesEngine(secure);
+        expect(await row(), isNull);
+        storage.fail = false;
+        await settings.migrateV1MinutesEngine(secure);
+        expect(await row(), 'claude');
+      });
     });
 
     test('reads pre-existing values', () async {

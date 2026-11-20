@@ -42,6 +42,11 @@ Future<void> main() async {
   // old iOS keychain accessibility once. Never throws; a marker makes it a
   // no-op afterwards. Awaited so no key read races the rewrite.
   await container.read(secureSettingsProvider).migrateAccessibility();
+  // v1.0 users who used Claude stay on Claude after the upgrade (v1.0 never
+  // stored an engine choice, and the v1.1 default is Gemini). Runs once.
+  await container
+      .read(appSettingsProvider)
+      .migrateV1MinutesEngine(container.read(secureSettingsProvider));
   unawaited(recoverInterruptedMeetings(container));
 
   runApp(

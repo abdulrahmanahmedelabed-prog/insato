@@ -14,6 +14,7 @@ import 'package:insato/core/interfaces.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
+import 'package:insato/features/context/strings.dart' show CS;
 import 'package:insato/session/post_processor.dart';
 import 'package:insato/session/providers.dart';
 import 'package:insato/ui/services/connection_tester.dart';
@@ -215,6 +216,15 @@ Future<void> settle(WidgetTester t, {int rounds = 6}) async {
   // Let route / dialog transitions finish.
   await t.pump(const Duration(milliseconds: 400));
   await t.pump(const Duration(milliseconds: 16));
+}
+
+/// Taps the "new meeting" button and starts the recording from the
+/// meeting-context form with "skip and start" (consent already given).
+Future<void> startFromFab(WidgetTester t) async {
+  await t.tap(find.byType(FloatingActionButton));
+  await settle(t);
+  await t.tap(find.text(CS.skipAndStart));
+  await settle(t, rounds: 10);
 }
 
 /// A finished meeting with minutes, two speakers (one named) and a

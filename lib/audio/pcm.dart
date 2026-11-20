@@ -197,14 +197,52 @@ Float32List downmixToMono(Float32List interleaved, int channels) {
   return out;
 }
 
+/// Per-channel mono weights of a loudspeaker mix of [channels] channels in
+/// the default WAVEFORMATEXTENSIBLE order (FL, FR, FC, LFE, BL, BR, SL, SR).
+///
+/// Mono and stereo average their channels. With three or more channels this
+/// is the ITU-R BS.775 stereo fold-down (Lo = L + 0.707·C + 0.707·Ls,
+/// Ro = R + 0.707·C + 0.707·Rs) followed by mono = (Lo + Ro) / 2: a voice in
+/// FL/FR keeps unity gain as in stereo, a centre-only voice comes out at
+/// −3 dB, and the LFE channel is left out. Averaging all channels instead
+/// would make a call voice 12–18 dB quieter on 5.1 / 7.1 endpoints.
+Float32List speakerDownmixWeights(int channels) {
+  if (channels < 1) {
+    throw ArgumentError.value(channels, 'channels', 'must be >= 1');
+  }
+  final w = Float32List(channels);
+  if (channels <= 2) {
+    w.fillRange(0, channels, 1.0 / channels);
+    return w;
+  }
+  const c = 0.70710678;
+  for (var i = 0; i < channels; i++) {
+    w[i] = switch (i) {
+      0 || 1 => 0.5,
+      2 => c,
+      3 when channels >= 4 => 0.0, // LFE
+      _ => c * 0.5, // Surrounds.
+    };
+  }
+  return w;
+}
+
 /// Stateful mono downmixer for chunked interleaved streams.
 ///
 /// Carries a partial frame over to the next chunk, so chunk boundaries that
 /// split a frame between channels are handled correctly.
 class InterleavedDownmixer {
-  /// Creates a downmixer for [channels] interleaved channels.
-  InterleavedDownmixer(this.channels)
-    : _carry = Float32List(channels > 0 ? channels : 1) {
+  /// Creates a downmixer for [channels] interleaved channels. By default the
+  /// channels are averaged (microphone arrays, files); with [speakerLayout]
+  /// they are weighted as a loudspeaker mix ([speakerDownmixWeights]; used
+  /// for system-audio loopback, which hands over the endpoint mix format).
+  InterleavedDownmixer(this.channels, {bool speakerLayout = false})
+    : _carry = Float32List(channels > 0 ? channels : 1),
+      _weights = channels < 1
+          ? Float32List(1)
+          : speakerLayout
+          ? speakerDownmixWeights(channels)
+          : (Float32List(channels)..fillRange(0, channels, 1.0 / channels)) {
     if (channels < 1) {
       throw ArgumentError.value(channels, 'channels', 'must be >= 1');
     }
@@ -212,6 +250,8 @@ class InterleavedDownmixer {
 
   /// Number of interleaved input channels.
   final int channels;
+
+  final Float32List _weights;
 
   final Float32List _carry;
   int _carryLen = 0;
@@ -223,15 +263,15 @@ class InterleavedDownmixer {
     final total = _carryLen + interleaved.length;
     final frames = total ~/ channels;
     final out = Float32List(frames);
-    final scale = 1.0 / channels;
+    final w = _weights;
     var src = 0;
     for (var f = 0; f < frames; f++) {
       var sum = 0.0;
       for (var c = 0; c < channels; c++) {
         final idx = f * channels + c;
-        sum += idx < _carryLen ? _carry[idx] : interleaved[src++];
+        sum += w[c] * (idx < _carryLen ? _carry[idx] : interleaved[src++]);
       }
-      out[f] = sum * scale;
+      out[f] = sum < -1.0 ? -1.0 : (sum > 1.0 ? 1.0 : sum);
     }
     // Every carried sample was consumed if at least one frame was produced;
     // otherwise all input is appended to the carry.

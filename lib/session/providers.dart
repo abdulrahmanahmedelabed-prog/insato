@@ -8,7 +8,8 @@
 // Tests override the seams: [databaseProvider] (in-memory drift DB),
 // [appPathsProvider] (temp dirs), [sessionAudioSourceProvider],
 // [sessionEnginesFactoryProvider], [sessionPlatformHooksProvider],
-// [minutesEngineFactoryProvider], [secureSettingsProvider].
+// [minutesEngineFactoryProvider], [minutesBackendFactoryProvider],
+// [secureSettingsProvider].
 
 import 'dart:io';
 
@@ -16,16 +17,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../audio/audio_capture_service.dart';
 import '../core/interfaces.dart';
 import '../data/repositories.dart';
+import '../data/repositories_v11.dart';
 import '../data/secure_settings.dart';
-import '../minutes/claude_client.dart';
+import '../features/context/session_keyterms.dart';
+import '../features/local_llm/local_minutes_backends.dart';
+import '../features/profiles/profile_service.dart'
+    show speakerProfileServiceProvider;
+import '../features/system_audio/mixed_session_audio_source.dart'
+    show mixedSessionAudioSourceProvider;
+import '../features/voice/mic_capture.dart' show inputDevicePreferencesProvider;
 import '../minutes/export_service.dart';
+import '../minutes/minutes_backend.dart';
 import '../minutes/minutes_generator.dart';
 import '../minutes/minutes_prompt.dart';
 import '../speech/model_manager.dart';
 import 'meeting_session_controller.dart';
+import 'minutes_engines.dart';
 import 'post_processor.dart';
 
 export '../audio/audio_capture_service.dart' show audioCaptureServiceProvider;
@@ -41,6 +50,8 @@ export '../data/repositories.dart'
         speakerRepositoryProvider,
         speakersByIdProvider,
         speakersProvider;
+export '../data/repositories_v11.dart';
+export '../data/minutes_artifacts.dart' show minutesArtifactsWriterProvider;
 export '../data/secure_settings.dart'
     show appSettingsDataProvider, appSettingsProvider, secureSettingsProvider;
 
@@ -244,26 +255,51 @@ final modelStatesProvider = StreamProvider<Map<String, ModelState>>((
 /// Markdown / PDF / plain-text export of minutes and transcripts.
 final exportServiceProvider = Provider<ExportService>((ref) => ExportService());
 
-/// Creates a Claude minutes engine from the stored API key and the user's
-/// model / detail settings; yields null when no key is configured.
+/// Creates the backend of the minutes engine selected in Settings (Gemini
+/// by default, Claude, on-device or local server; see
+/// [createMinutesBackend]). Also used by "Ask your meetings" (F8). The
+/// caller closes the backend after use.
 ///
-/// Throws [SecureStorageUnavailableException] when the keystore cannot be
+/// Throws `MinutesEngineNotReadyException` (no key, Gemini notice not
+/// accepted, engine unavailable) and [SecureStorageUnavailableException]
+/// (keystore locked).
+final minutesBackendFactoryProvider =
+    Provider<Future<MinutesBackend> Function()>((ref) {
+      final secure = ref.watch(secureSettingsProvider);
+      final settings = ref.watch(appSettingsProvider);
+      final local = ref.watch(localMinutesBackendBuilderProvider);
+      final server = ref.watch(serverMinutesBackendBuilderProvider);
+      return () async => createMinutesBackend(
+        settings: await settings.load(),
+        secure: secure,
+        local: local,
+        server: server,
+        onGeminiModelDiscovered: (model) {
+          // Remember the model that works for this key; ignore storage errors.
+          settings.setGeminiModel(model).catchError((Object _) {});
+        },
+      );
+    });
+
+/// Creates the minutes engine selected in Settings with the user's detail
+/// level (see [minutesBackendFactoryProvider]).
+///
+/// Throws `MinutesEngineNotReadyException` when the engine cannot be used
+/// yet and [SecureStorageUnavailableException] when the keystore cannot be
 /// read right now (the key may exist): callers postpone the run instead of
 /// reporting a missing key (see [PostProcessor.generateMinutesIfPossible]).
 final minutesEngineFactoryProvider = Provider<MinutesEngineFactory>((ref) {
-  final secure = ref.watch(secureSettingsProvider);
+  final backendFactory = ref.watch(minutesBackendFactoryProvider);
   final settings = ref.watch(appSettingsProvider);
   return () async {
-    final key = await secure.getAnthropicApiKey();
-    if (key == null) return null;
+    final backend = await backendFactory();
     final s = await settings.load();
-    final client = ClaudeClient(apiKey: key, model: s.claudeModel);
     return MinutesEngineHandle(
-      ClaudeMinutesEngine(
-        client: client,
+      StructuredMinutesEngine(
+        backend: backend,
         detailLevel: MinutesDetailLevel.parse(s.minutesDetail),
       ),
-      release: client.close,
+      release: backend.close,
     );
   };
 });
@@ -283,16 +319,43 @@ final liveBacklogLimitMsProvider = Provider<int>((ref) => 15 * 60 * 1000);
 
 /// Builds the speech engines of a session (sherpa-onnx + optional Deepgram).
 final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
+  final glossary = ref.watch(glossaryRepositoryProvider);
+  final speakers = ref.watch(speakerRepositoryProvider);
   return SherpaSessionEnginesFactory(
     modelManager: () => ref.read(modelManagerProvider.future),
     secureSettings: ref.watch(secureSettingsProvider),
+    // F2 / F3: Deepgram keyterms — the meeting-only terms and expected
+    // attendees of the meeting being started (its id does not exist yet),
+    // the names of user-named speakers and the global glossary.
+    keyterms: () => resolveSessionKeyterms(
+      glossary: glossary,
+      speakers: speakers,
+      upcoming: ref.read(upcomingMeetingSetupProvider),
+    ),
   );
 });
 
-/// Audio capture used by recording sessions.
+/// Audio capture used by recording sessions: the F18 device-aware
+/// microphone (remembered input device, far field, fallback to the default
+/// microphone), mixed with the system audio on Windows (F13) as the
+/// audio-source setting says.
 final sessionAudioSourceProvider = Provider<SessionAudioSource>(
-  (ref) => AudioCaptureSessionSource(ref.watch(audioCaptureServiceProvider)),
+  (ref) => ref.watch(mixedSessionAudioSourceProvider),
 );
+
+/// Resolves the key of the microphone a new recording will use
+/// (`Meeting.inputDevice`, F18; null = system default). Overridable in
+/// tests. Never throws.
+final sessionInputDeviceProvider = Provider<Future<String?> Function()>((ref) {
+  final prefs = ref.watch(inputDevicePreferencesProvider);
+  return () async {
+    try {
+      return (await prefs.load()).key;
+    } catch (_) {
+      return null;
+    }
+  };
+});
 
 /// Permission / foreground service / wakelock integration.
 final sessionPlatformHooksProvider = Provider<SessionPlatformHooks>(
@@ -314,6 +377,12 @@ final postProcessorProvider = Provider<PostProcessor>((ref) {
       final s = ref.read(meetingSessionControllerProvider);
       return s.isActive && s.meetingId == id;
     },
+    // F16: merge the new speaker notes into opted-in speakers' profiles.
+    onMinutesSaved: (id) =>
+        ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),
+    // F16: a deleted meeting leaves the stored profiles.
+    onMeetingDeleted: (id) =>
+        ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),
   );
 });
 

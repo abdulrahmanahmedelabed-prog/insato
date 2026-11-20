@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/interfaces.dart';
 import 'package:insato/data/secure_settings.dart';
+import 'package:insato/features/context/strings.dart' show CS;
 import 'package:insato/session/meeting_session_controller.dart';
 import 'package:insato/session/providers.dart';
 import 'package:insato/ui/screens/home_shell.dart';
@@ -78,8 +79,7 @@ void main() {
     });
     await pumpApp(t, env);
 
-    await t.tap(find.byType(FloatingActionButton));
-    await settle(t, rounds: 10);
+    await startFromFab(t);
     expect(find.byType(ConsentDialog), findsNothing);
     expect(env.audio.started, isTrue);
     expect(find.text(S.stateRecording), findsOneWidget);
@@ -111,6 +111,10 @@ void main() {
     await t.tap(find.byType(Checkbox));
     await t.pump();
     await t.tap(find.text(S.consentAccept));
+    await settle(t);
+    // The meeting-context form follows the consent.
+    expect(find.text(CS.setupTitle), findsOneWidget);
+    await t.tap(find.text(CS.skipAndStart));
     await settle(t, rounds: 10);
 
     final s = await env.run(t, () => AppSettings(env.db).load());
@@ -239,8 +243,7 @@ void main() {
       );
     });
     await pumpApp(t, env);
-    await t.tap(find.byType(FloatingActionButton));
-    await settle(t, rounds: 10);
+    await startFromFab(t);
     expect(find.text(S.listeningHint), findsOneWidget);
 
     env.audio.emit(voiceSamples(0, 2000));

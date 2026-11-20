@@ -2,6 +2,28 @@
 
 Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
 
+## Status (integration, 2026-11-19)
+
+| Feature | State | Reachable from |
+|---|---|---|
+| F1 voice enrollment | Implemented, wired | Voice library «إضافة شخص بصوته», «تحسين البصمة» |
+| F2 glossary | Implemented, wired (Deepgram keyterms, minutes prompt) | Settings → «قاموس المصطلحات»; codes tab (promote jargon) |
+| F3 meeting context | Implemented, wired | «اجتماع جديد» form; minutes tab card; meeting menu |
+| F5 evidence links | Implemented, wired | ▶ chips in minutes, tasks, codes; docked player |
+| F8 ask your meetings | Implemented, wired | Destination «اسأل» |
+| F9 task tracking | Implemented, wired | Destination «المهام»; meeting tab; recording banner |
+| F12 Word export | Implemented, wired | Meeting menu → export sheet |
+| F13 Windows system audio | Implemented, wired; native code not yet built with MSVC | Settings and context form (Windows only) |
+| F14 engines | Gemini (default), Claude, on-device GGUF, local server; wired | Settings → minutes engine; models screen |
+| F15 unknown speakers | Partly: auto labels, saved voiceprints (≥ 3 s of speech), rename everywhere, merge; the «low confidence» flag for brief voices is not set yet | Voice library |
+| F16 speaker profiles | Implemented, wired; updated after every minutes | Voice library / meeting speakers menu «ملف المتحدث» |
+| F17 codes | Implemented, wired (tab, exports) | Meeting tab «الرموز والشيفرات» |
+| F18 external microphones | Implemented, wired (device on the meeting, far-field VAD, relaxed matching across microphones) | Settings «الميكروفون»; context form; recording screen |
+| D1 Windows = mobile | Same destinations and widgets; layout by width | — |
+
+Needs real devices: native capture/playback, llama.cpp runtime, WASAPI
+loopback (`windows/runner/`), Hugging Face GGUF availability.
+
 ## F1 — Voice enrollment (تسجيل بصمة صوتية مسبقاً)
 * Screen “إضافة شخص بصوته”: enter a name, read a displayed Arabic/English
   paragraph for ~10–15 s, live level meter + quality checks (enough voiced
@@ -75,8 +97,14 @@ Features requested by the owner after v1: 1, 2, 3, 5, 8, 9, 12, 13.
   delivers no packets when nothing plays — fill with zeros by wall clock).
 
 ## F14 — Minutes engine: local or cloud (محرك المحضر: محلي أو سحابي)
-Settings → “محرك كتابة المحضر” with three choices (all implement `MinutesEngine`):
-1. **Cloud — Claude** (default, highest quality): `claude-opus-5-5` as in v1.
+Settings → “محرك كتابة المحضر” with these choices (all are a `MinutesBackend`
+behind the one `StructuredMinutesEngine`, see docs/V11-CONTRACTS.md):
+0. **Cloud — Google Gemini** (DEFAULT, owner decision: free tier, model `gemini-flash-lite-latest`, key from
+   Google AI Studio). Settings shows honestly that on the free tier Google may
+   use prompts/responses to improve its products and human reviewers may read
+   them (a billed Cloud project is treated as paid); the user accepts this
+   before the first request. Rate limits are respected (never hammered).
+1. **Cloud — Claude** (optional, highest quality): `claude-opus-5-5` as in v1.
 2. **On-device** (fully offline, private): GGUF model run in-process via
    `llamadart` (llama.cpp; Android / iOS / Windows). Model catalog entries
    with sizes and RAM requirements, downloaded through `ModelManager`, e.g.

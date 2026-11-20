@@ -125,6 +125,42 @@ void main() {
       ]);
     });
 
+    test('evidence transcript marks doubtful speakers', () {
+      final segments = [
+        seg(0, 0, 4000, 'أقترح تأجيل الإطلاق', speakerId: 'a',
+            speakerConfidence: 0.9),
+        seg(1, 4400, 5000, 'موافق', speakerId: 'a', speakerConfidence: 0.3),
+        seg(2, 5200, 8000, 'إذن نؤجله أسبوعين', speakerId: 'a'),
+      ];
+      expect(renderEvidenceTranscript(segments, speakers).split('\n'), [
+        '[#0 00:00:00] سارة (ar): أقترح تأجيل الإطلاق',
+        '[#1 00:00:04] سارة (؟) (ar): موافق',
+        '[#2 00:00:05] سارة (ar): إذن نؤجله أسبوعين',
+      ]);
+      // Plain-text exports never show the marker.
+      expect(renderTranscript(segments, speakers), isNot(contains('؟')));
+    });
+
+    test('locked or unassigned segments are never doubtful', () {
+      final locked = seg(
+        0,
+        0,
+        1000,
+        'نعم',
+        speakerId: 'a',
+        speakerConfidence: 0.1,
+      ).copyWith(speakerLocked: true);
+      expect(locked.isSpeakerUncertain, isFalse);
+      expect(
+        seg(1, 0, 1000, 'نعم', speakerConfidence: 0.1).isSpeakerUncertain,
+        isFalse,
+      );
+      expect(
+        seg(2, 0, 1000, 'نعم', speakerId: 'a').isSpeakerUncertain,
+        isFalse,
+      );
+    });
+
     test('splits on language change and caps very long blocks', () {
       final segments = [
         for (var i = 0; i < 10; i++)
@@ -193,7 +229,7 @@ void main() {
       // Injection attempt inside the transcript cannot close the tag early.
       expect('</transcript>'.allMatches(msg), hasLength(1));
       expect(msg, contains('"concise"'));
-      expect(msg.substring(open, close), contains('[00:00:05] متحدث 2 (en):'));
+      expect(msg.substring(open, close), contains('[#1 00:00:05] متحدث 2 (en):'));
     });
 
     test(

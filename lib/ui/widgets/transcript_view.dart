@@ -170,15 +170,25 @@ class _SegmentText extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final dir = detectTextDirection(segment.text);
+    final unintelligible = segment.isUnintelligible;
+    // F17: real speech the recogniser could not decode is shown as a marker
+    // (with the recogniser's guess, if any) instead of an empty line.
+    final shown = unintelligible
+        ? [
+            S.unintelligibleSegment(segment.endMs - segment.startMs),
+            if (segment.text.trim().isNotEmpty) '«${segment.text.trim()}»',
+          ].join(' ')
+        : segment.text;
+    final dir = detectTextDirection(shown);
     final lang = segment.language;
-    final langName = lang == null || lang.startsWith('ar')
+    final langName = unintelligible || lang == null || lang.startsWith('ar')
         ? null
         : S.languageName(lang);
     return Semantics(
       button: onTap != null,
-      label:
-          '$speakerName، ${formatTimestamp(segment.startMs)}: ${segment.text}',
+      label: '$speakerName'
+          '${segment.isSpeakerUncertain ? '، ${S.speakerUncertain}' : ''}، '
+          '${formatTimestamp(segment.startMs)}: $shown',
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -192,12 +202,19 @@ class _SegmentText extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  segment.text,
+                  shown,
                   textDirection: dir,
                   textAlign: TextAlign.start,
-                  style: theme.textTheme.bodyLarge,
+                  style: unintelligible
+                      ? theme.textTheme.bodyLarge?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: scheme.onSurfaceVariant,
+                        )
+                      : theme.textTheme.bodyLarge,
                 ),
-                if (langName != null || segment.speakerLocked)
+                if (langName != null ||
+                    segment.speakerLocked ||
+                    segment.isSpeakerUncertain)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Wrap(
@@ -209,6 +226,27 @@ class _SegmentText extends StatelessWidget {
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                             ),
+                          ),
+                        if (segment.isSpeakerUncertain)
+                          Row(
+                            key: const ValueKey('speaker-uncertain'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.help_outline_rounded,
+                                size: 12,
+                                color: scheme.tertiary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                onTap == null
+                                    ? S.speakerUncertain
+                                    : S.speakerUncertainTapToFix,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.tertiary,
+                                ),
+                              ),
+                            ],
                           ),
                         if (segment.speakerLocked)
                           Row(

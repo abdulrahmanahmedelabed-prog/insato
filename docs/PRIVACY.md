@@ -14,10 +14,10 @@
 | البيانات | مكان الحفظ | هل تغادر الجهاز؟ |
 |---|---|---|
 | تسجيلات الصوت (ملفات WAV) | مجلد التطبيق على جهازك | لا، إلا مع التفريغ السحابي (البند 2-ب) |
-| نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى Anthropic عند كتابة المحضر |
+| نص التفريغ | قاعدة بيانات محلية (SQLite) | نعم، إلى محرك المحضر السحابي الذي تختاره (Google Gemini افتراضياً، أو Anthropic Claude) عند كتابة المحضر؛ لا، مع المحرك المحلي |
 | البصمات الصوتية للمتحدثين | قاعدة البيانات المحلية | **لا، أبداً** |
 | أسماء المتحدثين التي تدخلها | قاعدة البيانات المحلية | ضمن نص التفريغ المرسَل لكتابة المحضر |
-| المحاضر | قاعدة البيانات المحلية | لا، إلا إذا شاركتها أنت |
+| المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك»، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
 | مفاتيح API | المخزن الآمن للنظام | تُرسَل فقط إلى مزوّد الخدمة الخاص بها للمصادقة |
 | الإعدادات | قاعدة البيانات المحلية | لا |
 
@@ -27,12 +27,35 @@
 
 ## 2. ما يُرسَل إلى خدمات خارجية
 
-### أ) كتابة المحضر — Anthropic (Claude)
-عند طلب المحضر يُرسَل **نص التفريغ** (مع أسماء المتحدثين والأوقات) وعنوان
-الاجتماع إلى واجهة Claude البرمجية لدى Anthropic عبر اتصال مشفّر (HTTPS)
-باستخدام مفتاحك أنت. **لا يُرسَل الصوت.** تخضع معالجة هذه البيانات لشروط
-Anthropic وسياسة خصوصيتها الخاصة بالواجهة البرمجية:
-<https://www.anthropic.com/legal/privacy>.
+### أ) كتابة المحضر — المحرك الذي تختاره في الإعدادات
+عند طلب المحضر يُرسَل **نص التفريغ** (مع أسماء المتحدثين والأوقات وأرقام
+المقاطع) وعنوان الاجتماع وسياقه الذي أدخلته (جدول الأعمال، الحضور المتوقعون،
+الملاحظات، قاموس المصطلحات، المهام المفتوحة) إلى محرك المحضر عبر اتصال مشفّر
+(HTTPS) باستخدام مفتاحك أنت. **لا يُرسَل الصوت أبداً.**
+
+- **Google Gemini (الافتراضي، الفئة المجانية):** يُرسَل النص إلى واجهة Gemini
+  البرمجية لدى Google. **تنبيه مهم:** عند استخدام مفتاح مجاني (دون تفعيل
+  الفوترة) قد تستخدم Google المحتوى المرسَل والإجابات لتحسين منتجاتها، وقد
+  يطّلع عليها مراجعون بشريون بعد فصلها عن حسابك. أما مفتاح مشروع Google Cloud
+  مفعّل الفوترة فيُعامَل كخدمة مدفوعة ولا يُستخدم المحتوى في تحسين المنتجات.
+  لهذا يعرض إنصاتو هذا التنبيه ويطلب موافقتك قبل أول إرسال، ولا يرسل شيئاً
+  دونها. لا تستخدم Gemini المجاني للاجتماعات السرية؛ استخدم لها المحرك المحلي
+  على الجهاز. شروط Gemini API: <https://ai.google.dev/gemini-api/terms>،
+  وسياسة خصوصية Google: <https://policies.google.com/privacy>.
+- **Anthropic Claude (اختياري):** يُرسَل النص إلى واجهة Claude البرمجية لدى
+  Anthropic وتخضع معالجته لشروطها وسياسة خصوصيتها:
+  <https://www.anthropic.com/legal/privacy>.
+- **المحرك على الجهاز / الخادم المحلي:** لا يغادر النص جهازك مع المحرك على الجهاز
+  أو خادم على العنوان المحلي (localhost)؛ أما إذا كان عنوان الخادم جهازاً آخر
+  فيُرسَل النص إلى ذلك الجهاز، وينبّهك التطبيق إلى ذلك.
+
+ملفات المتحدثين (اختيارية لكل متحدث، معطّلة افتراضياً) تُستخرج من النص نفسه
+وتُحفظ على جهازك فقط، ولا تتضمن أي استنتاجات حساسة. وكذلك «الرموز والشيفرات»
+تُستخرج مع المحضر وتُحفظ محلياً.
+
+**اسأل اجتماعاتك:** يُرسَل سؤالك مع مقتطفات من نصوص اجتماعاتك ومحاضرها (الأكثر
+صلة بالسؤال فقط) إلى المحرك نفسه المختار للمحضر، وبالموافقة نفسها؛ ولا تُحفظ
+المحادثة بعد إغلاق التطبيق.
 
 ### ب) التفريغ السحابي — Deepgram (اختياري، معطّل افتراضياً)
 إذا اخترت محرك التفريغ السحابي، تُرسَل **مقاطع الصوت** إلى Deepgram عبر
@@ -41,12 +64,18 @@ HTTPS باستخدام مفتاحك لمعالجتها، ويعود النص ف�
 تُستخدم هذه المقاطع في تدريب نماذجها. ومع ذلك فإن مدة احتفاظ Deepgram بالصوت
 والنص وكيفية تعاملها معهما تحكمهما سياسة بياناتها هي، لا إنصاتو:
 <https://deepgram.com/privacy>. مع التفريغ على الجهاز (الافتراضي) لا يُرسَل أي
-صوت.
+صوت. ومع التفريغ السحابي تُرسَل أيضاً مصطلحات القاموس وأسماء الحضور المتوقعين
+والمتحدثين المسمَّين بوصفها «مصطلحات مفتاحية» (keyterms) لتحسين التعرّف عليها.
+
+**صوت النظام على Windows:** عند اختيار «صوت النظام» أو «الاثنان معاً» يُسجَّل ما
+يُشغَّل على الحاسوب (مثل صوت Zoom/Teams) ويُعامَل كتسجيل الميكروفون تماماً: يبقى
+على جهازك. أبلِغ المشاركين عن بُعد بأن الاجتماع يُسجَّل.
 
 ### ج) تنزيل النماذج
 تُنزَّل نماذج الذكاء الاصطناعي مرة واحدة من صفحة إصدارات مشروع sherpa-onnx على
-GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتماعات. قد تسجّل GitHub عنوان IP
-الخاص بالطلب وفق سياستها.
+GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face. هذا تنزيل فقط؛ لا
+تُرسَل أي بيانات اجتماعات. قد تسجّل GitHub وHugging Face عنوان IP الخاص بالطلب
+وفق سياستهما.
 
 ### د) ما لا يحدث أبداً
 - لا إعلانات، ولا أدوات تتبّع، ولا تحليلات استخدام، ولا تقارير أعطال تلقائية.
@@ -79,7 +108,7 @@ GitHub. هذا تنزيل فقط؛ لا تُرسَل أي بيانات اجتم�
   حذف التطبيق على Android وiOS يحذف كل بياناته من الجهاز. على Windows يُوزَّع
   التطبيق مجلداً بلا برنامج إزالة، فاحذف المجلدين المذكورين أعلاه يدوياً لإزالة
   بياناته ومفاتيحه.
-- البيانات المرسَلة إلى Anthropic أو Deepgram يحكمها احتفاظ تلك الجهات
+- البيانات المرسَلة إلى Google أو Anthropic أو Deepgram يحكمها احتفاظ تلك الجهات
   وفق شروطها؛ لا يملك إنصاتو نسخة منها.
 
 ## 4. الموافقة على التسجيل
@@ -128,10 +157,10 @@ what leaves the device and where it goes.
 | Data | Where it is stored | Does it leave the device? |
 |---|---|---|
 | Audio recordings (WAV files) | App folder on your device | No — unless cloud transcription is enabled (2b) |
-| Transcript text | Local database (SQLite) | Yes, to Anthropic when minutes are generated |
+| Transcript text | Local database (SQLite) | Yes, to the cloud minutes engine you choose (Google Gemini by default, or Anthropic Claude) when minutes are generated; no with the on-device engine |
 | Speaker voiceprints | Local database | **Never** |
 | Speaker names you enter | Local database | As part of the transcript sent for minutes |
-| Minutes | Local database | Only if you share/export them |
+| Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings, and open tasks with later minutes requests; otherwise only if you share/export them |
 | API keys | OS secure storage | Only to their own provider, for authentication |
 | Settings | Local database | No |
 
@@ -141,11 +170,40 @@ never transmitted and is used for no other purpose.
 
 ## 2. What is sent to external services
 
-### a) Minutes — Anthropic (Claude)
-When you generate minutes, the **transcript text** (with speaker names and
-timestamps) and the meeting title are sent over HTTPS to Anthropic's Claude
-API using your own API key. **Audio is not sent.** Processing is governed by
-Anthropic's API terms and privacy policy: <https://www.anthropic.com/legal/privacy>.
+### a) Minutes — the engine you choose in Settings
+When you generate minutes, the **transcript text** (with speaker names,
+timestamps and segment numbers), the meeting title and the context you
+entered (agenda, expected attendees, notes, glossary, open tasks) are sent
+over HTTPS to the minutes engine using your own API key. **Audio is never
+sent.**
+
+- **Google Gemini (default, free tier):** the text is sent to Google's Gemini
+  API. **Important:** with a free (unbilled) key Google may use the submitted
+  content and responses to improve its products, and human reviewers may read
+  them after they are disconnected from your account. A key from a Google
+  Cloud project with billing enabled is treated as paid and the content is
+  not used to improve Google's products. Insato therefore shows this notice
+  and asks for your agreement before the first request, and sends nothing
+  without it. Do not use the free Gemini tier for confidential meetings — use
+  the on-device engine. Gemini API terms:
+  <https://ai.google.dev/gemini-api/terms>; Google privacy policy:
+  <https://policies.google.com/privacy>.
+- **Anthropic Claude (optional):** the text is sent to Anthropic's Claude API,
+  governed by Anthropic's API terms and privacy policy:
+  <https://www.anthropic.com/legal/privacy>.
+- **On-device engine / local server:** with the on-device engine or a server on
+  localhost the text never leaves your device; if the server URL points to
+  another host, the text is sent to that host (the app warns you when this
+  happens).
+
+Speaker profiles (opt-in per speaker, off by default) are derived from the
+same text, stored only on your device, and never contain sensitive
+inferences. Codes & jargon findings are extracted with the minutes and kept
+locally too.
+
+**Ask your meetings:** your question and the excerpts of your transcripts and
+minutes most relevant to it are sent to the same engine as the minutes,
+under the same consent; the conversation is not kept after the app closes.
 
 ### b) Cloud transcription — Deepgram (optional, off by default)
 If you select the cloud transcription engine, **audio segments** are sent
@@ -155,12 +213,20 @@ back. Every request opts out of Deepgram's Model Improvement Program
 models. How long Deepgram retains the audio and transcript, and how it
 handles them, is still governed by Deepgram's own data policy, not by
 Insato: <https://deepgram.com/privacy>. With on-device transcription (the
-default) no audio is sent anywhere.
+default) no audio is sent anywhere. With cloud transcription, glossary terms
+and the names of expected attendees and named speakers are also sent as
+keyterms to improve their recognition.
+
+**Windows system audio:** with "system audio" or "both", what plays on the
+computer (e.g. Zoom/Teams) is recorded and treated exactly like the
+microphone recording: it stays on your device. Tell remote participants that
+the meeting is recorded.
 
 ### c) Model downloads
 AI models are downloaded once from the sherpa-onnx project's GitHub
-releases. This is a download only; no meeting data is sent. GitHub may log
-the requesting IP address under its own policy.
+releases, and the on-device minutes models (GGUF) from Hugging Face. This is
+a download only; no meeting data is sent. GitHub and Hugging Face may log the
+requesting IP address under their own policies.
 
 ### d) What never happens
 - No ads, trackers, usage analytics or automatic crash reporting.
@@ -196,7 +262,7 @@ the requesting IP address under its own policy.
   device. On Windows the app is distributed as a folder without an
   uninstaller: delete the two folders named above to remove its data and
   keys.
-- Data sent to Anthropic or Deepgram is retained under those providers'
+- Data sent to Google, Anthropic or Deepgram is retained under those providers'
   terms; Insato keeps no copy of it anywhere else.
 
 ## 4. Recording consent

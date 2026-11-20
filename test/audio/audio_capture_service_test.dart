@@ -475,11 +475,15 @@ void main() {
     await service.start(archivePath: wavPath);
     fake.data!.add(tonePcm(16000, 1, 1600));
     await pump();
+    // Finalisation closes the WAV file (real disk I/O), which can take longer
+    // than a couple of event-loop turns on a busy CI runner: wait for idle.
+    final idle = service.states
+        .firstWhere((s) => s == AudioCaptureState.idle)
+        .timeout(const Duration(seconds: 5));
     fake.stops.add(
       const RecordStop(reason: RecordStopReason.error, error: 'boom'),
     );
-    await pump();
-    await pump();
+    await idle;
     expect(service.state, AudioCaptureState.idle);
     expect(errors, hasLength(1));
     expect(errors.single.messageAr, contains('توقّف التسجيل'));

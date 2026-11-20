@@ -4,6 +4,9 @@
 // lines) are shown as they are; everything the UI itself says lives here so
 // the wording stays consistent and reviewable in one place.
 
+import '../core/models.dart' show AgendaItemStatus;
+import '../minutes/export_service.dart' show agendaStatusText;
+
 /// Arabic UI strings.
 abstract final class S {
   // ---------------------------------------------------------------------------
@@ -18,6 +21,12 @@ abstract final class S {
 
   /// Navigation: meetings.
   static const String navMeetings = 'الاجتماعات';
+
+  /// Navigation: tracked tasks (F9).
+  static const String navTasks = 'المهام';
+
+  /// Navigation: "Ask your meetings" (F8), short label.
+  static const String navAsk = 'اسأل';
 
   /// Navigation: voice library.
   static const String navSpeakers = 'المتحدثون';
@@ -285,11 +294,14 @@ abstract final class S {
       'تسجيل الآخرين دون علمهم قد يخالف القانون أو سياسات جهة العمل. يجب '
       'إبلاغ جميع المشاركين بأن الاجتماع يُسجَّل والحصول على موافقتهم قبل '
       'البدء.\n\n'
-      'تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك. يُرسَل نص الاجتماع '
-      'فقط '
-      'إلى خدمة Claude لكتابة المحضر. وإذا اخترت التفريغ السحابي تُرسَل مقاطع '
-      'الصوت إلى Deepgram لمعالجتها؛ يطلب إنصاتو من Deepgram عدم استخدامها '
-      'في تدريب نماذجها، لكن مدة احتفاظها بها تخضع لسياسة بياناتها.';
+      'تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك. لكتابة المحضر '
+      'يُرسَل نص الاجتماع فقط (دون الصوت) إلى محرك المحضر الذي تختاره في '
+      'الإعدادات: Gemini من Google (الافتراضي، مجاني) أو Claude. في الفئة '
+      'المجانية من Gemini قد تستخدم Google النصوص المرسلة لتحسين منتجاتها وقد '
+      'يطّلع عليها مراجعون بشريون؛ فلا تستخدمها للاجتماعات السرية. وإذا اخترت '
+      'التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram لمعالجتها؛ يطلب إنصاتو '
+      'من Deepgram عدم استخدامها في تدريب نماذجها، لكن مدة احتفاظها بها تخضع '
+      'لسياسة بياناتها.';
 
   /// Consent checkbox.
   static const String consentCheckbox =
@@ -445,6 +457,13 @@ abstract final class S {
   /// None.
   static const String noneRecorded = 'لا يوجد.';
 
+  /// Minutes section: agenda coverage (F3).
+  static const String agendaCoverage = 'تغطية جدول الأعمال';
+
+  /// Agenda item coverage label.
+  static String agendaStatusLabel(AgendaItemStatus status) =>
+      agendaStatusText(status);
+
   /// Generate minutes.
   static const String generateMinutes = 'إنشاء المحضر';
 
@@ -460,18 +479,28 @@ abstract final class S {
 
   /// No minutes body.
   static const String noMinutesBody =
-      'يكتب إنصاتو المحضر بالعربية الفصحى من النص الكامل باستخدام Claude.';
+      'يكتب إنصاتو المحضر بالعربية الفصحى من النص الكامل باستخدام محرك المحضر '
+      'المختار في الإعدادات.';
 
-  /// API key missing.
-  static const String apiKeyMissingTitle = 'مفتاح Claude غير مضبوط';
+  /// Minutes engine not ready.
+  static const String apiKeyMissingTitle = 'محرك المحضر غير جاهز';
 
-  /// API key missing body.
+  /// Minutes engine not ready body.
+  /// Claude is selected but its key is not stored.
+  static const String claudeKeyMissingBody =
+      'أضِف مفتاح Claude من الإعدادات ليكتب إنصاتو المحضر.';
+
+  /// Gemini's key is stored but its privacy notice was not accepted.
+  static const String geminiPrivacyPendingBody =
+      'وافِق على إشعار خصوصية Gemini في الإعدادات (محرك كتابة المحضر) ليكتب '
+      'إنصاتو المحضر.';
+
   static const String apiKeyMissingBody =
-      'أضِف مفتاح Anthropic API من الإعدادات ليكتب إنصاتو المحضر. يُرسَل نص '
-      'الاجتماع فقط، ولا يُرسَل الصوت.';
+      'أضِف مفتاح محرك المحضر من الإعدادات ليكتب إنصاتو المحضر؛ مفتاح Gemini '
+      'مجاني من Google AI Studio. يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
 
   /// Add key.
-  static const String addApiKey = 'إضافة المفتاح';
+  static const String addApiKey = 'ضبط محرك المحضر';
 
   /// Processing note.
   static const String meetingProcessing = 'جارٍ معالجة الاجتماع وكتابة المحضر…';
@@ -512,6 +541,9 @@ abstract final class S {
 
   /// Locked indicator.
   static const String lockedByUser = 'حدّدتَ المتحدث يدويًا';
+  static const String speakerUncertain = 'المتحدث غير مؤكد';
+  static const String speakerUncertainTapToFix =
+      'المتحدث غير مؤكد، اضغط للتصحيح';
 
   /// Reassigned.
   static const String speakerAssigned = 'تم تعيين المتحدث.';
@@ -641,11 +673,87 @@ abstract final class S {
   // Settings
   // ---------------------------------------------------------------------------
 
-  /// Section: Claude.
-  static const String sectionClaude = 'كتابة المحضر (Claude)';
+  /// Section: minutes engine.
+  static const String sectionClaude = 'محرك كتابة المحضر';
+
+  /// Minutes engine choice label.
+  static const String minutesEngine = 'المحرك';
+
+  /// Engine: Gemini.
+  static const String engineGemini = 'Gemini (مجاني)';
+
+  /// Engine: Claude.
+  static const String engineClaude = 'Claude';
+
+  /// Engine: on-device model.
+  static const String engineLocal = 'على الجهاز';
+
+  /// Engine: local server.
+  static const String engineServer = 'خادم محلي';
+
+  /// Helper under the engine choice, per engine.
+  static String minutesEngineHelper(String engine) => switch (engine) {
+    'claude' =>
+      'Claude من Anthropic: أعلى جودة في كتابة المحاضر، ويتطلب مفتاح API '
+          'مدفوعاً. يُرسَل نص الاجتماع فقط.',
+    'local' =>
+      'نموذج يعمل على جهازك دون إنترنت: أعلى خصوصية، لكنه أبطأ وأقل جودة من '
+          'المحركات السحابية.',
+    'server' =>
+      'نموذج على خادم في شبكتك المحلية (Ollama أو LM Studio): لا يغادر النص '
+          'شبكتك.',
+    _ =>
+      'Gemini من Google: جودة جيدة ومجاني بمفتاح من Google AI Studio، مع حدود '
+          'لعدد الطلبات في الدقيقة واليوم. يُرسَل نص الاجتماع فقط.',
+  };
+
+  /// Gemini key label.
+  static const String geminiKey = 'مفتاح Gemini API';
+
+  /// Gemini key helper.
+  static const String geminiKeyHelper =
+      'أنشئ مفتاحاً مجانياً من Google AI Studio (الرابط أدناه). يُحفظ مشفّراً '
+      'في مخزن الجهاز الآمن ولا يُرسَل إلا إلى Google.';
+
+  /// Where to get a Gemini key.
+  static const String geminiKeyWhere = 'احصل على مفتاح مجاني من:';
+
+  /// Gemini model label.
+  static const String geminiModel = 'نموذج Gemini';
+
+  /// Gemini model helper.
+  static const String geminiModelHelper =
+      'الافتراضي gemini-flash-lite-latest (أحدث نموذج Flash-Lite المجاني، '
+      'الأسرع وصاحب أوسع حصة مجانية). إن لم يكن متاحاً لمفتاحك يُختار أحدث '
+      'نموذج Flash تلقائياً.';
+
+  /// Gemini privacy notice title.
+  static const String geminiPrivacyTitle = 'تنبيه خصوصية Gemini المجاني';
+
+  /// Gemini privacy notice body (shown before first use).
+  static const String geminiPrivacyBody =
+      'عند استخدام مفتاح Gemini المجاني (دون تفعيل الفوترة) قد تستخدم Google '
+      'نصوص الاجتماعات المرسلة والمحاضر الناتجة لتحسين منتجاتها، وقد يطّلع '
+      'عليها مراجعون بشريون بعد فصلها عن حسابك. لا تُرسِل عبره اجتماعات سرية '
+      'أو بيانات شخصية حساسة؛ استخدم لها المحرك على الجهاز أو مفتاحاً من مشروع '
+      'Google Cloud مفعّل الفوترة (يُعامَل كخدمة مدفوعة ولا يُستخدم في '
+      'التدريب). يُرسَل نص الاجتماع فقط، ولا يُرسَل الصوت.';
+
+  /// Accept the Gemini notice.
+  static const String geminiPrivacyAccept = 'فهمت وأوافق';
+
+  /// Notice accepted.
+  static const String geminiPrivacyAccepted =
+      'وافقت على تنبيه الخصوصية. يمكنك سحب الموافقة في أي وقت.';
+
+  /// Withdraw consent.
+  static const String geminiPrivacyWithdraw = 'سحب الموافقة';
+
+  /// The selected local engine is not available in this build.
+  static const String engineUnavailable = 'هذا المحرك غير متاح في هذا الإصدار.';
 
   /// API key label.
-  static const String anthropicKey = 'مفتاح Anthropic API';
+  static const String anthropicKey = 'مفتاح Anthropic API (Claude)';
 
   /// API key helper.
   static const String anthropicKeyHelper =
@@ -789,7 +897,10 @@ abstract final class S {
   static const String privacyBody =
       '• تُحفظ التسجيلات والنصوص والبصمات الصوتية على جهازك فقط، ولا تُنسخ '
       'احتياطيًا إلى السحابة.\n'
-      '• لكتابة المحضر يُرسَل نص الاجتماع فقط إلى Anthropic (Claude).\n'
+      '• لكتابة المحضر يُرسَل نص الاجتماع فقط (دون الصوت) إلى محرك المحضر '
+      'المختار: Google (Gemini، الافتراضي) أو Anthropic (Claude). في الفئة '
+      'المجانية من Gemini قد تستخدم Google النصوص لتحسين منتجاتها وقد يطّلع '
+      'عليها مراجعون بشريون؛ ولا يغادر النص جهازك مع المحرك المحلي.\n'
       '• في التفريغ السحابي تُرسَل مقاطع الصوت إلى Deepgram لمعالجتها، مع '
       'طلب عدم استخدامها في تدريب النماذج؛ ويخضع الاحتفاظ بها لسياسة بيانات '
       'Deepgram.\n'
@@ -836,6 +947,9 @@ abstract final class S {
 
   /// Other group.
   static const String otherModels = 'نماذج أخرى';
+
+  /// Models screen: GGUF models of the on-device minutes engine (F14).
+  static const String minutesModels = 'نماذج كتابة المحضر على الجهاز';
 
   /// Download.
   static const String download = 'تنزيل';
@@ -951,6 +1065,13 @@ abstract final class S {
     'ku': 'الكردية',
     'bn': 'البنغالية',
   };
+
+  /// Marker of an unintelligible transcript segment (F17), e.g.
+  /// «كلام غير مفهوم (2.4 ث)».
+  static String unintelligibleSegment(int durationMs) {
+    final tenths = (durationMs.clamp(0, 1 << 40) / 100).round();
+    return 'كلام غير مفهوم (${tenths ~/ 10}.${tenths % 10} ث)';
+  }
 
   /// Arabic name of the language [code] (e.g. `en`, `en-US`), or null.
   static String? languageName(String? code) {

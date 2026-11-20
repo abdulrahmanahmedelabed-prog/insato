@@ -30,8 +30,10 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
                                    Offline refinement: agglomerative re-clustering
                                    of all segment embeddings → relabel → update voiceprints
                                                                ▼
-                                   MinutesGenerator (Claude API, structured JSON,
-                                   Arabic) → Minutes → DB → PDF / Markdown / share
+                                   StructuredMinutesEngine → MinutesBackend
+                                   (Gemini by default / Claude / local, structured
+                                   JSON, Arabic) → Minutes (+ tasks, codes, notes)
+                                   → DB → PDF / Markdown / share
 ```
 
 ## Key decisions
@@ -47,7 +49,7 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Cloud ASR (optional) | Deepgram `nova-3`, `language=multi` | Highest accuracy where privacy policy allows |
 | Diarization | VAD segments → embeddings → online cosine assignment + offline agglomerative refinement | Real-time labels during the meeting, corrected labels after |
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
-| Minutes | Claude API `claude-opus-5-5`, adaptive thinking, `effort: high`, streaming, `output_config.format` JSON schema, server-side fallback | Faithful, structured Arabic minutes from multilingual transcript |
+| Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
 | Export | PDF (`pdf` + bundled Arabic font), Markdown, plain-text share | Official, printable minutes |
 
 ## Module layout (`lib/`)
@@ -88,11 +90,39 @@ lib/
     export_service.dart          Minutes → Markdown / PDF / share text
   session/
     meeting_session_controller.dart  orchestrates a live recording session
+    minutes_engines.dart         engine selection (Gemini / Claude / local / server)
+    post_processor.dart          refinement, voiceprint learning, minutes + artifacts
+    providers.dart               Riverpod wiring of the whole app
+  features/                      v1.1 features (one folder each, see below)
   ui/
-    theme.dart, strings_ar.dart
-    screens/ home, recording, meeting_detail, speakers, settings, models
+    theme.dart, strings_ar.dart, navigation.dart, actions.dart
+    screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
     widgets/ level_meter, transcript_view, speaker_chip, minutes_view, …
 ```
+
+## v1.1 features and where they are wired
+
+Each feature lives in `lib/features/<name>/` with its own Arabic strings and
+tests (`docs/V11-CONTRACTS.md` lists the shared contracts). The shared
+layers wire them in:
+
+| Feature | Folder | Wired in |
+|---|---|---|
+| F1 voice enrollment, F18 microphones | `voice/` | Voice library FAB «إضافة شخص بصوته» and «تحسين البصمة» menus (library, meeting speakers tab); Settings «الميكروفون» (device, far field, mic test); microphone chip on the context form and recording screen; `sessionAudioSourceProvider` → device-aware source; far field → `SessionEngineRequest.farField` → `vadConfigFor`; `Meeting.inputDevice` from `sessionInputDeviceProvider`; voiceprints learned on another microphone match with `knownSpeakerThresholdFor` (`SpeakerTracker.knownSpeakerThresholdOf`) and are re-tagged with `voiceDeviceAfterLearning` after learning |
+| F2 glossary, F3 context | `context/` | «اجتماع جديد» (`startNewMeeting` → `startNewMeetingWithContext`: consent, context form with «تخطٍّ وابدأ»); context card + edit on the minutes tab and in the meeting menu; Settings → «قاموس المصطلحات»; Deepgram keyterms via `resolveSessionKeyterms` (includes the upcoming meeting's terms and attendees) |
+| F5 evidence | `evidence/` | `EvidenceScope` around the meeting tabs (docked player); `EvidenceChips` under agenda items, topics, decisions and action items (`MinutesView.evidenceBuilder`), tasks and pending updates; `EvidenceTranscriptTab` as the transcript tab |
+| F8 ask | `ask/` | Shell destination «اسأل» (`AskMeetingsScreen(embedded: true)`) |
+| F9 tasks | `tasks/` | Shell destination «المهام»; meeting tab «المهام» (`MeetingTasksPanel` with pending updates to confirm); `OpenTasksBanner` on the recording screen |
+| F12 Word | `export_docx/` | Meeting menu «تصدير المحضر ومشاركته» → `ExportShareSheet` (Word / PDF / Markdown / print) |
+| F13 system audio | `system_audio/` + `windows/runner/` | `sessionAudioSourceProvider` → `mixedSessionAudioSourceProvider` (Windows: mic / system / both; elsewhere the microphone); `AudioSourceSelector` in Settings and on the context form (renders nothing off Windows) |
+| F14 local engines | `local_llm/` | Settings engine selector (builders from `local_minutes_backends.dart`); GGUF downloads in Settings and on the models screen |
+| F16 profiles | `profiles/` | «ملف المتحدث» from the voice library and the meeting speakers tab; `PostProcessor.onMinutesSaved` → `SpeakerProfileService.updateAfterMeeting` after every saved minutes |
+| F17 codes | `codes/` | Meeting tab «الرموز والشيفرات»; codes section in Markdown / text exports (`renderCodesSection`) |
+
+Navigation (D1): the same five destinations on every platform — meetings,
+tasks, ask, voice library, settings (`ShellTab`) — in a bottom
+`NavigationBar` on phones and a `NavigationRail` with list / detail panes
+from 840 px.
 
 Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
 `diarization/`, `minutes/minutes_prompt.dart`, `minutes/claude_client.dart`
@@ -133,16 +163,29 @@ parsing) are covered by unit tests in `test/`.
 
 ## Minutes generation
 
-* Transcript is rendered as lines `[hh:mm:ss] <speaker name> (<lang>): text`.
+* Transcript is rendered one line per segment with its id,
+  `[#42 hh:mm:ss] <speaker name> (<lang>): text`; unintelligible segments
+  (F17) appear as `[غير مفهوم — مقطع #n، m ث]`. Evidence arrays in the answer
+  cite these ids (see docs/V11-CONTRACTS.md).
 * System prompt (Arabic + English rules): faithful, no invention, Modern
   Standard Arabic, preserve names/numbers/terms (original in parentheses when
   useful), attribute statements to speakers, mark uncertainty.
 * Output is constrained by a JSON schema (see `minutes_prompt.dart`) → `Minutes`.
-* Request: `model: claude-opus-5-5`, `max_tokens: 64000`, `stream: true`,
-  `thinking: {type: adaptive}`, `output_config: {effort: high, format: …}`,
-  `fallbacks: "default"` with `anthropic-beta: server-side-fallback-2026-07-01`,
-  `anthropic-version: 2026-10-21`. `stop_reason` is checked (`refusal`,
-  `max_tokens`) before parsing.
+* Gemini (default): `POST …/v1beta/models/{model}:streamGenerateContent?alt=sse`
+  with `x-goog-api-key`, `systemInstruction`, `generationConfig.responseMimeType
+  = application/json` and `responseJsonSchema` (fallback `responseSchema`, then
+  plain JSON mode + tolerant repair). `finishReason` / `promptFeedback` are
+  checked; 429s are waited out once when short and never hammered
+  (`GeminiRateGate`). A missing model triggers `models.list` discovery.
+* Claude (optional): `model: claude-opus-5-5`, `max_tokens: 64000`,
+  `stream: true`, `thinking: {type: adaptive}`, `output_config: {effort: high,
+  format: …}`, `fallbacks: "default"` with `anthropic-beta:
+  server-side-fallback-2026-07-01`, `anthropic-version: 2026-10-21`.
+  `stop_reason` is checked (`refusal`, `max_tokens`) before parsing.
+* The answer is validated (`sanitizeMinutes`: evidence ids, agenda order,
+  known task ids, opted-in speakers only) and its tasks / pending task
+  updates / speaker notes / code findings are stored with the minutes
+  (`MinutesArtifactsWriter`).
 * The user can regenerate minutes after renaming speakers.
 
 ## Privacy
@@ -156,8 +199,11 @@ parsing) are covered by unit tests in `test/`.
   file name; readers resolve it with `AppPaths.resolveRecording`, and
   `MeetingRepository.delete` removes the file from the current recordings
   directory (`recordingsDirProvider`) as well as a legacy absolute path.
-* With on-device ASR only the *text transcript* is sent to Claude to write the
-  minutes. With cloud ASR, audio segments go to Deepgram; every request sets
+* With on-device ASR only the *text transcript* is sent to the selected
+  minutes engine (Google Gemini by default — on its free tier Google may use
+  the content to improve its products, which Settings states and the user
+  accepts before the first request — or Anthropic Claude; nothing with a local
+  engine). With cloud ASR, audio segments go to Deepgram; every request sets
   `mip_opt_out=true` (no use for model training), but retention is governed
   by Deepgram's data policy. Both are explained in Settings and in the
   consent reminder.

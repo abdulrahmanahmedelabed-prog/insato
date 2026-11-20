@@ -9,6 +9,8 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../core/models.dart';
 import '../core/time_format.dart';
+import '../features/codes/codes_export.dart'
+    show CodesExportFormat, renderCodesSection;
 import 'minutes_prompt.dart';
 
 /// Raw TrueType bytes of the fonts embedded in PDFs.
@@ -63,6 +65,13 @@ class PdfFontSet {
     );
   }
 }
+
+/// Arabic label of an agenda item's coverage (F3) in exports.
+String agendaStatusText(AgendaItemStatus status) => switch (status) {
+  AgendaItemStatus.discussed => 'نوقش',
+  AgendaItemStatus.partiallyDiscussed => 'نوقش جزئيًا',
+  AgendaItemStatus.notDiscussed => 'لم يُناقش',
+};
 
 /// Converts minutes / transcripts into shareable documents.
 ///
@@ -193,6 +202,21 @@ class ExportService {
     }
     b.writeln();
 
+    if (minutes.agendaCoverage.isNotEmpty) {
+      b
+        ..writeln('## تغطية جدول الأعمال')
+        ..writeln();
+      for (var i = 0; i < minutes.agendaCoverage.length; i++) {
+        final a = minutes.agendaCoverage[i];
+        final note = a.note?.trim() ?? '';
+        b.writeln(
+          '${i + 1}. ${_oneLine(a.item)} — *${agendaStatusText(a.status)}*'
+          '${note.isEmpty ? '' : ': ${_oneLine(note)}'}',
+        );
+      }
+      b.writeln();
+    }
+
     if (minutes.topics.isNotEmpty) {
       b
         ..writeln('## محاور النقاش')
@@ -268,6 +292,16 @@ class ExportService {
         ..writeln(_mdText(minutes.notes!))
         ..writeln();
     }
+    final codes = renderCodesSection(
+      codes: minutes.codes,
+      segments: segments,
+      speakersById: speakersById,
+    );
+    if (codes.trim().isNotEmpty) {
+      b
+        ..writeln(codes.trimRight())
+        ..writeln();
+    }
     b
       ..writeln('---')
       ..writeln()
@@ -326,6 +360,18 @@ class ExportService {
     heading('الحضور');
     b.writeln(attendees.isEmpty ? 'لم يُحدَّد الحضور.' : attendees.join('، '));
 
+    if (minutes.agendaCoverage.isNotEmpty) {
+      heading('تغطية جدول الأعمال');
+      for (var i = 0; i < minutes.agendaCoverage.length; i++) {
+        final a = minutes.agendaCoverage[i];
+        final note = a.note?.trim() ?? '';
+        b.writeln(
+          '${i + 1}. ${_oneLine(a.item)} — ${agendaStatusText(a.status)}'
+          '${note.isEmpty ? '' : ': ${_oneLine(note)}'}',
+        );
+      }
+    }
+
     if (minutes.topics.isNotEmpty) {
       heading('محاور النقاش');
       for (var i = 0; i < minutes.topics.length; i++) {
@@ -378,6 +424,17 @@ class ExportService {
     if (minutes.notes != null) {
       heading('ملاحظات');
       b.writeln(minutes.notes);
+    }
+    final codes = renderCodesSection(
+      codes: minutes.codes,
+      segments: segments,
+      speakersById: speakersById,
+      format: CodesExportFormat.text,
+    );
+    if (codes.trim().isNotEmpty) {
+      b
+        ..writeln()
+        ..writeln(codes.trimRight());
     }
     b
       ..writeln()

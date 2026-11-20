@@ -9,7 +9,7 @@ the release process. For the design see [ARCHITECTURE.md](ARCHITECTURE.md).
 |---|---|
 | Flutter | **3.50.0**, stable channel (Dart 3.14) — the version CI uses |
 | Android | JDK 17, Android SDK platform 36, NDK 28.2 (installed by the Flutter Gradle plugin on first build), Gradle 9.5 via wrapper, AGP 9.3 |
-| iOS | macOS with a recent Xcode (iOS 15.0 deployment target), CocoaPods **not** required (Swift Package Manager, see §4.2) |
+| iOS | macOS with a recent Xcode (iOS 16.4 deployment target), CocoaPods **not** required (Swift Package Manager, see §4.2) |
 | Windows | Windows 10 1903+ / 11, Visual Studio 2022 with the *Desktop development with C++* workload |
 
 ```bash
@@ -56,8 +56,13 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
   WeSpeaker ~27 MB, Whisper Turbo ~1 GB by default) from the sherpa-onnx
   GitHub releases into the app's private data directory. Use Wi-Fi; on an
   emulator, prefer **Whisper Small** (~610 MB) to save time and RAM.
-- Enter the Anthropic API key (required for minutes) and optionally the
-  Deepgram key in **Settings**. Keys live only in secure storage; never add
+- Minutes engine: **Google Gemini** is the default. Create a free key at
+  <https://aistudio.google.com/apikey>, enter it in **Settings → محرك كتابة
+  المحضر**, and accept the free-tier data notice (nothing is sent before).
+  The free tier is rate limited (a few requests per minute, a few dozen per
+  day); the app waits out short per-minute limits once and otherwise reports
+  them in Arabic. Claude (Anthropic key) is available as an optional engine;
+  Deepgram is optional for cloud transcription. Keys live only in secure storage; never add
   keys to source, `.env` files or CI logs.
 - Real devices are strongly recommended for audio work: emulator microphones
   are often low quality or silent. On the Android emulator enable
@@ -114,8 +119,8 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 
 ### 4.2 iOS
 
-- Deployment target **iOS 15.0** (plugins need ≥ 13.0; Flutter's default is
-  15.0).
+- Deployment target **iOS 16.4**: the floor of `llamadart` (llama.cpp, the
+  on-device minutes engine, F14); the other plugins need ≥ 13.0.
 - Plugins are integrated with **Swift Package Manager** (enabled by default
   in Flutter 3.50; every plugin Insato uses ships a `Package.swift`), so the
   project has no `Podfile`.

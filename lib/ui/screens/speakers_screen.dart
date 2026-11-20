@@ -1,10 +1,15 @@
 // Voice library: every known speaker with voiceprint status and number of
-// meetings; rename, merge, forget voice and delete.
+// meetings; add a person by voice (F1), improve a voice, open the speaker
+// profile (F16), rename, merge, forget voice and delete.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
+import '../../features/profiles/profile_screen.dart' show openSpeakerProfile;
+import '../../features/profiles/strings.dart' show PS;
+import '../../features/voice/voice.dart'
+    show EnrollVoiceButton, ImproveVoiceMenuTile, openVoiceEnrollment;
 import '../../session/providers.dart';
 import '../actions.dart';
 import '../strings_ar.dart';
@@ -24,6 +29,7 @@ class SpeakersScreen extends ConsumerWidget {
         ref.watch(speakerMeetingCountsProvider).value ?? const <String, int>{};
     return Scaffold(
       appBar: AppBar(title: const Text(S.voiceLibrary)),
+      floatingActionButton: const EnrollVoiceButton(),
       body: speakers.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Padding(
@@ -50,7 +56,8 @@ class SpeakersScreen extends ConsumerWidget {
               return a.name.compareTo(b.name);
             });
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 48),
+            // Bottom room for the "add a person" button.
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
             children: [
               ReadableWidth(
                 child: Column(
@@ -82,7 +89,7 @@ class SpeakersScreen extends ConsumerWidget {
   }
 }
 
-enum _LibraryAction { rename, merge, forget, delete }
+enum _LibraryAction { profile, improve, rename, merge, forget, delete }
 
 /// One speaker in the voice library.
 class SpeakerLibraryTile extends ConsumerWidget {
@@ -132,11 +139,15 @@ class SpeakerLibraryTile extends ConsumerWidget {
             if (!speaker.isNamedByUser) const Text(S.autoNamed),
           ],
         ),
-        onTap: () => renameSpeakerFlow(context, ref, speaker),
+        onTap: () => openSpeakerProfile(context, speaker.id),
         trailing: PopupMenuButton<_LibraryAction>(
           tooltip: S.speakerActions,
           onSelected: (a) {
             switch (a) {
+              case _LibraryAction.profile:
+                openSpeakerProfile(context, speaker.id);
+              case _LibraryAction.improve:
+                openVoiceEnrollment(context, speaker: speaker);
               case _LibraryAction.rename:
                 renameSpeakerFlow(context, ref, speaker);
               case _LibraryAction.merge:
@@ -148,6 +159,17 @@ class SpeakerLibraryTile extends ConsumerWidget {
             }
           },
           itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: _LibraryAction.profile,
+              child: ListTile(
+                leading: Icon(Icons.badge_outlined),
+                title: Text(PS.screenTitle),
+              ),
+            ),
+            const PopupMenuItem(
+              value: _LibraryAction.improve,
+              child: ImproveVoiceMenuTile(),
+            ),
             const PopupMenuItem(
               value: _LibraryAction.rename,
               child: ListTile(

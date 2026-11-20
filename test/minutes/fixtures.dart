@@ -19,6 +19,7 @@ TranscriptSegment seg(
   String text, {
   String? speakerId,
   String? language = 'ar',
+  double? speakerConfidence,
 }) => TranscriptSegment(
   id: 's$index',
   meetingId: 'm1',
@@ -28,6 +29,7 @@ TranscriptSegment seg(
   text: text,
   speakerId: speakerId,
   language: language,
+  speakerConfidence: speakerConfidence,
 );
 
 Meeting meeting({

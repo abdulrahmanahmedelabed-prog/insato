@@ -207,6 +207,35 @@ Float32List _normalized(Float32List v) {
 
 String _pad2(int v) => v.toString().padLeft(2, '0');
 
+/// Decodes a stored JSON list of strings; anything malformed → empty list.
+List<String> decodeJsonStringList(String? json) {
+  if (json == null || json.isEmpty) return const [];
+  try {
+    return jsonStringList(jsonDecode(json));
+  } on FormatException {
+    return const [];
+  }
+}
+
+/// Decodes a stored JSON list of integers (evidence ids); malformed → empty.
+List<int> decodeJsonIntList(String? json) {
+  if (json == null || json.isEmpty) return const [];
+  try {
+    return parseEvidenceIds(jsonDecode(json));
+  } on FormatException {
+    return const [];
+  }
+}
+
+/// Trims every field of [c], drops blank list items, and turns blank
+/// notes / template into null.
+MeetingContext normalizeMeetingContext(MeetingContext c) => MeetingContext(
+      agenda: jsonStringList(c.agenda),
+      expectedAttendees: jsonStringList(c.expectedAttendees),
+      contextNotes: jsonNonEmpty(c.contextNotes),
+      template: jsonNonEmpty(c.template),
+    );
+
 /// Default title for a meeting created at [t], e.g. `اجتماع 2026/11/19 14:05`.
 String defaultMeetingTitle(DateTime t) =>
     'اجتماع ${t.year}/${_pad2(t.month)}/${_pad2(t.day)} '
@@ -238,6 +267,13 @@ class MeetingRepository {
         audioPath: r.audioPath,
         minutes: _decodeMinutes(r.minutesJson),
         errorMessage: r.errorMessage,
+        context: MeetingContext(
+          agenda: decodeJsonStringList(r.agendaJson),
+          expectedAttendees: decodeJsonStringList(r.expectedAttendeesJson),
+          contextNotes: jsonNonEmpty(r.contextNotes),
+          template: jsonNonEmpty(r.template),
+        ),
+        inputDevice: jsonNonEmpty(r.inputDevice),
       );
 
   static Minutes? _decodeMinutes(String? json) {
@@ -258,25 +294,38 @@ class MeetingRepository {
   /// Creates a new meeting in [MeetingStatus.recording] state.
   ///
   /// [title] defaults to [defaultMeetingTitle]; [id] defaults to a new UUID.
+  ///
+  /// [context] (F3) and [inputDevice] (F18) are stored when given.
   Future<Meeting> create({
     String? title,
     DateTime? createdAt,
     String? id,
     MeetingStatus status = MeetingStatus.recording,
+    MeetingContext context = MeetingContext.empty,
+    String? inputDevice,
   }) async {
     final now = createdAt ?? DateTime.now();
     final t = title?.trim();
+    final ctx = normalizeMeetingContext(context);
+    final device = jsonNonEmpty(inputDevice);
     final meeting = Meeting(
       id: id ?? _uuid.v4(),
       title: (t == null || t.isEmpty) ? defaultMeetingTitle(now) : t,
       createdAt: now,
       status: status,
+      context: ctx,
+      inputDevice: device,
     );
     await _db.into(_db.meetings).insert(MeetingsCompanion.insert(
           id: meeting.id,
           title: meeting.title,
           createdAt: meeting.createdAt,
           status: meeting.status.name,
+          agendaJson: Value(jsonEncode(ctx.agenda)),
+          expectedAttendeesJson: Value(jsonEncode(ctx.expectedAttendees)),
+          contextNotes: Value(ctx.contextNotes),
+          template: Value(ctx.template),
+          inputDevice: Value(device),
         ));
     return meeting;
   }
@@ -340,6 +389,26 @@ class MeetingRepository {
       ),
     );
   }
+
+  /// Replaces the meeting's context (F3: agenda, expected attendees, notes,
+  /// template). Items are trimmed and blank ones dropped. Returns true if
+  /// the meeting existed.
+  Future<bool> updateContext(String id, MeetingContext context) {
+    final ctx = normalizeMeetingContext(context);
+    return _update(
+      id,
+      MeetingsCompanion(
+        agendaJson: Value(jsonEncode(ctx.agenda)),
+        expectedAttendeesJson: Value(jsonEncode(ctx.expectedAttendees)),
+        contextNotes: Value(ctx.contextNotes),
+        template: Value(ctx.template),
+      ),
+    );
+  }
+
+  /// Records the input device of the recording (F18; null = default).
+  Future<bool> setInputDevice(String id, String? device) => _update(
+      id, MeetingsCompanion(inputDevice: Value(jsonNonEmpty(device))));
 
   /// Sets the recorded duration in milliseconds.
   Future<bool> setDuration(String id, int durationMs) =>
@@ -448,6 +517,9 @@ class SegmentRepository {
         language: r.language,
         embedding: _safeBlob(r.embedding),
         speakerLocked: r.speakerLocked,
+        kind: SegmentKind.parse(r.kind),
+        asrConfidence: r.asrConfidence,
+        speakerConfidence: r.speakerConfidence,
       );
 
   static SegmentsCompanion _toCompanion(TranscriptSegment s, String id) =>
@@ -464,6 +536,9 @@ class SegmentRepository {
             ? null
             : float32ToBlob(s.embedding!)),
         speakerLocked: Value(s.speakerLocked),
+        kind: Value(s.kind.wire),
+        asrConfidence: Value(s.asrConfidence),
+        speakerConfidence: Value(s.speakerConfidence),
       );
 
   /// Inserts [segment]. An empty [TranscriptSegment.id] is replaced by a new
@@ -501,6 +576,9 @@ class SegmentRepository {
         language: s.language,
         embedding: s.embedding,
         speakerLocked: s.speakerLocked,
+        kind: s.kind,
+        asrConfidence: s.asrConfidence,
+        speakerConfidence: s.speakerConfidence,
       );
 
   /// Overwrites every stored field of [segment] (matched by id; meetingId is
@@ -566,6 +644,8 @@ class SegmentRepository {
         .write(SegmentsCompanion(
       speakerId: Value(speakerId),
       speakerLocked: Value(locked),
+      // A manual assignment is certain; an automatic one is not known.
+      speakerConfidence: Value(locked ? 1.0 : null),
     ));
     return n > 0;
   }
@@ -589,6 +669,42 @@ class SegmentRepository {
       }
       return total;
     });
+  }
+
+  /// Stores the speaker-assignment confidence of many segments in one
+  /// transaction (segment id → confidence, null = unknown). User-locked
+  /// segments are left unchanged. Returns the number of segments updated.
+  Future<int> bulkSetSpeakerConfidence(Map<String, double?> confidences) {
+    if (confidences.isEmpty) return Future.value(0);
+    return _db.transaction(() async {
+      var total = 0;
+      for (final e in confidences.entries) {
+        final q = _db.update(_db.segments)
+          ..where((s) => s.id.equals(e.key) & s.speakerLocked.equals(false));
+        total += await q.write(
+            SegmentsCompanion(speakerConfidence: Value(e.value)));
+      }
+      return total;
+    });
+  }
+
+  /// Segments of [meetingId] with the given [SegmentKind.unintelligible]
+  /// kind (F17), ordered by index.
+  Future<List<TranscriptSegment>> getUnintelligible(String meetingId) async =>
+      (await (_forMeeting(meetingId)
+                ..where((s) => s.kind.equals(SegmentKind.unintelligible.wire)))
+              .get())
+          .map(fromRow)
+          .toList(growable: false);
+
+  /// Changes the kind of one segment, e.g. after the user transcribed an
+  /// unintelligible segment by hand or a reversed-audio re-ASR succeeded
+  /// (F17). Returns true if the segment existed.
+  Future<bool> setKind(String segmentId, SegmentKind kind) async {
+    final n = await (_db.update(_db.segments)
+          ..where((s) => s.id.equals(segmentId)))
+        .write(SegmentsCompanion(kind: Value(kind.wire)));
+    return n > 0;
   }
 
   /// Replaces the text of one segment (user correction). Returns true if the
@@ -629,6 +745,9 @@ class SpeakerRepository {
         createdAt: r.createdAt,
         centroid: _safeBlob(r.centroid),
         embeddingCount: r.centroid == null ? 0 : r.embeddingCount,
+        profileEnabled: r.profileEnabled,
+        voiceDevice: r.voiceDevice,
+        lowConfidence: r.lowConfidence,
       );
 
   /// Creates a speaker.
@@ -645,6 +764,8 @@ class SpeakerRepository {
     int embeddingCount = 0,
     DateTime? createdAt,
     String? id,
+    String? voiceDevice,
+    bool lowConfidence = false,
   }) {
     return _db.transaction(() async {
       final existing = await _db.select(_db.speakers).get();
@@ -664,6 +785,8 @@ class SpeakerRepository {
         createdAt: createdAt ?? DateTime.now(),
         centroid: hasCentroid ? centroid : null,
         embeddingCount: hasCentroid ? math.max(embeddingCount, 1) : 0,
+        voiceDevice: jsonNonEmpty(voiceDevice),
+        lowConfidence: lowConfidence,
       );
       await _db.into(_db.speakers).insert(SpeakersCompanion.insert(
             id: speaker.id,
@@ -673,6 +796,8 @@ class SpeakerRepository {
             createdAt: speaker.createdAt,
             centroid: Value(hasCentroid ? float32ToBlob(centroid) : null),
             embeddingCount: Value(speaker.embeddingCount),
+            voiceDevice: Value(speaker.voiceDevice),
+            lowConfidence: Value(speaker.lowConfidence),
           ));
       return speaker;
     });
@@ -721,6 +846,31 @@ class SpeakerRepository {
     }
     final n = await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
         .write(SpeakersCompanion(name: Value(t), isNamedByUser: const Value(true)));
+    return n > 0;
+  }
+
+  /// Enables or disables the speaker profile (F16, opt-in). Disabling does
+  /// not delete an existing profile; use `SpeakerProfileRepository.delete`
+  /// for that. Returns true if it existed.
+  Future<bool> setProfileEnabled(String id, bool enabled) async {
+    final n = await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
+        .write(SpeakersCompanion(profileEnabled: Value(enabled)));
+    return n > 0;
+  }
+
+  /// Records the input device the voiceprint was learned on (F18; null =
+  /// unknown / default). Returns true if it existed.
+  Future<bool> setVoiceDevice(String id, String? device) async {
+    final n = await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
+        .write(SpeakersCompanion(voiceDevice: Value(jsonNonEmpty(device))));
+    return n > 0;
+  }
+
+  /// Flags the voiceprint as low-confidence (F15: < 3 s of speech; not used
+  /// for matching) or clears the flag. Returns true if it existed.
+  Future<bool> setLowConfidence(String id, bool low) async {
+    final n = await (_db.update(_db.speakers)..where((s) => s.id.equals(id)))
+        .write(SpeakersCompanion(lowConfidence: Value(low)));
     return n > 0;
   }
 
@@ -829,6 +979,25 @@ class SpeakerRepository {
       await (_db.update(_db.segments)
             ..where((s) => s.speakerId.equals(fromId)))
           .write(SegmentsCompanion(speakerId: Value(intoId)));
+      // v1.1 rows that point at the speaker follow it (notes / a profile
+      // that [intoId] already has are kept; [fromId]'s duplicates go with
+      // the cascade below).
+      await (_db.update(_db.tasks)
+            ..where((t) => t.ownerSpeakerId.equals(fromId)))
+          .write(TasksCompanion(ownerSpeakerId: Value(intoId)));
+      await (_db.update(_db.codeFindings)
+            ..where((c) => c.speakerId.equals(fromId)))
+          .write(CodeFindingsCompanion(speakerId: Value(intoId)));
+      for (final table in const ['speaker_meeting_notes', 'speaker_profiles']) {
+        await _db.customUpdate(
+          'UPDATE OR IGNORE $table SET speaker_id = ?1 WHERE speaker_id = ?2',
+          variables: [Variable.withString(intoId), Variable.withString(fromId)],
+          updates: {
+            if (table == 'speaker_profiles') _db.speakerProfiles
+            else _db.speakerMeetingNotes,
+          },
+        );
+      }
 
       final combined = combineVoiceprints(into.centroid, into.embeddingCount,
           from.centroid, from.embeddingCount);
@@ -841,11 +1010,19 @@ class SpeakerRepository {
         createdAt: into.createdAt,
         centroid: combined.centroid,
         embeddingCount: combined.count,
+        profileEnabled: into.profileEnabled || from.profileEnabled,
+        voiceDevice: into.voiceDevice ?? from.voiceDevice,
+        lowConfidence: combined.centroid != null &&
+            into.lowConfidence &&
+            from.lowConfidence,
       );
       await (_db.update(_db.speakers)..where((s) => s.id.equals(intoId)))
           .write(SpeakersCompanion(
         name: Value(merged.name),
         isNamedByUser: Value(merged.isNamedByUser),
+        profileEnabled: Value(merged.profileEnabled),
+        voiceDevice: Value(merged.voiceDevice),
+        lowConfidence: Value(merged.lowConfidence),
         centroid: Value(merged.centroid == null
             ? null
             : float32ToBlob(merged.centroid!)),

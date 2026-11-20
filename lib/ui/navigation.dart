@@ -26,8 +26,26 @@ final selectedMeetingProvider =
       SelectedMeetingNotifier.new,
     );
 
+/// Indices of the shell's top-level destinations.
+abstract final class ShellTab {
+  /// Meetings (list, and detail pane on wide layouts).
+  static const int meetings = 0;
+
+  /// Tracked tasks (F9).
+  static const int tasks = 1;
+
+  /// Ask your meetings (F8).
+  static const int ask = 2;
+
+  /// Voice library.
+  static const int speakers = 3;
+
+  /// Settings.
+  static const int settings = 4;
+}
+
 /// Requests from deep inside the UI to switch the shell's top-level tab
-/// (0 meetings, 1 speakers, 2 settings).
+/// (see [ShellTab]).
 class ShellTabNotifier extends Notifier<int> {
   @override
   int build() => 0;
@@ -46,8 +64,9 @@ bool isWideLayout(BuildContext context) =>
     MediaQuery.sizeOf(context).width >= InsatoTheme.wideBreakpoint;
 
 /// Opens the meeting [meetingId]: on wide layouts it is selected in the
-/// detail pane (returning to the shell); on phones its page is pushed, or
-/// replaces the current page when [replace] is set.
+/// detail pane of the Meetings tab (returning to the shell); on phones its
+/// page is pushed over the current tab (Back returns there), or replaces the
+/// current page when [replace] is set (the shell then shows Meetings).
 ///
 /// [replaceRoute] names the page to replace (the caller's own route): any
 /// dialog open above it is closed first, so the meeting page replaces that
@@ -61,11 +80,18 @@ Future<void> openMeeting(
   Route<dynamic>? replaceRoute,
 }) async {
   ref.read(selectedMeetingProvider.notifier).select(meetingId);
-  ref.read(shellTabProvider.notifier).show(0);
   final nav = Navigator.of(context);
   if (isWideLayout(context)) {
+    // The detail is a pane of the Meetings tab.
+    ref.read(shellTabProvider.notifier).show(ShellTab.meetings);
     nav.popUntil((r) => r.isFirst);
     return;
+  }
+  // Phones: the meeting page is pushed over the current tab, so Back
+  // returns to it with its state (an Ask draft, a task filter). After a
+  // recording (a replace), the Meetings list is the natural page beneath.
+  if (replace || replaceRoute != null) {
+    ref.read(shellTabProvider.notifier).show(ShellTab.meetings);
   }
   final route = MaterialPageRoute<void>(
     builder: (_) => MeetingDetailScreen(meetingId: meetingId),

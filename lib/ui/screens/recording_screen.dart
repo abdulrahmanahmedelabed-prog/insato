@@ -1,6 +1,9 @@
 // Live recording: large timer, animated level meter, pause / resume, stop
 // (confirmed), discard, current speaker, processing backlog, editable title
-// and the live transcript, auto-scrolling as speech is transcribed.
+// and the live transcript, auto-scrolling as speech is transcribed. Also
+// the open tasks of expected attendees (F9), the microphone in use (F18;
+// a change applies to the next recording), the far-field profile and, on
+// Windows only, the audio source (F13).
 // Keyboard: Space toggles pause / resume on desktop.
 
 import 'dart:async';
@@ -13,6 +16,18 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/errors.dart';
 import '../../core/models.dart';
 import '../../core/time_format.dart';
+import '../../features/system_audio/audio_source_selector.dart'
+    show audioSourceLabel;
+import '../../features/system_audio/mixed_session_audio_source.dart'
+    show
+        SessionAudioMode,
+        audioSourceOfMode,
+        resolveSessionAudioMode,
+        systemAudioSupportedProvider;
+import '../../features/tasks/tasks.dart' show OpenTasksBanner;
+import '../../features/voice/mic_capture.dart' show capturePlatformProvider;
+import '../../features/voice/mic_settings.dart' show MicDeviceChip;
+import '../../features/voice/strings.dart' show VoiceStrings;
 import '../../session/meeting_session_controller.dart';
 import '../../session/providers.dart';
 import '../navigation.dart';
@@ -287,12 +302,23 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           );
 
-    final panel = _ControlPanel(
-      state: s,
-      currentSpeaker: s.currentSpeakerId == null
-          ? null
-          : speakersById[s.currentSpeakerId],
-      onDismissWarning: _controller.dismissMessage,
+    final panel = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (meetingId != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: OpenTasksBanner(meetingId: meetingId),
+          ),
+        _ControlPanel(
+          state: s,
+          currentSpeaker: s.currentSpeakerId == null
+              ? null
+              : speakersById[s.currentSpeakerId],
+          onDismissWarning: _controller.dismissMessage,
+        ),
+        _InputLine(session: s),
+      ],
     );
     // Pause / Stop / Discard stay pinned below the (scrollable) panel so
     // they can never be pushed off-screen.
@@ -362,6 +388,57 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The microphone chip (tap to change it for the next recording), and
+/// chips for the far-field profile and, on Windows, the audio source.
+/// Input chips of the recording screen. While a take runs they show what it
+/// actually uses (captured at start, updated on a microphone fallback):
+/// settings changed meanwhile apply to the next recording only.
+class _InputLine extends ConsumerWidget {
+  const _InputLine({required this.session});
+
+  final SessionState session;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingsDataProvider).value;
+    final platform = ref.watch(capturePlatformProvider);
+    final supported = ref.watch(systemAudioSupportedProvider).value ?? true;
+    final live = session.isCapturing && session.farField != null;
+    final source = live && session.audioSourceInUse != null
+        ? session.audioSourceInUse!
+        : settings?.audioSource;
+    final mode = source == null
+        ? null
+        : resolveSessionAudioMode(source, platform, systemSupported: supported);
+    final farField = live
+        ? session.farField!
+        : (settings?.farFieldMode ?? false);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          if (mode != SessionAudioMode.system)
+            MicDeviceChip(inUse: live ? (key: session.inputDeviceKey) : null),
+          if (farField)
+            const Chip(
+              avatar: Icon(Icons.meeting_room_rounded, size: 18),
+              label: Text(VoiceStrings.farField),
+            ),
+          if (mode != null && mode != SessionAudioMode.mic)
+            Chip(
+              avatar: const Icon(Icons.speaker_rounded, size: 18),
+              label: Text(audioSourceLabel(audioSourceOfMode(mode))),
+            ),
+        ],
+      ),
     );
   }
 }

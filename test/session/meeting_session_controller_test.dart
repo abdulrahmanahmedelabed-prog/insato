@@ -121,6 +121,25 @@ void main() {
     await c.cancel();
   });
 
+  test('stores the pre-meeting context and input device (v1.1)', () async {
+    await consent();
+    final c = controller();
+    final id = await c.start(
+      context: const MeetingContext(
+        agenda: [' الميزانية ', ''],
+        expectedAttendees: ['سارة'],
+        contextNotes: 'ملاحظات',
+      ),
+      inputDevice: 'usb-mic',
+    );
+    final m = (await MeetingRepository(db).get(id))!;
+    expect(m.context.agenda, ['الميزانية']);
+    expect(m.context.expectedAttendees, ['سارة']);
+    expect(m.context.contextNotes, 'ملاحظات');
+    expect(m.inputDevice, 'usb-mic');
+    await c.cancel();
+  });
+
   test('records, transcribes with speakers and finishes the meeting', () async {
     await consent();
     final c = controller();
@@ -665,7 +684,7 @@ void main() {
       final st = container.read(meetingJobsProvider(m.id));
       expect(st.phase, MeetingJobPhase.failed);
       expect(st.needsApiKey, isTrue);
-      expect(st.errorAr, contains('Claude'));
+      expect(st.errorAr, contains('مفتاح محرك المحضر'));
 
       minutes = FakeMinutesEngine();
       expect(await jobs.generateMinutes(), isTrue);
