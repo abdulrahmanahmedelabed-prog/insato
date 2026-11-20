@@ -38,6 +38,8 @@ import '../data/secure_settings.dart';
 import '../diarization/channel_cue.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
+import '../features/phone_call/phone_call_providers.dart'
+    show phoneCallSessionPlanProvider;
 import '../features/voice/voice_devices.dart'
     show knownSpeakerThresholdFor, vadConfigFor;
 import '../speech/asr_outcome.dart';
@@ -407,6 +409,7 @@ class SessionEngineRequest {
     this.farField = false,
     this.cloudAsrModel = AppSettingsData.defaultGroqAsrModel,
     this.cloudAsrAcknowledged = false,
+    this.vadConfig,
   });
 
   /// Builds a request from the user's settings.
@@ -446,8 +449,30 @@ class SessionEngineRequest {
   /// cloud transcription never starts without it.
   final bool cloudAsrAcknowledged;
 
+  /// VAD tuning that replaces the far-field / default one (phone-call
+  /// mode: the telephone audio profile); null = [vadConfigFor].
+  final VadSegmenterConfig? vadConfig;
+
   /// True when transcription goes to the cloud engine.
   bool get usesCloudAsr => asrEngine == AppSettingsData.asrCloud;
+
+  /// A copy with [languageHint] / [vadConfig] replaced (phone-call mode).
+  SessionEngineRequest withOverrides({
+    String? languageHint,
+    bool clearLanguageHint = false,
+    VadSegmenterConfig? vadConfig,
+  }) => SessionEngineRequest(
+    asrEngine: asrEngine,
+    whisperModelId: whisperModelId,
+    languageHint: clearLanguageHint
+        ? null
+        : (languageHint ?? this.languageHint),
+    firstIndex: firstIndex,
+    farField: farField,
+    cloudAsrModel: cloudAsrModel,
+    cloudAsrAcknowledged: cloudAsrAcknowledged,
+    vadConfig: vadConfig ?? this.vadConfig,
+  );
 }
 
 /// How long [disposeSegmenterSafely] waits for a segmenter to finish closing.
@@ -656,7 +681,7 @@ class SherpaSessionEnginesFactory implements SessionEnginesFactory {
     final segmenter = VadSegmenter(
       modelPath: vadPath,
       firstIndex: request.firstIndex,
-      config: vadConfigFor(farField: request.farField),
+      config: request.vadConfig ?? vadConfigFor(farField: request.farField),
     );
     GroqAsrEngine? cloud;
     final notices = StreamController<String>.broadcast();
@@ -1721,7 +1746,12 @@ class MeetingSessionController extends Notifier<SessionState> {
       }
       await hooks.ensureMicrophonePermission(audio);
 
-      final request = SessionEngineRequest.fromSettings(settings);
+      // Phone-call mode: telephone audio profile (VAD, language hint,
+      // voiceprint thresholds per call side); null otherwise.
+      final call = ref.read(phoneCallSessionPlanProvider);
+      final request =
+          call?.adjustRequest(SessionEngineRequest.fromSettings(settings)) ??
+          SessionEngineRequest.fromSettings(settings);
       _set(state.copyWith(statusAr: 'جارٍ التحقق من النماذج…'));
       await factory.ensureReady(request);
       _set(state.copyWith(statusAr: 'جارٍ تحميل نماذج التعرّف على الكلام…'));
@@ -1763,6 +1793,14 @@ class MeetingSessionController extends Notifier<SessionState> {
           sessionDeviceKey: deviceKey,
           base: settings.matchThreshold,
         ),
+        knownSpeakerThresholdIn: call == null
+            ? null
+            : (sp, partition) => call.knownSpeakerThreshold(
+                sp,
+                partition: partition,
+                sessionDeviceKey: deviceKey,
+                base: settings.matchThreshold,
+              ),
       );
       final pipeline = SessionPipeline(
         meetingId: meeting.id,

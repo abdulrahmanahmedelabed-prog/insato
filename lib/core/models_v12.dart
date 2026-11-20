@@ -243,3 +243,23 @@ class MinutesStyleHint {
   /// Expected voting members (names as entered), for context only.
   final List<String> votingMembers;
 }
+
+/// Phone-call mode (وضع المكالمة الهاتفية): how the call was captured and
+/// which transcript segments came from the remote side, for the minutes
+/// prompt.
+class MinutesCallHint {
+  /// Creates a hint.
+  const MinutesCallHint({required this.mode, this.remoteSegmentIds = const {}});
+
+  /// Phone Link on Windows (the remote side on its own channel).
+  static const String modePhoneLink = 'phone_link';
+
+  /// A phone on speaker recorded by this device's microphone.
+  static const String modeSpeakerphone = 'speakerphone';
+
+  /// [modePhoneLink] or [modeSpeakerphone].
+  final String mode;
+
+  /// Segment ids attributed to the remote side of the call.
+  final Set<String> remoteSegmentIds;
+}

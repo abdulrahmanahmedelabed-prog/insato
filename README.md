@@ -129,6 +129,19 @@
 صوت الاجتماع وحده ويكتب المحضر كالمعتاد، ثم يغادر عند انتهاء الاجتماع. مجاني
 ودون خادم: يعمل من تطبيق ويندوز عبر متصفح Edge. يمكن جدولة الانضمام ما دام
 التطبيق مفتوحاً. التفاصيل في `docs/ARCHITECTURE.md` و`docs/SETUP.md`.
+- **وضع المكالمة الهاتفية**: تفريغ مكالمة جوال عادية (لا يحتاج الطرف البعيد
+  إلى إنترنت) في أثناء حدوثها حين تجتمع مجموعة حول هاتف واحد بمكبّر الصوت.
+  على ويندوز عبر تطبيق Microsoft Phone Link (الطريقة المفضّلة): يُسجَّل صوت
+  الطرف البعيد من صوت النظام وصوتك من الميكروفون في قناتين منفصلتين، فيُنسب
+  كل مقطع إلى «الطرف البعيد» أو «الطرف المحلي» ويُميَّز المتحدثون داخل كل طرف
+  على حدة، ويُتجاهَل صدى السمّاعات الذي يلتقطه الميكروفون (وتُنصح سمّاعات
+  الرأس). أو على أي جهاز: المكالمة بمكبّر الصوت على هاتف، وإنصاتو يسجّل على
+  جهاز آخر. ملف «صوت الهاتف» يضبط اكتشاف الكلام للصوت ضيّق النطاق، ويحدّ
+  مقاطع الطرف البعيد إلى 300–3400 هرتز، ويخفّف عتبة مطابقة البصمات بين
+  الميكروفون وخط الهاتف، ويتيح تحديد لغة المكالمة. دليل ربط Phone Link بأندرويد
+  والآيفون خطوة بخطوة، وفحص يُظهر مستوى الطرفين قبل البدء، وتنبيه قانوني
+  بإبلاغ جميع الأطراف. يذكر المحضر أن جزءاً من الاجتماع كان مكالمة مع مجموعة
+  بعيدة. من زر الهاتف أعلى قائمة الاجتماعات.
 
 ## البنية باختصار
 
@@ -387,6 +400,21 @@ admitted, records only the meeting's audio, writes the minutes as usual and
 leaves when the meeting ends. Free, no server: it runs from the Windows app
 through Microsoft Edge. Joins can be scheduled while the app is open. See
 `docs/ARCHITECTURE.md` and `docs/SETUP.md` (verification status).
+- **Phone-call mode**: transcribe a regular cellular call live (the remote
+  side needs no internet) while a remote group gathers around one phone on
+  speaker. On Windows through Microsoft Phone Link (preferred): the remote
+  side is captured from system audio and you from the microphone as two
+  separate channels, so every segment is attributed to the remote or local
+  side and speakers are told apart within each side; speaker echo picked up
+  by the microphone is suppressed (headphones recommended). Or on any
+  device: the call runs on speaker on one phone and Insato records on
+  another. The "telephone audio" profile tunes the VAD for narrowband
+  speech, band-limits remote segments to 300–3400 Hz, relaxes voiceprint
+  matching between microphone and telephone line, and lets you fix the call
+  language. Step-by-step Phone Link pairing guide for Android and iPhone, a
+  level check of both sides before recording, and a legal reminder to inform
+  every party. The minutes note that part of the meeting was a phone call
+  with a remote group. Entry: the phone button above the meetings list.
 
 ## Architecture summary
 

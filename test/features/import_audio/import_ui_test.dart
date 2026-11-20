@@ -113,8 +113,7 @@ void main() {
 
     // Empty state offers the import next to "new meeting".
     expect(find.text(IS.importAction), findsOneWidget);
-    await t.tap(find.byTooltip(IS.importTooltip));
-    await settle(t);
+    await tapMeetingSource(t, IS.importTooltip);
     expect(find.text(IS.sourceFile('New Recording 3.wav')), findsOneWidget);
     expect(
       t
@@ -159,8 +158,7 @@ void main() {
     env.engines.asr = FakeAsr()..gate = gate;
     await pumpApp(t, env);
 
-    await t.tap(find.byTooltip(IS.importTooltip));
-    await settle(t);
+    await tapMeetingSource(t, IS.importTooltip);
     await _confirmDialog(t);
     final container = _container(t);
     await settleUntil(
@@ -192,8 +190,7 @@ void main() {
     File(path).writeAsBytesSync('%PDF-1.7'.codeUnits);
     final env = _env(pickedPath: path);
     await pumpApp(t, env);
-    await t.tap(find.byTooltip(IS.importTooltip));
-    await settle(t);
+    await tapMeetingSource(t, IS.importTooltip);
     await _confirmDialog(t);
     final container = _container(t);
     await settleUntil(
@@ -214,7 +211,10 @@ void main() {
       () => _wav(dir, 'Call recording Mona_241115_103012.wav'),
     ))!;
     final inbox = FakeInbox([
-      SharedAudioFile(name: 'Call recording Mona_241115_103012.wav', path: path),
+      SharedAudioFile(
+        name: 'Call recording Mona_241115_103012.wav',
+        path: path,
+      ),
     ]);
     final env = _env(inbox: inbox);
     await pumpApp(t, env);
@@ -236,9 +236,7 @@ void main() {
     expect(File(path).existsSync(), isFalse);
 
     // A failed hand-over is reported.
-    inbox.deliver(const [
-      SharedAudioFile(name: 'big.m4a', error: 'too_large'),
-    ]);
+    inbox.deliver(const [SharedAudioFile(name: 'big.m4a', error: 'too_large')]);
     await settle(t);
     expect(find.text(IS.sharedTooLarge), findsOneWidget);
     await env.dispose(t);

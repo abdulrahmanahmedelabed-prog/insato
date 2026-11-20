@@ -15,8 +15,19 @@ import '../../features/import_audio/import_audio.dart'
         importRecordingFlow,
         isImportedMeeting;
 import '../../features/meeting_bot/meeting_bot_screen.dart'
-    show MeetingBotButton;
+    show MeetingBotButton, openMeetingBotScreen;
+import '../../features/meeting_bot/strings.dart' show BotStrings;
+import '../../features/multi_device/guest_screens.dart'
+    show openGuestJoinScreen;
+import '../../features/multi_device/host_lobby_screen.dart'
+    show openHostLobbyScreen;
+import '../../features/multi_device/strings.dart' show MS;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
+import '../../features/phone_call/phone_call_setup_screen.dart'
+    show startPhoneCallFlow;
+import '../../features/phone_call/phone_call_widgets.dart'
+    show PhoneCallMenuButton;
+import '../../features/phone_call/strings.dart' show PCS;
 import '../../session/providers.dart';
 import '../actions.dart';
 import '../format.dart';
@@ -75,11 +86,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             const Text(S.appName),
           ],
         ),
-        actions: const [
-          ImportRecordingButton(),
-          MeetingBotButton(),
-          MultiDeviceMenuButton(),
-        ],
+        actions: const [_MeetingSourcesActions()],
       ),
       floatingActionButton: Tooltip(
         message: S.newMeetingShortcut,
@@ -376,4 +383,91 @@ class _IconText extends StatelessWidget {
       Flexible(child: child),
     ],
   );
+}
+
+/// One entry of the narrow-screen sources menu.
+class _SourceEntry {
+  const _SourceEntry(this.id, this.icon, this.label, this.run);
+
+  final String id;
+  final IconData icon;
+  final String label;
+  final void Function(BuildContext context, WidgetRef ref) run;
+}
+
+/// The meeting-source actions of the app bar: import, meeting bot, phone call
+/// and multi-device. Shown as separate icons when there is room; on narrow
+/// phones they collapse into one menu so the title never overflows.
+class _MeetingSourcesActions extends ConsumerWidget {
+  const _MeetingSourcesActions();
+
+  /// Narrower than this, the sources collapse into one menu.
+  static const double wideEnough = 520;
+
+  static final List<_SourceEntry> _entries = [
+    _SourceEntry(
+      'import',
+      Icons.upload_file_rounded,
+      IS.importTooltip,
+      (c, r) => importRecordingFlow(c, r),
+    ),
+    _SourceEntry(
+      'meeting-bot',
+      Icons.smart_toy_outlined,
+      BotStrings.entryTooltip,
+      (c, _) => openMeetingBotScreen(c),
+    ),
+    _SourceEntry(
+      'phone-call',
+      Icons.phone_in_talk_rounded,
+      PCS.menuTooltip,
+      (c, r) => startPhoneCallFlow(c, r),
+    ),
+    _SourceEntry(
+      'multi-device-host',
+      Icons.cast_connected_rounded,
+      MS.hostEntry,
+      (c, _) => openHostLobbyScreen(c),
+    ),
+    _SourceEntry(
+      'multi-device-guest',
+      Icons.mic_external_on_rounded,
+      MS.guestEntry,
+      (c, _) => openGuestJoinScreen(c),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= wideEnough) {
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ImportRecordingButton(),
+          MeetingBotButton(),
+          PhoneCallMenuButton(),
+          MultiDeviceMenuButton(),
+        ],
+      );
+    }
+    return PopupMenuButton<_SourceEntry>(
+      key: const ValueKey('meeting-sources-menu'),
+      tooltip: S.meetingSourcesMenu,
+      icon: const Icon(Icons.add_circle_outline_rounded),
+      onSelected: (e) => e.run(context, ref),
+      itemBuilder: (_) => [
+        for (final e in _entries)
+          PopupMenuItem(
+            key: ValueKey('source-${e.id}'),
+            value: e,
+            child: ListTile(
+              leading: Icon(e.icon),
+              title: Text(e.label),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+      ],
+    );
+  }
 }

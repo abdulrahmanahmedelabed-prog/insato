@@ -20,7 +20,12 @@ import 'dart:typed_data';
 /// Per-device SNR of one speech segment.
 class ChannelProfile {
   /// Creates a profile from `channel id → SNR dB`.
-  ChannelProfile(Map<String, double> snrDb)
+  ///
+  /// [partition] (phone-call mode): the side of the call the segment was
+  /// attributed to (`local` / `remote`). Segments of different partitions
+  /// are never given the same meeting-local speaker ([SpeakerTracker]) or
+  /// clustered together offline ([refineSpeakers]); null = no constraint.
+  ChannelProfile(Map<String, double> snrDb, {this.partition})
     : snrDb = Map.unmodifiable({
         for (final e in snrDb.entries)
           if (e.value.isFinite) e.key: e.value,
@@ -28,6 +33,13 @@ class ChannelProfile {
 
   /// Channel id → SNR in dB (finite values only).
   final Map<String, double> snrDb;
+
+  /// Hard diarization partition (phone-call side), or null.
+  final String? partition;
+
+  /// This profile without its [partition].
+  ChannelProfile withoutPartition() =>
+      partition == null ? this : ChannelProfile(snrDb);
 
   /// Softmax temperature (dB): a 3 dB lead gives the nearer device ≈ 73 %.
   static const double temperatureDb = 3;
@@ -70,7 +82,8 @@ class ChannelProfile {
   }
 
   @override
-  String toString() => 'ChannelProfile($snrDb)';
+  String toString() =>
+      'ChannelProfile($snrDb${partition == null ? '' : ', $partition'})';
 }
 
 /// Softmax of dB values at [ChannelProfile.temperatureDb].

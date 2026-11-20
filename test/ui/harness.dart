@@ -19,6 +19,7 @@ import 'package:insato/session/post_processor.dart';
 import 'package:insato/session/providers.dart';
 import 'package:insato/ui/services/connection_tester.dart';
 import 'package:insato/ui/services/share_gateway.dart';
+import 'package:insato/ui/strings_ar.dart' show S;
 import 'package:insato/ui/theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -330,4 +331,24 @@ Future<({Meeting meeting, Speaker sara, Speaker auto})> seedMeeting(
   }
   final meeting = (await meetings.get(m.id))!;
   return (meeting: meeting, sara: sara, auto: auto);
+}
+
+/// Opens the meetings-screen sources menu shown on narrow screens (phones
+/// collapse import, meeting bot, phone call, multi-device… into one menu).
+Future<void> openSourcesMenu(WidgetTester t) async {
+  await t.tap(find.byTooltip(S.meetingSourcesMenu));
+  await settle(t);
+}
+
+/// Starts the meetings-screen source labelled [label]: its own app-bar
+/// button on wide screens, or the entry of the sources menu on narrow ones.
+Future<void> tapMeetingSource(WidgetTester t, String label) async {
+  final direct = find.byTooltip(label);
+  if (direct.evaluate().isNotEmpty) {
+    await t.tap(direct.first);
+  } else {
+    await openSourcesMenu(t);
+    await t.tap(find.text(label).last);
+  }
+  await settle(t);
 }

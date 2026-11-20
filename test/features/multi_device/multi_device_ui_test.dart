@@ -56,8 +56,8 @@ void main() {
     setScreenSize(t, kPhone);
     final env = UiTestEnv();
     await pumpApp(t, env);
-    await t.tap(find.byTooltip(MS.menuTooltip));
-    await settle(t);
+    // Phone width: the sources collapse into one menu with both entries.
+    await openSourcesMenu(t);
     expect(find.text(MS.hostEntry), findsOneWidget);
     expect(find.text(MS.guestEntry), findsOneWidget);
     await t.tap(find.text(MS.guestEntry));

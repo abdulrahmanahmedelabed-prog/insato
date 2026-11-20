@@ -108,22 +108,31 @@ void main() {
       (1, syntheticSpeech(16000 * 3, seed: 8)),
       (1, noise(16000 * 3)),
     ], 16000 * 3);
+    // Real-time pacing on a fixed schedule (not "as fast as possible"): both
+    // devices then estimate the same sample clock, so the guest's frames land
+    // where the host expects them however loaded the test machine is. Each
+    // host frame is only captured once the guest's frame of the same instant
+    // has reached the host, so the mix always sees it within its latency.
     final framer = GuestAudioFramer();
+    final t0 = MonotonicClock.instance.nowUs() + 20000;
+    var sent = 0;
     for (var k = 0; k < 30; k++) {
+      final due = t0 + k * 100000;
+      final wait = due - MonotonicClock.instance.nowUs();
+      if (wait > 0) await Future<void>.delayed(Duration(microseconds: wait));
       final f = Float32List.sublistView(talk, k * 1600, (k + 1) * 1600);
-      final now = MonotonicClock.instance.nowUs();
       for (final (start, us, s) in framer.add(
         Float32List.fromList([for (final v in f) v * 0.8]),
-        now,
+        due,
       )) {
         guest.sendAudio(startIndex: start, captureUs: us, samples: s);
+        sent++;
       }
+      await waitUntil(
+        () => (source.engine!.statsOf('phone-1')?.framesReceived ?? 0) >= sent,
+      );
       local.emit(Float32List.fromList([for (final v in f) v * 0.2]));
-      await Future<void>.delayed(const Duration(milliseconds: 5));
     }
-    await waitUntil(
-      () => (source.engine!.statsOf('phone-1')?.framesReceived ?? 0) >= 30,
-    );
     final fused = source.fuseSegment(
       SpeechSegment(index: 0, startMs: 1000, samples: Float32List(16000)),
     );

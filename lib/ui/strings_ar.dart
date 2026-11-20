@@ -105,6 +105,10 @@ abstract final class S {
   /// Snackbar after deleting.
   static const String meetingDeleted = 'تم حذف الاجتماع.';
 
+  /// Meetings app bar on narrow screens: the menu of meeting sources.
+  static const String meetingSourcesMenu =
+      'مصادر الاجتماع: استيراد، روبوت، مكالمة، عدة أجهزة';
+
   /// Select a meeting (wide layout placeholder).
   static const String selectMeetingTitle = 'اختر اجتماعًا';
 
