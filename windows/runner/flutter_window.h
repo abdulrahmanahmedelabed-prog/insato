@@ -8,6 +8,7 @@
 
 #include "audio_decoder_channel.h"
 #include "battery_channel.h"
+#include "bot_audio_channel.h"
 #include "system_audio_channel.h"
 #include "win32_window.h"
 
@@ -37,6 +38,8 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<BatteryChannel> battery_;
   // Recording import: Media Foundation audio decoder.
   std::unique_ptr<AudioDecoderChannel> audio_decoder_;
+  // Meeting bot: process-loopback capture of the bot browser.
+  std::unique_ptr<BotAudioChannel> bot_audio_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

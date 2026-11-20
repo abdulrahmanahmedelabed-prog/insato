@@ -122,6 +122,14 @@
   «مستورد». تذكير: تختلف قوانين تسجيل المكالمات من بلد إلى آخر، فأبلغ
   المشاركين بالتسجيل.
 
+### روبوت الاجتماع (ويندوز)
+
+الصق رابط Google Meet أو Microsoft Teams أو Zoom أو Webex (أو معرّف اجتماع Zoom
+ورمز مروره) فيدخل روبوت إنصاتو الاجتماع باسم واضح، وينتظر سماح المنظّم، ويسجّل
+صوت الاجتماع وحده ويكتب المحضر كالمعتاد، ثم يغادر عند انتهاء الاجتماع. مجاني
+ودون خادم: يعمل من تطبيق ويندوز عبر متصفح Edge. يمكن جدولة الانضمام ما دام
+التطبيق مفتوحاً. التفاصيل في `docs/ARCHITECTURE.md` و`docs/SETUP.md`.
+
 ## البنية باختصار
 
 ```
@@ -370,6 +378,15 @@ language**, transcribes it, identifies speakers **by voice**, and writes
   service, no ffmpeg; processing runs in the background with progress and
   cancel, and the meeting carries an «مستورد» badge. Reminder: call
   recording laws vary — inform the participants.
+
+### Meeting bot (Windows)
+
+Paste a Google Meet, Microsoft Teams, Zoom or Webex link (or a Zoom meeting
+ID and passcode): Insato's bot joins under a clear name, waits to be
+admitted, records only the meeting's audio, writes the minutes as usual and
+leaves when the meeting ends. Free, no server: it runs from the Windows app
+through Microsoft Edge. Joins can be scheduled while the app is open. See
+`docs/ARCHITECTURE.md` and `docs/SETUP.md` (verification status).
 
 ## Architecture summary
 

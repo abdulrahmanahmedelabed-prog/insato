@@ -9,6 +9,8 @@ project(runner LANGUAGES CXX)
 add_executable(${BINARY_NAME} WIN32
   "audio_decoder_channel.cpp"
   "battery_channel.cpp"
+  "bot_audio_capture.cpp"
+  "bot_audio_channel.cpp"
   "flutter_window.cpp"
   "main.cpp"
   "system_audio_capture.cpp"
@@ -41,6 +43,8 @@ target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 # F13 system-audio capture (WASAPI loopback): COM (CoCreateInstance,
 # CoTaskMemFree) and MMCSS (AvSetMmThreadCharacteristicsW). The MMDevice /
 # IAudioClient GUIDs come from __uuidof, so no uuid.lib / mmdevapi.lib.
+# The meeting bot's process-loopback capture resolves
+# ActivateAudioInterfaceAsync from Mmdevapi.dll at run time (no new lib).
 target_link_libraries(${BINARY_NAME} PRIVATE "ole32.lib" "avrt.lib")
 # Recording import (audio_decoder_channel.cpp): Media Foundation source
 # reader (MFStartup / MFCreateMediaType in mfplat, MFCreateSourceReaderFromURL

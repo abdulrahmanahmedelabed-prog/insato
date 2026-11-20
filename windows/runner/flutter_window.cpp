@@ -31,6 +31,8 @@ bool FlutterWindow::OnCreate() {
       flutter_controller_->engine()->messenger());
   audio_decoder_ = std::make_unique<AudioDecoderChannel>(
       flutter_controller_->engine()->messenger());
+  bot_audio_ = std::make_unique<BotAudioChannel>(
+      flutter_controller_->engine()->messenger(), GetHandle());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -48,6 +50,7 @@ bool FlutterWindow::OnCreate() {
 void FlutterWindow::OnDestroy() {
   // Stops the capture thread while the messenger is still alive.
   system_audio_ = nullptr;
+  bot_audio_ = nullptr;
   battery_ = nullptr;
   audio_decoder_ = nullptr;
   if (flutter_controller_) {
@@ -75,6 +78,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case kSystemAudioMessage:
       if (system_audio_) {
         system_audio_->DeliverPendingEvents();
+      }
+      return 0;
+    case kBotAudioMessage:
+      if (bot_audio_) {
+        bot_audio_->DeliverPendingEvents();
       }
       return 0;
     case WM_FONTCHANGE:

@@ -14,6 +14,8 @@ import '../../features/import_audio/import_audio.dart'
         ImportedBadge,
         importRecordingFlow,
         isImportedMeeting;
+import '../../features/meeting_bot/meeting_bot_screen.dart'
+    show MeetingBotButton;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
 import '../../session/providers.dart';
 import '../actions.dart';
@@ -73,7 +75,11 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             const Text(S.appName),
           ],
         ),
-        actions: const [ImportRecordingButton(), MultiDeviceMenuButton()],
+        actions: const [
+          ImportRecordingButton(),
+          MeetingBotButton(),
+          MultiDeviceMenuButton(),
+        ],
       ),
       floatingActionButton: Tooltip(
         message: S.newMeetingShortcut,

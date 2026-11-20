@@ -11,6 +11,7 @@ import '../../session/providers.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../meeting_bot/meeting_bot_screen.dart' show MeetingBotEntryTile;
 import '../official/strings.dart' show OS;
 import '../official/template_picker.dart' show TemplatePickerField;
 import '../system_audio/audio_source_selector.dart' show AudioSourceSelector;
@@ -322,6 +323,8 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
     SizedBox(height: 8),
     AudioSourceSelector(compact: true),
     FarFieldTile(),
+    // Meeting bot (Windows only; renders nothing elsewhere).
+    MeetingBotEntryTile(),
   ];
 
   List<Widget> _agendaSection(ThemeData theme) => [
