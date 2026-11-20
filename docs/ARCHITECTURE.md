@@ -96,7 +96,7 @@ lib/
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
     post_processor.dart          refinement, voiceprint learning, minutes + artifacts
     providers.dart               Riverpod wiring of the whole app
-  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/)
+  features/                      v1.1 / v1.2 features (one folder each, see below; v1.2: official/, consistency/, multi_device/, meeting_bot/)
   ui/
     theme.dart, strings_ar.dart, navigation.dart, actions.dart
     screens/ home, recording, meeting_detail (+ tabs), speakers, settings, models
@@ -231,6 +231,52 @@ from 840 px.
 Pure-Dart modules (`core/`, `audio/pcm.dart`, `audio/wav_writer.dart`,
 `diarization/`, `minutes/minutes_prompt.dart`, `minutes/claude_client.dart`
 parsing) are covered by unit tests in `test/`.
+
+## Meeting bot (Windows)
+
+`lib/features/meeting_bot/` (strings `BotStrings`). The user pastes a Google
+Meet, Microsoft Teams, Zoom or Cisco Webex link (or a Zoom meeting ID and
+passcode); Insato starts a dedicated browser that joins as a clearly named
+guest («إنصاتو — كاتب المحضر», editable), waits until the organiser admits
+it, keeps its microphone and camera off, records the meeting through the
+normal pipeline and leaves when the meeting ends. Free, no server.
+
+```
+ MeetingBotScreen ─► MeetingBotController (Riverpod, not auto-disposed: schedules run while the app runs)
+                         │
+                         ▼
+                   MeetingBotRunner (pure state machine, 1 s ticks)
+   idle → scheduled → launching → joining → waitingAdmission → recording → leaving → ended / failed
+          │                │           │              │               │
+          │   ChromiumBotBrowserDriver │   page script (bot_scripts.dart, versioned data:
+          │   msedge.exe / chrome.exe  │   texts, CSS, button labels per service) via
+          │   --remote-debugging-port=0│   Runtime.evaluate over CdpConnection (dart:io WebSocket)
+          │   throw-away profile       │
+          ▼                            ▼
+   SessionBotRecorder: botCaptureTargetProvider = {pid, mode}
+     → sessionAudioSourceProvider → meetingBotAwareSource → system-only MixedSessionAudioSource
+         over ProcessLoopbackAudioPlatform(pid)  (insato/meeting_bot_audio, windows/runner/bot_audio_*)
+         or the F13 system loopback (fallback, warned)
+     → MeetingSessionController.start / stop (transcription, speakers, minutes as usual)
+```
+
+| Piece | File | Notes |
+|---|---|---|
+| Links | `meeting_link.dart` | Meet codes, Teams meetup-join / meet / launcher / teams.live.com / teams.cloud.microsoft, Zoom j / w / wc / zoommtg → `app.zoom.us/wc/join/<id>?pwd=` (vanity hosts kept), typed Zoom ID + passcode ("Meeting ID: … Passcode: …", Arabic labels too), Webex meet / join / j.php; Outlook safe links and Google redirects unwrapped |
+| Join flows | `bot_scripts.dart` | One versioned file (`kBotScriptsVersion`): per service the page states (unknown, launcher, prejoin, lobby, not_started, verification, in_call, lobby_timeout, denied, removed, ended, invalid, blocked) and action groups (launcher, prejoin, in_call, leave); a fixed ES5 interpreter (`kBotPageScript`). Final states are checked before "in call". Never "end for everyone" |
+| DevTools | `cdp.dart` | Commands with ids / replies / errors / timeouts, events, flattened sessions, `DevToolsActivePort` parsing |
+| Browser | `browser_driver.dart` | Edge first (Program Files (x86), Program Files, LocalAppData), Chrome fallback; `--lang=en-US`, autoplay allowed, no background throttling, silent fake microphone (`--use-file-for-fake-audio-capture` with a generated WAV of zeros); permissions: microphone granted (the silent file), camera and notifications denied; window minimised unless shown; profile deleted after the run |
+| State machine | `bot_runner.dart` | Timeouts: join 2 min, lobby 15 min, host not started 60 min, human check 5 min (window shown, never solved by the bot), alone 2 min, silence 30 min, call missing 2 min, 20 failed probes. Recording starts only when admitted and stops before leaving |
+| Audio | `bot_audio.dart` | `chooseBotCaptureMode`; `ProcessLoopbackAudioPlatform` (same events as F13); fallback to system loopback when unsupported or when activation is refused |
+| Native | `windows/runner/bot_audio_capture.*`, `bot_audio_channel.*` | `ActivateAudioInterfaceAsync("VAD\Process_Loopback", PROCESS_LOOPBACK, INCLUDE_TARGET_PROCESS_TREE)` resolved from Mmdevapi.dll at run time; 48 kHz stereo PCM16 with AUTOCONVERTPCM; `start` returns only after activation |
+| UI | `meeting_bot_screen.dart` | App-bar button on the meetings list (all platforms; phones see why it is Windows-only), tile on the new-meeting form (Windows), link / name / passcode (Zoom) / time / window / consent, live status with stop |
+
+Why a separate browser and not an embedded WebView2 (`webview_windows`):
+the bot's audio must come from its own process tree for process-loopback
+capture (an embedded WebView2 runs under Insato's own process), no new
+plugin or build-time NuGet download is needed, each run gets a throw-away
+guest profile, and closing the process ends everything. Edge is the same
+engine as the WebView2 runtime and ships with Windows 10 / 11.
 
 ## Speaker identification details
 

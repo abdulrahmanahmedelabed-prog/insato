@@ -23,6 +23,7 @@ import '../data/repositories_v11.dart';
 import '../data/secure_settings.dart';
 import '../features/context/session_keyterms.dart';
 import '../features/local_llm/local_minutes_backends.dart';
+import '../features/meeting_bot/bot_audio.dart' show meetingBotAwareSource;
 import '../features/multi_device/multi_device_providers.dart'
     show multiDeviceAwareSource, multiDeviceLogStoreProvider;
 import '../features/official/official_service.dart'
@@ -356,9 +357,14 @@ final sessionEnginesFactoryProvider = Provider<SessionEnginesFactory>((ref) {
 ///
 /// v1.2 C: while a multi-device lobby is open the source also records the
 /// guests ([multiDeviceAwareSource]).
+///
+/// Meeting bot (Windows): while a bot records, the source is the bot's
+/// capture instead ([meetingBotAwareSource]).
 final sessionAudioSourceProvider = Provider<SessionAudioSource>(
-  (ref) =>
-      multiDeviceAwareSource(ref, ref.watch(mixedSessionAudioSourceProvider)),
+  (ref) => multiDeviceAwareSource(
+    ref,
+    meetingBotAwareSource(ref, ref.watch(mixedSessionAudioSourceProvider)),
+  ),
 );
 
 /// Resolves the key of the microphone a new recording will use

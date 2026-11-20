@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/models.dart';
 import '../../core/time_format.dart';
+import '../../features/meeting_bot/meeting_bot_screen.dart'
+    show MeetingBotButton;
 import '../../features/multi_device/widgets.dart' show MultiDeviceMenuButton;
 import '../../session/providers.dart';
 import '../actions.dart';
@@ -65,7 +67,7 @@ class _MeetingsScreenState extends ConsumerState<MeetingsScreen> {
             const Text(S.appName),
           ],
         ),
-        actions: const [MultiDeviceMenuButton()],
+        actions: const [MeetingBotButton(), MultiDeviceMenuButton()],
       ),
       floatingActionButton: Tooltip(
         message: S.newMeetingShortcut,

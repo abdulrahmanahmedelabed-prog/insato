@@ -119,6 +119,19 @@ GitHub، ونماذج المحضر على الجهاز (GGUF) من Hugging Face.
 - لا خادم خاص بإنصاتو: التطبيق يتصل مباشرة بالخدمات أعلاه بمفاتيحك.
 - لا بيع ولا مشاركة للبيانات مع أي طرف آخر.
 
+### و) روبوت الاجتماع (ويندوز)
+
+عند إرسال روبوت إنصاتو إلى اجتماع Google Meet أو Microsoft Teams أو Zoom أو
+Webex يفتح التطبيق متصفح Microsoft Edge (أو Chrome) مستقلاً بملف تعريف مؤقت
+يُحذف بعد الاجتماع، ويدخل بصفته ضيفاً باسم ظاهر لكل المشاركين (افتراضياً
+«إنصاتو — كاتب المحضر»)، ولا يدخل إلا إذا سمح له المنظّم. ميكروفون الروبوت
+ملف صامت دائماً والكاميرا مرفوضة، فلا يُرسل أي صوت أو صورة من جهازك. يُسجَّل
+صوت متصفح الروبوت وحده (ويندوز 10 الإصدار 2004 أو أحدث)، وإلا فكل ما يصدر من
+السماعات مع تنبيه واضح. يتصل المتصفح بخدمة الاجتماع مباشرة كما لو انضممت
+بنفسك، وتنطبق سياسة خصوصية تلك الخدمة على ذلك؛ لا يمرّ شيء بخوادم إنصاتو. لا
+يتجاوز الروبوت أي إعداد أمان (غرفة الانتظار، التحقق البشري، اشتراط الحساب).
+عليك إبلاغ المشاركين بالتسجيل والحصول على موافقتهم وفق الأنظمة المعمول بها.
+
 ## 3. الحماية والاحتفاظ والحذف
 
 - تُحفظ مفاتيح API في المخزن الآمن للنظام، لا في قاعدة بيانات التطبيق:
@@ -316,6 +329,22 @@ microphones:
 - No ads, trackers, usage analytics or automatic crash reporting.
 - No Insato server: the app talks directly to the services above with your keys.
 - No selling or sharing of data with anyone else.
+
+### f) Meeting bot (Windows)
+
+When you send Insato's bot to a Google Meet, Microsoft Teams, Zoom or Webex
+meeting, the app starts a separate Microsoft Edge (or Chrome) with a
+temporary profile that is deleted afterwards. The bot joins as a guest
+under a name every participant sees (default «إنصاتو — كاتب المحضر») and
+only when the organiser admits it. Its microphone is a silent file and the
+camera permission is denied, so nothing from your devices is sent. Only the
+bot browser's audio is recorded (Windows 10 version 2004 or later),
+otherwise the whole system output with a clear warning. The browser talks
+to the meeting service directly, as if you had joined yourself, under that
+service's privacy policy; nothing goes through Insato servers. The bot
+never bypasses meeting security (waiting rooms, human checks, sign-in
+requirements). You are responsible for informing participants and
+obtaining their consent as required by applicable law.
 
 ## 3. Security, retention and deletion
 

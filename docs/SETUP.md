@@ -235,6 +235,62 @@ treats every issue as a failure. Generated `*.g.dart` files are excluded.
 - `windows/runner/battery_channel.cpp` serves the `insato/battery`
   MethodChannel (`GetSystemPowerStatus`).
 
+### 4.4 Meeting bot (Windows)
+
+Requirements on the user's PC: Microsoft Edge (preinstalled on Windows 10 /
+11; Google Chrome is used when Edge is missing). Recording only the bot's
+audio needs **Windows 10 version 2004 (build 19041) or later**
+(process-loopback capture); older builds fall back to recording the whole
+system output, with a warning. No WebView2 SDK, NuGet package or new link
+library is needed (the runner resolves `ActivateAudioInterfaceAsync` from
+Mmdevapi.dll at run time).
+
+How each join flow has been verified so far (no Windows PC, no live
+meetings in the development environment):
+
+| Service | Verified by |
+|---|---|
+| Google Meet | code review + mock page in headless Chrome on Linux (real CDP driver, page script, permissions) |
+| Microsoft Teams (web) | code review + mock page in headless Chrome on Linux |
+| Zoom (web client) | code review + mock page in headless Chrome on Linux (passcode, waiting room, "host has not started", Join Audio by Computer) |
+| Cisco Webex (web) | code review only — experimental |
+| Native process loopback (C++) | code review only — never compiled here |
+
+To verify on a real Windows PC (checklist):
+
+1. `flutter build windows` compiles with `/W4 /WX` (new files
+   `bot_audio_capture.cpp`, `bot_audio_channel.cpp`).
+2. Meeting bot screen → paste a Meet link of a meeting you organise from
+   another account / phone: Edge starts minimised with a fresh profile,
+   the name is filled, microphone and camera are off, "Ask to join"
+   appears on the organiser's side with the bot's name; admit it.
+3. The recording starts only after admission; the status says
+   "process audio only"; play music on the PC: it must **not** be in the
+   recording; speak in the meeting from the other device: it must be.
+4. Repeat with Teams (work link and teams.live.com), Zoom (link with pwd,
+   link without pwd + typed passcode, meeting with a waiting room, meeting
+   not yet started), and a Webex link.
+5. End scenarios: organiser ends the meeting; everyone else leaves (bot
+   leaves ~2 min later); organiser removes the bot; organiser declines the
+   knock; user presses stop; user stops from the recording screen; user
+   closes the bot's Edge window. Each ends with the right Arabic reason and
+   a saved meeting when something was recorded.
+6. Scheduled join a few minutes ahead while the app stays open.
+7. On a Windows 10 build older than 19041 (or with process loopback
+   failing) the fallback warning appears and system audio is recorded.
+8. Check whether lowering the bot's volume in the Windows Volume Mixer
+   affects the recording (not relied upon; documented limitation).
+9. If a service changed its page, update `lib/features/meeting_bot/bot_scripts.dart`
+   (texts / selectors / labels) and bump `kBotScriptsVersion`. "Show the
+   bot window" on the bot screen helps to see where a flow stops.
+
+Limitations: the meeting audio plays on the PC's speakers during the
+recording (process loopback captures what the browser renders; muting the
+browser with `--mute-audio` would silence the capture too). A CAPTCHA, a
+sign-in requirement or a Webex site that requires an e-mail stops the bot:
+it never bypasses them (for a CAPTCHA it shows its window so the user can
+complete it).
+
 ## 5. Continuous integration
 
 `.github/workflows/ci.yml` runs on every push and pull request

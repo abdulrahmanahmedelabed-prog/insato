@@ -332,3 +332,18 @@ v1.1 is verified on real devices.
 * Each finding cites both sides (meeting, resolution number, timestamp) and a
   severity; the user can dismiss or confirm (“تم الإلغاء رسمياً”) which
   updates the earlier resolution's status.
+
+
+## Meeting bot — Google Meet, Teams, Zoom, Webex (روبوت الاجتماع، ويندوز)
+
+Owner-approved option A (free, no cloud server). Windows only; the entry on
+phones explains why. Paste a link (or a Zoom meeting ID + passcode), choose
+the bot name (default «إنصاتو — كاتب المحضر»), optionally a join time
+(while the app runs), confirm the privacy / consent notice, send. Live
+status: connecting, waiting for admission (or for the host to start),
+recording, ended / failed with an Arabic reason; stop at any time. The bot
+records only after admission, through the normal pipeline, and leaves when
+the meeting ends, everyone left, it was removed, or after long silence.
+Join flows are data in one versioned file
+(`lib/features/meeting_bot/bot_scripts.dart`). Verification status per
+service: docs/SETUP.md §4.4.
