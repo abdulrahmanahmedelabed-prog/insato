@@ -104,9 +104,9 @@ void main() {
       );
     });
 
-    test('schema version is 4 (v1.1 + speaker confidence + dismissals)', () {
-      expect(db.schemaVersion, 4);
-      expect(AppDatabase.currentSchemaVersion, 4);
+    test('schema version is 5 (v1.2 official minutes)', () {
+      expect(db.schemaVersion, 5);
+      expect(AppDatabase.currentSchemaVersion, 5);
     });
 
     test('blob columns store raw bytes', () async {

@@ -146,6 +146,10 @@ class StructuredMinutesEngine implements MinutesEngine {
         },
         optedInSpeakers: optedInSpeakerNames(spoken, speakersById).toSet(),
         fallbackTitle: meeting.title,
+        speakerNames: {
+          for (final s in speakerStats(spoken, speakersById))
+            if (s.name != kUnknownSpeakerName) s.name,
+        },
       ),
     );
     report(1.0, 'اكتمل المحضر');

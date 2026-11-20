@@ -102,7 +102,10 @@ row ids). Map an id to a segment with
 
 ## 4. Database (schema v2) and repositories
 
-`AppDatabase.currentSchemaVersion == 2`; `onUpgrade` 1 → 2 is tested against
+(v1.2: the schema is now v5 — v3 speaker confidence, v4 task dismissals, v5
+official minutes; see docs/ARCHITECTURE.md.)
+
+`AppDatabase.currentSchemaVersion == 2` at v1.1; `onUpgrade` 1 → 2 is tested against
 the drift snapshots in `drift_schemas/` (`test/data/migration_test.dart`).
 After any future schema change: bump the version, add a migration step,
 `dart run drift_dev schema dump lib/data/database.dart drift_schemas/drift_schema_vN.json`

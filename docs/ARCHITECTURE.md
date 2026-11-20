@@ -50,7 +50,8 @@ Targets: **Android, iOS, Windows** from one Flutter codebase.
 | Diarization | VAD segments → embeddings → online cosine assignment + offline agglomerative refinement | Real-time labels during the meeting, corrected labels after |
 | Voiceprints | Global `speakers` table; centroid embedding + count, updated on confirmed segments | Renames persist across meetings |
 | Minutes | `MinutesBackend` chosen in Settings: **Google Gemini** (default, free tier, `gemini-flash-lite-latest`, `responseJsonSchema` with fallbacks) or Claude API `claude-opus-5-5` (adaptive thinking, structured outputs); on-device / local-server engines plug in (F14) | Free by default; faithful, structured Arabic minutes from multilingual transcript |
-| Export | PDF (`pdf` + bundled Arabic font), Markdown, plain-text share | Official, printable minutes |
+| Export | PDF (`pdf` + bundled Arabic font), Word, Markdown, plain-text share; v1.2 official layout and uploaded Word templates | Official, printable minutes |
+| Database | drift schema v5 (v1.2: `official_records`, `minutes_versions`, `minutes_signatures`), migrations tested from v1–v4 snapshots | Upgrades keep all data |
 
 ## Module layout (`lib/`)
 
@@ -60,6 +61,7 @@ lib/
   app.dart                       MaterialApp, theme, RTL, routes
   core/
     models.dart                  pure domain models (no Flutter imports)  ← CONTRACT
+    hijri.dart                   Umm al-Qura ⇄ Gregorian (v1.2)
     interfaces.dart              engine interfaces                         ← CONTRACT
     errors.dart                  InsatoException hierarchy
     time_format.dart             mm:ss / hh:mm:ss helpers (Arabic digits optional)
@@ -87,7 +89,7 @@ lib/
     claude_client.dart           raw-HTTP Messages API client with SSE streaming
     minutes_prompt.dart          system prompt + transcript rendering + JSON schema
     minutes_generator.dart       orchestrates Claude call → Minutes
-    export_service.dart          Minutes → Markdown / PDF / share text
+    export_service.dart          Minutes → Markdown / PDF / share text (official layout when given)
   session/
     meeting_session_controller.dart  orchestrates a live recording session
     minutes_engines.dart         engine selection (Gemini / Claude / local / server)
@@ -118,6 +120,37 @@ layers wire them in:
 | F14 local engines | `local_llm/` | Settings engine selector (builders from `local_minutes_backends.dart`); GGUF downloads in Settings and on the models screen |
 | F16 profiles | `profiles/` | «ملف المتحدث» from the voice library and the meeting speakers tab; `PostProcessor.onMinutesSaved` → `SpeakerProfileService.updateAfterMeeting` after every saved minutes |
 | F17 codes | `codes/` | Meeting tab «الرموز والشيفرات»; codes section in Markdown / text exports (`renderCodesSection`) |
+
+## v1.2 official minutes (A) and vote detection (B)
+
+`lib/features/official/` (strings `OS`), wired by the integrator:
+
+| Piece | File | Notes |
+|---|---|---|
+| Umm al-Qura calendar | `lib/core/hijri.dart` | Table of month lengths 1356–1500 AH (van Gent data set), `UmmAlQura.fromGregorian / toGregorian`, unit-tested against published anchors |
+| Vote models | `lib/core/models_v12.dart` | `MinutesDecision.formalText`, `MinutesDecision.vote` (`MinutesVote{mode, positions, announcedResult, evidence}`), `MinutesStyleHint` (`MinutesInputs.style`) |
+| Built-in templates | `official_templates.dart` | Generic: team (default), board, general assembly, committee, administrative; sections, numbering, wording, `QuorumRule`, `MajorityRule`, signatories |
+| Records & profile | `official_models.dart`, `lib/data/official_repository.dart` | `OfficialRecord` (number, header, attendance, rule overrides, vote reviews, lifecycle) in `official_records`; approved snapshots in `minutes_versions`; vector signatures in `minutes_signatures` (schema v5); `EntityProfile` and uploaded `CustomTemplate`s as JSON settings |
+| Pure logic | `official_logic.dart` | Attendance pre-fill, quorum, `tallyVote` / `decideVote`, meeting numbers, canonical content + SHA-256 |
+| Render model | `official_document.dart`, `official_outline.dart` | One `OfficialDocument` (+ format-neutral outline following the template's sections) rendered by PDF, Word, Markdown and share text |
+| Word templates | `docx_template.dart`, `template_placeholders.dart` | OOXML filling with package:archive + package:xml (split runs, blocks, repeated rows, images), placeholder catalogue, sample template |
+| Service | `official_service.dart` | `ensureRecord`, review gate, `approve`, `startNewVersion`, `onMinutesChanged`, `sign`, logo / template files (`AppPaths.brandingDir / templatesDir`) |
+| Screens | `official_minutes_screen.dart`, `attendance_screen.dart`, `vote_review_screen.dart`, `signature_pad.dart`, `versions_screen.dart`, `entity_settings_screen.dart`, `template_picker.dart`, `official_summary_card.dart` | Meeting menu «المحضر الرسمي»; card on the minutes tab; template on the context page; Settings «الجهة والقوالب» |
+
+Flow: the template id lives in `MeetingContext.template` (`board`, …, or
+`custom:<id>`). `PostProcessor.minutesInputsFor` adds the template's
+`MinutesStyleHint` (body, «قرر المجلس …») to the prompt's
+`<minutes_template>` block; the schema asks every engine for `formal_text`
+and `vote` per decision; `sanitizeVote` drops positions of speakers not in
+the transcript, unknown segment ids, downgrades unsupported positions to
+«غير واضح», and turns an unsupported voting moment into "none". The app,
+never the engine, computes the result under the majority rule. Approval
+hashes the canonical content (sorted-key JSON of the minutes without
+speaker notes / codes, header, attendance, rules and reviews); regenerating
+minutes, changing the template or editing after approval starts a new draft
+version (`onMinutesSaved` / context flow). Exports take an optional
+`OfficialDocument`; Word uses the meeting's uploaded template when there is
+one (PDF keeps the built-in official layout with that template's rules).
 
 Navigation (D1): the same five destinations on every platform — meetings,
 tasks, ask, voice library, settings (`ShellTab`) — in a bottom

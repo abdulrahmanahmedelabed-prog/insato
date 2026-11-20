@@ -10,6 +10,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/models.dart';
 import '../../features/context/meeting_context_card.dart';
 import '../../features/evidence/evidence.dart' show EvidenceChips;
+import '../../features/official/official_summary_card.dart'
+    show OfficialSummaryCard, confirmRegenerateOfficial;
 import '../../session/post_processor.dart';
 import '../../session/providers.dart';
 import '../navigation.dart';
@@ -51,6 +53,7 @@ class MeetingMinutesTab extends ConsumerWidget {
     final minutes = meeting.minutes;
 
     final children = <Widget>[
+      OfficialSummaryCard(meeting: meeting),
       MeetingContextCard(meeting: meeting),
       const SizedBox(height: 12),
     ];
@@ -143,7 +146,17 @@ class MeetingMinutesTab extends ConsumerWidget {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: canGenerate ? () => _generate(ref) : null,
+                onPressed: canGenerate
+                    ? () async {
+                        if (await confirmRegenerateOfficial(
+                          context,
+                          ref,
+                          meeting.id,
+                        )) {
+                          _generate(ref);
+                        }
+                      }
+                    : null,
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text(S.regenerateMinutes),
               ),

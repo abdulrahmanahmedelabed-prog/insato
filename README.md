@@ -70,6 +70,25 @@
   داخلية، وكود برمجي يُقال شفهياً، وكلام مُلمَّح، وأرقام مرجعية — كلها فرضيات
   موسومة بقائلها ولحظتها.
 
+### الجديد في الإصدار 1.2
+
+- **المحضر الرسمي المعتمد**: قوالب عامة لأي جهة (مجلس إدارة، جمعية عمومية،
+  لجنة، اجتماع إداري/حكومي، اجتماع فريق مبسّط) بصياغة رسمية للقرارات
+  («قرر المجلس…»، «أوصت اللجنة…») وترقيم وقواعد نصاب وتصويت وتواقيع.
+- **قالب Word خاص بجهتك**: ارفع قالبك بصيغة .docx مع حقول مثل
+  `{{meeting_number}}` و`{{resolutions}}` و`{{signatures}}`، مع قالب نموذجي
+  للتنزيل؛ ويُحتفظ بتنسيق قالبك وخطوطه واتجاهه.
+- **بيانات الجهة**: الاسم والشعار والمجالس واللجان، وترقيم تلقائي للاجتماعات
+  (مثل 12/1448هـ).
+- **التاريخ الهجري (أم القرى) والميلادي** في الترويسة وكل الصادرات.
+- **كشف الحضور والنصاب**: حاضر / غائب بعذر / غائب دون عذر / مدعو، مع عبارة
+  «اكتمل النصاب / لم يكتمل».
+- **رصد التصويت**: موقف كل متحدث من كل قرار (موافق، معترض، ممتنع، لم يصوّت،
+  غير واضح) مع الدليل، و«توافق دون تصويت رسمي»، وحساب النتيجة وفق قاعدة
+  الأغلبية، وشاشة مراجعة لأمين السر.
+- **الاعتماد والتواقيع**: مسودة ← مراجعة ← اعتماد يقفل المحتوى ويطبع رمز
+  التحقق SHA-256، وتواقيع بالإصبع أو القلم على الجهاز، وسجل للإصدارات.
+
 ## البنية باختصار
 
 ```
@@ -246,6 +265,27 @@ language**, transcribes it, identifies speakers **by voice**, and writes
 - **Codes & jargon**: coded or unintelligible speech (never dropped),
   internal jargon, spoken source code, implied speech and reference numbers,
   as labelled hypotheses with speaker and timestamp.
+
+### New in 1.2
+
+- **Official approved minutes**: generic templates for any institution
+  (board, general assembly, committee, administrative/government, simplified
+  team meeting) with formal resolution wording, numbering, quorum, majority
+  and signature rules.
+- **Your own Word template**: upload a .docx with placeholders such as
+  `{{meeting_number}}`, `{{resolutions}}`, `{{signatures}}` (a sample
+  template is downloadable); its styles, fonts and direction are kept.
+- **Entity profile**: name, logo, councils/committees, automatic meeting
+  numbers (e.g. 12/1448هـ).
+- **Hijri (Umm al-Qura) and Gregorian dates** in the header and all exports.
+- **Attendance and quorum**: present / excused / absent / guest, with the
+  quorum statement.
+- **Vote detection**: each speaker's position per resolution with evidence,
+  "consensus without a formal vote", results under the majority rule, and a
+  secretary review screen.
+- **Approval and signatures**: draft → reviewed → approved locks the
+  content and prints its SHA-256; finger/pen signatures on the device;
+  version history.
 
 ## Architecture summary
 

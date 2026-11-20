@@ -17,6 +17,8 @@ import '../../data/repositories.dart';
 import '../../minutes/export_service.dart';
 import '../../session/providers.dart';
 import '../../ui/services/share_gateway.dart' show ShareOutcome;
+import '../official/official_document.dart';
+import '../official/official_service.dart';
 import 'minutes_docx.dart';
 import 'strings.dart';
 
@@ -54,6 +56,8 @@ class MinutesExportData {
     required this.meeting,
     required this.segments,
     required this.speakersById,
+    this.official,
+    this.templateBytes,
   });
 
   /// The meeting (with its minutes, if any).
@@ -64,6 +68,12 @@ class MinutesExportData {
 
   /// All speakers by id.
   final Map<String, Speaker> speakersById;
+
+  /// v1.2: the official minutes when the meeting uses an official template.
+  final OfficialDocument? official;
+
+  /// v1.2: the uploaded Word template of the meeting, if any.
+  final Uint8List? templateBytes;
 }
 
 /// Writes exported minutes to the export folder and shares them.
@@ -107,14 +117,26 @@ class DocxExportService {
     Map<String, Speaker> speakersById, {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
-  }) => const MinutesDocxComposer().build(
-    meeting,
-    minutes,
-    speakersById,
-    segments: segments,
-    includeTranscript: includeTranscript,
-    created: _now(),
-  );
+    OfficialDocument? official,
+    Uint8List? templateBytes,
+  }) => official != null
+      ? const MinutesDocxComposer().buildOfficial(
+          official,
+          minutes,
+          speakersById,
+          segments: segments,
+          includeTranscript: includeTranscript,
+          created: _now(),
+          templateBytes: templateBytes,
+        )
+      : const MinutesDocxComposer().build(
+          meeting,
+          minutes,
+          speakersById,
+          segments: segments,
+          includeTranscript: includeTranscript,
+          created: _now(),
+        );
 
   /// The bytes of the minutes in [format]. PDF and Markdown come from
   /// [ExportService] unchanged.
@@ -125,6 +147,8 @@ class DocxExportService {
     Map<String, Speaker> speakersById, {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
+    OfficialDocument? official,
+    Uint8List? templateBytes,
   }) async => switch (format) {
     MinutesExportFormat.pdf => await _export.toPdf(
       meeting,
@@ -132,6 +156,7 @@ class DocxExportService {
       speakersById,
       segments: segments,
       includeTranscript: includeTranscript,
+      official: official,
     ),
     MinutesExportFormat.docx => buildDocx(
       meeting,
@@ -139,6 +164,8 @@ class DocxExportService {
       speakersById,
       segments: segments,
       includeTranscript: includeTranscript,
+      official: official,
+      templateBytes: templateBytes,
     ),
     MinutesExportFormat.markdown => utf8.encode(
       _export.toMarkdown(
@@ -147,6 +174,7 @@ class DocxExportService {
         speakersById,
         segments: segments,
         includeTranscript: includeTranscript,
+        official: official,
       ),
     ),
   };
@@ -200,6 +228,8 @@ class DocxExportService {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
     Rect? origin,
+    OfficialDocument? official,
+    Uint8List? templateBytes,
   }) async {
     final bytes = await buildBytes(
       format,
@@ -208,6 +238,8 @@ class DocxExportService {
       speakersById,
       segments: segments,
       includeTranscript: includeTranscript,
+      official: official,
+      templateBytes: templateBytes,
     );
     return shareFile(
       bytes: bytes,
@@ -266,13 +298,20 @@ Future<MinutesExportData?> loadMinutesExportData({
   required SegmentRepository segments,
   required SpeakerRepository speakers,
   required String meetingId,
+  OfficialMinutesService? official,
 }) async {
   final meeting = await meetings.get(meetingId);
   if (meeting == null) return null;
+  final doc = await official?.documentForExport(meeting);
+  final custom = doc?.customTemplate;
   return MinutesExportData(
     meeting: meeting,
     segments: await segments.getForMeeting(meetingId),
     speakersById: await speakers.getAllById(),
+    official: doc,
+    templateBytes: custom == null
+        ? null
+        : await official!.templateBytes(custom),
   );
 }
 

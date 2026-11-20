@@ -10,6 +10,8 @@ import '../../session/providers.dart';
 import '../../ui/services/share_gateway.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
+import '../official/official_service.dart'
+    show officialMinutesServiceProvider;
 import 'docx_export_service.dart';
 import 'strings.dart';
 
@@ -78,6 +80,7 @@ class _ExportShareSheetState extends ConsumerState<ExportShareSheet> {
         segments: ref.read(segmentRepositoryProvider),
         speakers: ref.read(speakerRepositoryProvider),
         meetingId: widget.meetingId,
+        official: ref.read(officialMinutesServiceProvider),
       );
       if (data == null) throw const InsatoException(S.meetingNotFound);
       final minutes = data.meeting.minutes;
@@ -94,6 +97,7 @@ class _ExportShareSheetState extends ConsumerState<ExportShareSheet> {
                 data.speakersById,
                 segments: data.segments,
                 includeTranscript: _withTranscript,
+                official: data.official,
               ),
               name: DocxExportService.shareSubject(data.meeting, minutes),
             );
@@ -111,6 +115,8 @@ class _ExportShareSheetState extends ConsumerState<ExportShareSheet> {
           segments: data.segments,
           includeTranscript: _withTranscript,
           origin: origin,
+          official: data.official,
+          templateBytes: data.templateBytes,
         );
         if (r.savedPath != null) {
           message = S.savedTo(r.savedPath!);

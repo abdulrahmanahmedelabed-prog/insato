@@ -7,8 +7,10 @@
 import 'dart:typed_data';
 
 import 'models_v11.dart';
+import 'models_v12.dart';
 
 export 'models_v11.dart';
+export 'models_v12.dart';
 
 /// Audio format used everywhere inside the pipeline.
 const int kSampleRate = 16000;
@@ -338,6 +340,8 @@ class MinutesDecision {
     required this.text,
     this.proposedBy,
     this.evidence = const [],
+    this.formalText,
+    this.vote = MinutesVote.none,
   });
 
   final String text;
@@ -346,13 +350,43 @@ class MinutesDecision {
   /// v1.1 (F5): transcript segment indices supporting the decision.
   final List<int> evidence;
 
-  Map<String, dynamic> toJson() =>
-      {'text': text, 'proposed_by': proposedBy, 'evidence': evidence};
+  /// v1.2 (A): the resolution in formal wording («قرر المجلس …»), or null
+  /// (v1 / v1.1 minutes, or nothing formal could be written).
+  final String? formalText;
+
+  /// v1.2 (B): the voting moment, as detected by the engine.
+  final MinutesVote vote;
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'proposed_by': proposedBy,
+        'evidence': evidence,
+        'formal_text': formalText,
+        'vote': vote.toJson(),
+      };
 
   factory MinutesDecision.fromJson(Map<String, dynamic> j) => MinutesDecision(
         text: _str(j['text']),
         proposedBy: _nonEmpty(j['proposed_by']),
         evidence: parseEvidenceIds(j['evidence']),
+        formalText: _nonEmpty(j['formal_text']),
+        vote: MinutesVote.fromJson(j['vote']),
+      );
+
+  /// Copy with replaced fields.
+  MinutesDecision copyWith({
+    String? text,
+    String? proposedBy,
+    List<int>? evidence,
+    String? formalText,
+    MinutesVote? vote,
+  }) =>
+      MinutesDecision(
+        text: text ?? this.text,
+        proposedBy: proposedBy ?? this.proposedBy,
+        evidence: evidence ?? this.evidence,
+        formalText: formalText ?? this.formalText,
+        vote: vote ?? this.vote,
       );
 }
 

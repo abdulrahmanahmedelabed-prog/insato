@@ -23,6 +23,8 @@ import '../data/repositories_v11.dart';
 import '../data/secure_settings.dart';
 import '../features/context/session_keyterms.dart';
 import '../features/local_llm/local_minutes_backends.dart';
+import '../features/official/official_service.dart'
+    show officialMinutesServiceProvider;
 import '../features/profiles/profile_service.dart'
     show speakerProfileServiceProvider;
 import '../features/system_audio/mixed_session_audio_source.dart'
@@ -51,6 +53,7 @@ export '../data/repositories.dart'
         speakersByIdProvider,
         speakersProvider;
 export '../data/repositories_v11.dart';
+export '../data/official_repository.dart';
 export '../data/minutes_artifacts.dart' show minutesArtifactsWriterProvider;
 export '../data/secure_settings.dart'
     show appSettingsDataProvider, appSettingsProvider, secureSettingsProvider;
@@ -123,6 +126,15 @@ class AppPaths {
   /// `<data root>/exports` (created on demand): files for sharing.
   Future<String> exportsDir() async =>
       _ensure(p.join(await _dataRoot(), 'exports'));
+
+  /// `<data root>/branding` (created on demand): the entity logo (v1.2).
+  Future<String> brandingDir() async =>
+      _ensure(p.join(await _dataRoot(), 'branding'));
+
+  /// `<data root>/templates` (created on demand): uploaded Word templates
+  /// (v1.2).
+  Future<String> templatesDir() async =>
+      _ensure(p.join(await _dataRoot(), 'templates'));
 
   /// `<temporary>/share` (created on demand): short-lived files handed to
   /// the share sheet on Android / iOS (see `DefaultShareGateway`).
@@ -378,8 +390,16 @@ final postProcessorProvider = Provider<PostProcessor>((ref) {
       return s.isActive && s.meetingId == id;
     },
     // F16: merge the new speaker notes into opted-in speakers' profiles.
-    onMinutesSaved: (id) =>
-        ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),
+    onMinutesSaved: (id) async {
+      // v1.2: regenerated minutes of an approved meeting become a new draft
+      // version (the approved one stays in the history).
+      try {
+        await ref.read(officialMinutesServiceProvider).onMinutesChanged(id);
+      } catch (_) {
+        // Best effort; the official screen detects a changed hash too.
+      }
+      await ref.read(speakerProfileServiceProvider).updateAfterMeeting(id);
+    },
     // F16: a deleted meeting leaves the stored profiles.
     onMeetingDeleted: (id) =>
         ref.read(speakerProfileServiceProvider).updateAfterMeeting(id),

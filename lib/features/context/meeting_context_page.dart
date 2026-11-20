@@ -11,6 +11,8 @@ import '../../session/providers.dart';
 import '../../ui/strings_ar.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../official/strings.dart' show OS;
+import '../official/template_picker.dart' show TemplatePickerField;
 import '../system_audio/audio_source_selector.dart' show AudioSourceSelector;
 import '../voice/mic_settings.dart' show FarFieldTile, MicDeviceChip;
 import '../voice/strings.dart' show VoiceStrings;
@@ -81,6 +83,7 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
     widget.initial.context.expectedAttendees,
   );
   late List<GlossaryDraft> _terms = List.of(widget.initial.meetingTerms);
+  late String? _template = widget.initial.context.template;
   String? _agendaError;
   String? _attendeeError;
   bool _closing = false;
@@ -103,6 +106,8 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
       expectedAttendees: _attendees,
       contextNotes: _notes.text,
       clearContextNotes: _notes.text.trim().isEmpty,
+      template: _template,
+      clearTemplate: _template == null,
     ),
     meetingTerms: _terms,
   );
@@ -270,6 +275,14 @@ class _MeetingContextPageState extends ConsumerState<MeetingContextPage> {
                       hintText: CS.titleHint,
                     ),
                     onChanged: (_) => setState(() {}),
+                  ),
+                  const SectionHeader(
+                    OS.templateHeader,
+                    icon: Icons.gavel_rounded,
+                  ),
+                  TemplatePickerField(
+                    value: _template,
+                    onChanged: (v) => setState(() => _template = v),
                   ),
                   if (before) ..._audioSection(),
                   ..._agendaSection(theme),

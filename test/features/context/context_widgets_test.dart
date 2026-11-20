@@ -229,6 +229,7 @@ void main() {
       await settle(t);
 
       await t.ensureVisible(find.text(CS.addMeetingTerm));
+      await settle(t);
       await t.tap(find.text(CS.addMeetingTerm));
       await settle(t);
       await t.enterText(field(CS.termLabel), 'Falcon');
@@ -349,7 +350,7 @@ void main() {
     });
 
     testWidgets('new meeting with context starts the session', (t) async {
-      setScreenSize(t, const Size(500, 1400));
+      setScreenSize(t, const Size(500, 1800));
       final env = UiTestEnv();
       await env.run(
         t,

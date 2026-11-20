@@ -55,6 +55,9 @@ dependencies:
   flutter_foreground_task: ^11.0.3
   collection: ^1.19.1
   crypto: ^3.0.8
+  file_selector: ^1.1.0
+  image: ^4.3.0
+  xml: ^7.1.0
   flutter_localizations:
     sdk: flutter
   audioplayers: ^6.8.1

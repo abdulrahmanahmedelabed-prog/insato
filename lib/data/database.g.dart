@@ -5435,6 +5435,1581 @@ class TaskDismissalsCompanion extends UpdateCompanion<TaskDismissalRow> {
   }
 }
 
+class $OfficialRecordsTable extends OfficialRecords
+    with TableInfo<$OfficialRecordsTable, OfficialRecordRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OfficialRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _entityKeyMeta = const VerificationMeta(
+    'entityKey',
+  );
+  @override
+  late final GeneratedColumn<String> entityKey = GeneratedColumn<String>(
+    'entity_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _committeeMeta = const VerificationMeta(
+    'committee',
+  );
+  @override
+  late final GeneratedColumn<String> committee = GeneratedColumn<String>(
+    'committee',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _numberYearMeta = const VerificationMeta(
+    'numberYear',
+  );
+  @override
+  late final GeneratedColumn<int> numberYear = GeneratedColumn<int>(
+    'number_year',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _meetingNumberMeta = const VerificationMeta(
+    'meetingNumber',
+  );
+  @override
+  late final GeneratedColumn<int> meetingNumber = GeneratedColumn<int>(
+    'meeting_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _recordJsonMeta = const VerificationMeta(
+    'recordJson',
+  );
+  @override
+  late final GeneratedColumn<String> recordJson = GeneratedColumn<String>(
+    'record_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAt =
+      GeneratedColumn<int>(
+        'updated_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($OfficialRecordsTable.$converterupdatedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    meetingId,
+    entityKey,
+    committee,
+    numberYear,
+    meetingNumber,
+    status,
+    version,
+    recordJson,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'official_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OfficialRecordRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('entity_key')) {
+      context.handle(
+        _entityKeyMeta,
+        entityKey.isAcceptableOrUnknown(data['entity_key']!, _entityKeyMeta),
+      );
+    }
+    if (data.containsKey('committee')) {
+      context.handle(
+        _committeeMeta,
+        committee.isAcceptableOrUnknown(data['committee']!, _committeeMeta),
+      );
+    }
+    if (data.containsKey('number_year')) {
+      context.handle(
+        _numberYearMeta,
+        numberYear.isAcceptableOrUnknown(data['number_year']!, _numberYearMeta),
+      );
+    }
+    if (data.containsKey('meeting_number')) {
+      context.handle(
+        _meetingNumberMeta,
+        meetingNumber.isAcceptableOrUnknown(
+          data['meeting_number']!,
+          _meetingNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('record_json')) {
+      context.handle(
+        _recordJsonMeta,
+        recordJson.isAcceptableOrUnknown(data['record_json']!, _recordJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordJsonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {meetingId};
+  @override
+  OfficialRecordRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OfficialRecordRow(
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      entityKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_key'],
+      )!,
+      committee: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}committee'],
+      )!,
+      numberYear: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}number_year'],
+      ),
+      meetingNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}meeting_number'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      recordJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_json'],
+      )!,
+      updatedAt: $OfficialRecordsTable.$converterupdatedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $OfficialRecordsTable createAlias(String alias) {
+    return $OfficialRecordsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterupdatedAt =
+      const EpochMillisConverter();
+}
+
+class OfficialRecordRow extends DataClass
+    implements Insertable<OfficialRecordRow> {
+  /// Meeting; deleted with the meeting.
+  final String meetingId;
+
+  /// Normalised entity name at numbering time.
+  final String entityKey;
+
+  /// Normalised committee name ('' = none).
+  final String committee;
+
+  /// Year of the meeting number (Hijri or Gregorian).
+  final int? numberYear;
+
+  /// Meeting number within entity / committee / year.
+  final int? meetingNumber;
+
+  /// `OfficialStatus.name`.
+  final String status;
+
+  /// Current version (1-based).
+  final int version;
+
+  /// `OfficialRecord.toJson()`.
+  final String recordJson;
+
+  /// Last update (UTC epoch milliseconds in SQL).
+  final DateTime updatedAt;
+  const OfficialRecordRow({
+    required this.meetingId,
+    required this.entityKey,
+    required this.committee,
+    this.numberYear,
+    this.meetingNumber,
+    required this.status,
+    required this.version,
+    required this.recordJson,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['entity_key'] = Variable<String>(entityKey);
+    map['committee'] = Variable<String>(committee);
+    if (!nullToAbsent || numberYear != null) {
+      map['number_year'] = Variable<int>(numberYear);
+    }
+    if (!nullToAbsent || meetingNumber != null) {
+      map['meeting_number'] = Variable<int>(meetingNumber);
+    }
+    map['status'] = Variable<String>(status);
+    map['version'] = Variable<int>(version);
+    map['record_json'] = Variable<String>(recordJson);
+    {
+      map['updated_at'] = Variable<int>(
+        $OfficialRecordsTable.$converterupdatedAt.toSql(updatedAt),
+      );
+    }
+    return map;
+  }
+
+  OfficialRecordsCompanion toCompanion(bool nullToAbsent) {
+    return OfficialRecordsCompanion(
+      meetingId: Value(meetingId),
+      entityKey: Value(entityKey),
+      committee: Value(committee),
+      numberYear: numberYear == null && nullToAbsent
+          ? const Value.absent()
+          : Value(numberYear),
+      meetingNumber: meetingNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(meetingNumber),
+      status: Value(status),
+      version: Value(version),
+      recordJson: Value(recordJson),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory OfficialRecordRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OfficialRecordRow(
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      entityKey: serializer.fromJson<String>(json['entityKey']),
+      committee: serializer.fromJson<String>(json['committee']),
+      numberYear: serializer.fromJson<int?>(json['numberYear']),
+      meetingNumber: serializer.fromJson<int?>(json['meetingNumber']),
+      status: serializer.fromJson<String>(json['status']),
+      version: serializer.fromJson<int>(json['version']),
+      recordJson: serializer.fromJson<String>(json['recordJson']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'meetingId': serializer.toJson<String>(meetingId),
+      'entityKey': serializer.toJson<String>(entityKey),
+      'committee': serializer.toJson<String>(committee),
+      'numberYear': serializer.toJson<int?>(numberYear),
+      'meetingNumber': serializer.toJson<int?>(meetingNumber),
+      'status': serializer.toJson<String>(status),
+      'version': serializer.toJson<int>(version),
+      'recordJson': serializer.toJson<String>(recordJson),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  OfficialRecordRow copyWith({
+    String? meetingId,
+    String? entityKey,
+    String? committee,
+    Value<int?> numberYear = const Value.absent(),
+    Value<int?> meetingNumber = const Value.absent(),
+    String? status,
+    int? version,
+    String? recordJson,
+    DateTime? updatedAt,
+  }) => OfficialRecordRow(
+    meetingId: meetingId ?? this.meetingId,
+    entityKey: entityKey ?? this.entityKey,
+    committee: committee ?? this.committee,
+    numberYear: numberYear.present ? numberYear.value : this.numberYear,
+    meetingNumber: meetingNumber.present
+        ? meetingNumber.value
+        : this.meetingNumber,
+    status: status ?? this.status,
+    version: version ?? this.version,
+    recordJson: recordJson ?? this.recordJson,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  OfficialRecordRow copyWithCompanion(OfficialRecordsCompanion data) {
+    return OfficialRecordRow(
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      entityKey: data.entityKey.present ? data.entityKey.value : this.entityKey,
+      committee: data.committee.present ? data.committee.value : this.committee,
+      numberYear: data.numberYear.present
+          ? data.numberYear.value
+          : this.numberYear,
+      meetingNumber: data.meetingNumber.present
+          ? data.meetingNumber.value
+          : this.meetingNumber,
+      status: data.status.present ? data.status.value : this.status,
+      version: data.version.present ? data.version.value : this.version,
+      recordJson: data.recordJson.present
+          ? data.recordJson.value
+          : this.recordJson,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OfficialRecordRow(')
+          ..write('meetingId: $meetingId, ')
+          ..write('entityKey: $entityKey, ')
+          ..write('committee: $committee, ')
+          ..write('numberYear: $numberYear, ')
+          ..write('meetingNumber: $meetingNumber, ')
+          ..write('status: $status, ')
+          ..write('version: $version, ')
+          ..write('recordJson: $recordJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    meetingId,
+    entityKey,
+    committee,
+    numberYear,
+    meetingNumber,
+    status,
+    version,
+    recordJson,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OfficialRecordRow &&
+          other.meetingId == this.meetingId &&
+          other.entityKey == this.entityKey &&
+          other.committee == this.committee &&
+          other.numberYear == this.numberYear &&
+          other.meetingNumber == this.meetingNumber &&
+          other.status == this.status &&
+          other.version == this.version &&
+          other.recordJson == this.recordJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class OfficialRecordsCompanion extends UpdateCompanion<OfficialRecordRow> {
+  final Value<String> meetingId;
+  final Value<String> entityKey;
+  final Value<String> committee;
+  final Value<int?> numberYear;
+  final Value<int?> meetingNumber;
+  final Value<String> status;
+  final Value<int> version;
+  final Value<String> recordJson;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const OfficialRecordsCompanion({
+    this.meetingId = const Value.absent(),
+    this.entityKey = const Value.absent(),
+    this.committee = const Value.absent(),
+    this.numberYear = const Value.absent(),
+    this.meetingNumber = const Value.absent(),
+    this.status = const Value.absent(),
+    this.version = const Value.absent(),
+    this.recordJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OfficialRecordsCompanion.insert({
+    required String meetingId,
+    this.entityKey = const Value.absent(),
+    this.committee = const Value.absent(),
+    this.numberYear = const Value.absent(),
+    this.meetingNumber = const Value.absent(),
+    this.status = const Value.absent(),
+    this.version = const Value.absent(),
+    required String recordJson,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : meetingId = Value(meetingId),
+       recordJson = Value(recordJson),
+       updatedAt = Value(updatedAt);
+  static Insertable<OfficialRecordRow> custom({
+    Expression<String>? meetingId,
+    Expression<String>? entityKey,
+    Expression<String>? committee,
+    Expression<int>? numberYear,
+    Expression<int>? meetingNumber,
+    Expression<String>? status,
+    Expression<int>? version,
+    Expression<String>? recordJson,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (entityKey != null) 'entity_key': entityKey,
+      if (committee != null) 'committee': committee,
+      if (numberYear != null) 'number_year': numberYear,
+      if (meetingNumber != null) 'meeting_number': meetingNumber,
+      if (status != null) 'status': status,
+      if (version != null) 'version': version,
+      if (recordJson != null) 'record_json': recordJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OfficialRecordsCompanion copyWith({
+    Value<String>? meetingId,
+    Value<String>? entityKey,
+    Value<String>? committee,
+    Value<int?>? numberYear,
+    Value<int?>? meetingNumber,
+    Value<String>? status,
+    Value<int>? version,
+    Value<String>? recordJson,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return OfficialRecordsCompanion(
+      meetingId: meetingId ?? this.meetingId,
+      entityKey: entityKey ?? this.entityKey,
+      committee: committee ?? this.committee,
+      numberYear: numberYear ?? this.numberYear,
+      meetingNumber: meetingNumber ?? this.meetingNumber,
+      status: status ?? this.status,
+      version: version ?? this.version,
+      recordJson: recordJson ?? this.recordJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (entityKey.present) {
+      map['entity_key'] = Variable<String>(entityKey.value);
+    }
+    if (committee.present) {
+      map['committee'] = Variable<String>(committee.value);
+    }
+    if (numberYear.present) {
+      map['number_year'] = Variable<int>(numberYear.value);
+    }
+    if (meetingNumber.present) {
+      map['meeting_number'] = Variable<int>(meetingNumber.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (recordJson.present) {
+      map['record_json'] = Variable<String>(recordJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(
+        $OfficialRecordsTable.$converterupdatedAt.toSql(updatedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OfficialRecordsCompanion(')
+          ..write('meetingId: $meetingId, ')
+          ..write('entityKey: $entityKey, ')
+          ..write('committee: $committee, ')
+          ..write('numberYear: $numberYear, ')
+          ..write('meetingNumber: $meetingNumber, ')
+          ..write('status: $status, ')
+          ..write('version: $version, ')
+          ..write('recordJson: $recordJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MinutesVersionsTable extends MinutesVersions
+    with TableInfo<$MinutesVersionsTable, MinutesVersionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MinutesVersionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _minutesJsonMeta = const VerificationMeta(
+    'minutesJson',
+  );
+  @override
+  late final GeneratedColumn<String> minutesJson = GeneratedColumn<String>(
+    'minutes_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _recordJsonMeta = const VerificationMeta(
+    'recordJson',
+  );
+  @override
+  late final GeneratedColumn<String> recordJson = GeneratedColumn<String>(
+    'record_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> approvedAt =
+      GeneratedColumn<int>(
+        'approved_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($MinutesVersionsTable.$converterapprovedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    meetingId,
+    version,
+    minutesJson,
+    recordJson,
+    contentHash,
+    approvedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'minutes_versions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MinutesVersionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_versionMeta);
+    }
+    if (data.containsKey('minutes_json')) {
+      context.handle(
+        _minutesJsonMeta,
+        minutesJson.isAcceptableOrUnknown(
+          data['minutes_json']!,
+          _minutesJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_minutesJsonMeta);
+    }
+    if (data.containsKey('record_json')) {
+      context.handle(
+        _recordJsonMeta,
+        recordJson.isAcceptableOrUnknown(data['record_json']!, _recordJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordJsonMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {meetingId, version};
+  @override
+  MinutesVersionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MinutesVersionRow(
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      minutesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}minutes_json'],
+      )!,
+      recordJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}record_json'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      approvedAt: $MinutesVersionsTable.$converterapprovedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}approved_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $MinutesVersionsTable createAlias(String alias) {
+    return $MinutesVersionsTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterapprovedAt =
+      const EpochMillisConverter();
+}
+
+class MinutesVersionRow extends DataClass
+    implements Insertable<MinutesVersionRow> {
+  /// Meeting; deleted with the meeting.
+  final String meetingId;
+
+  /// Version number.
+  final int version;
+
+  /// `Minutes.toJson()` as approved.
+  final String minutesJson;
+
+  /// `OfficialRecord.toJson()` as approved.
+  final String recordJson;
+
+  /// SHA-256 of the canonical approved content.
+  final String contentHash;
+
+  /// Approval time (UTC epoch milliseconds in SQL).
+  final DateTime approvedAt;
+  const MinutesVersionRow({
+    required this.meetingId,
+    required this.version,
+    required this.minutesJson,
+    required this.recordJson,
+    required this.contentHash,
+    required this.approvedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['version'] = Variable<int>(version);
+    map['minutes_json'] = Variable<String>(minutesJson);
+    map['record_json'] = Variable<String>(recordJson);
+    map['content_hash'] = Variable<String>(contentHash);
+    {
+      map['approved_at'] = Variable<int>(
+        $MinutesVersionsTable.$converterapprovedAt.toSql(approvedAt),
+      );
+    }
+    return map;
+  }
+
+  MinutesVersionsCompanion toCompanion(bool nullToAbsent) {
+    return MinutesVersionsCompanion(
+      meetingId: Value(meetingId),
+      version: Value(version),
+      minutesJson: Value(minutesJson),
+      recordJson: Value(recordJson),
+      contentHash: Value(contentHash),
+      approvedAt: Value(approvedAt),
+    );
+  }
+
+  factory MinutesVersionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MinutesVersionRow(
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      version: serializer.fromJson<int>(json['version']),
+      minutesJson: serializer.fromJson<String>(json['minutesJson']),
+      recordJson: serializer.fromJson<String>(json['recordJson']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      approvedAt: serializer.fromJson<DateTime>(json['approvedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'meetingId': serializer.toJson<String>(meetingId),
+      'version': serializer.toJson<int>(version),
+      'minutesJson': serializer.toJson<String>(minutesJson),
+      'recordJson': serializer.toJson<String>(recordJson),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'approvedAt': serializer.toJson<DateTime>(approvedAt),
+    };
+  }
+
+  MinutesVersionRow copyWith({
+    String? meetingId,
+    int? version,
+    String? minutesJson,
+    String? recordJson,
+    String? contentHash,
+    DateTime? approvedAt,
+  }) => MinutesVersionRow(
+    meetingId: meetingId ?? this.meetingId,
+    version: version ?? this.version,
+    minutesJson: minutesJson ?? this.minutesJson,
+    recordJson: recordJson ?? this.recordJson,
+    contentHash: contentHash ?? this.contentHash,
+    approvedAt: approvedAt ?? this.approvedAt,
+  );
+  MinutesVersionRow copyWithCompanion(MinutesVersionsCompanion data) {
+    return MinutesVersionRow(
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      version: data.version.present ? data.version.value : this.version,
+      minutesJson: data.minutesJson.present
+          ? data.minutesJson.value
+          : this.minutesJson,
+      recordJson: data.recordJson.present
+          ? data.recordJson.value
+          : this.recordJson,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      approvedAt: data.approvedAt.present
+          ? data.approvedAt.value
+          : this.approvedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MinutesVersionRow(')
+          ..write('meetingId: $meetingId, ')
+          ..write('version: $version, ')
+          ..write('minutesJson: $minutesJson, ')
+          ..write('recordJson: $recordJson, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('approvedAt: $approvedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    meetingId,
+    version,
+    minutesJson,
+    recordJson,
+    contentHash,
+    approvedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MinutesVersionRow &&
+          other.meetingId == this.meetingId &&
+          other.version == this.version &&
+          other.minutesJson == this.minutesJson &&
+          other.recordJson == this.recordJson &&
+          other.contentHash == this.contentHash &&
+          other.approvedAt == this.approvedAt);
+}
+
+class MinutesVersionsCompanion extends UpdateCompanion<MinutesVersionRow> {
+  final Value<String> meetingId;
+  final Value<int> version;
+  final Value<String> minutesJson;
+  final Value<String> recordJson;
+  final Value<String> contentHash;
+  final Value<DateTime> approvedAt;
+  final Value<int> rowid;
+  const MinutesVersionsCompanion({
+    this.meetingId = const Value.absent(),
+    this.version = const Value.absent(),
+    this.minutesJson = const Value.absent(),
+    this.recordJson = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.approvedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MinutesVersionsCompanion.insert({
+    required String meetingId,
+    required int version,
+    required String minutesJson,
+    required String recordJson,
+    required String contentHash,
+    required DateTime approvedAt,
+    this.rowid = const Value.absent(),
+  }) : meetingId = Value(meetingId),
+       version = Value(version),
+       minutesJson = Value(minutesJson),
+       recordJson = Value(recordJson),
+       contentHash = Value(contentHash),
+       approvedAt = Value(approvedAt);
+  static Insertable<MinutesVersionRow> custom({
+    Expression<String>? meetingId,
+    Expression<int>? version,
+    Expression<String>? minutesJson,
+    Expression<String>? recordJson,
+    Expression<String>? contentHash,
+    Expression<int>? approvedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (version != null) 'version': version,
+      if (minutesJson != null) 'minutes_json': minutesJson,
+      if (recordJson != null) 'record_json': recordJson,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (approvedAt != null) 'approved_at': approvedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MinutesVersionsCompanion copyWith({
+    Value<String>? meetingId,
+    Value<int>? version,
+    Value<String>? minutesJson,
+    Value<String>? recordJson,
+    Value<String>? contentHash,
+    Value<DateTime>? approvedAt,
+    Value<int>? rowid,
+  }) {
+    return MinutesVersionsCompanion(
+      meetingId: meetingId ?? this.meetingId,
+      version: version ?? this.version,
+      minutesJson: minutesJson ?? this.minutesJson,
+      recordJson: recordJson ?? this.recordJson,
+      contentHash: contentHash ?? this.contentHash,
+      approvedAt: approvedAt ?? this.approvedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (minutesJson.present) {
+      map['minutes_json'] = Variable<String>(minutesJson.value);
+    }
+    if (recordJson.present) {
+      map['record_json'] = Variable<String>(recordJson.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (approvedAt.present) {
+      map['approved_at'] = Variable<int>(
+        $MinutesVersionsTable.$converterapprovedAt.toSql(approvedAt.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MinutesVersionsCompanion(')
+          ..write('meetingId: $meetingId, ')
+          ..write('version: $version, ')
+          ..write('minutesJson: $minutesJson, ')
+          ..write('recordJson: $recordJson, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('approvedAt: $approvedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MinutesSignaturesTable extends MinutesSignatures
+    with TableInfo<$MinutesSignaturesTable, MinutesSignatureRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MinutesSignaturesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _meetingIdMeta = const VerificationMeta(
+    'meetingId',
+  );
+  @override
+  late final GeneratedColumn<String> meetingId = GeneratedColumn<String>(
+    'meeting_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES meetings (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _signerNameMeta = const VerificationMeta(
+    'signerName',
+  );
+  @override
+  late final GeneratedColumn<String> signerName = GeneratedColumn<String>(
+    'signer_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _signerRoleMeta = const VerificationMeta(
+    'signerRole',
+  );
+  @override
+  late final GeneratedColumn<String> signerRole = GeneratedColumn<String>(
+    'signer_role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _strokesJsonMeta = const VerificationMeta(
+    'strokesJson',
+  );
+  @override
+  late final GeneratedColumn<String> strokesJson = GeneratedColumn<String>(
+    'strokes_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> signedAt =
+      GeneratedColumn<int>(
+        'signed_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($MinutesSignaturesTable.$convertersignedAt);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    meetingId,
+    version,
+    signerName,
+    signerRole,
+    strokesJson,
+    contentHash,
+    signedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'minutes_signatures';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MinutesSignatureRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('meeting_id')) {
+      context.handle(
+        _meetingIdMeta,
+        meetingId.isAcceptableOrUnknown(data['meeting_id']!, _meetingIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_meetingIdMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_versionMeta);
+    }
+    if (data.containsKey('signer_name')) {
+      context.handle(
+        _signerNameMeta,
+        signerName.isAcceptableOrUnknown(data['signer_name']!, _signerNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_signerNameMeta);
+    }
+    if (data.containsKey('signer_role')) {
+      context.handle(
+        _signerRoleMeta,
+        signerRole.isAcceptableOrUnknown(data['signer_role']!, _signerRoleMeta),
+      );
+    }
+    if (data.containsKey('strokes_json')) {
+      context.handle(
+        _strokesJsonMeta,
+        strokesJson.isAcceptableOrUnknown(
+          data['strokes_json']!,
+          _strokesJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_strokesJsonMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MinutesSignatureRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MinutesSignatureRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      meetingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}meeting_id'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      signerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signer_name'],
+      )!,
+      signerRole: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signer_role'],
+      )!,
+      strokesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}strokes_json'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      signedAt: $MinutesSignaturesTable.$convertersignedAt.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}signed_at'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $MinutesSignaturesTable createAlias(String alias) {
+    return $MinutesSignaturesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertersignedAt =
+      const EpochMillisConverter();
+}
+
+class MinutesSignatureRow extends DataClass
+    implements Insertable<MinutesSignatureRow> {
+  /// Auto-increment primary key.
+  final int id;
+
+  /// Meeting; deleted with the meeting.
+  final String meetingId;
+
+  /// Minutes version signed.
+  final int version;
+
+  /// Signer's name.
+  final String signerName;
+
+  /// Signer's capacity.
+  final String signerRole;
+
+  /// `MinutesSignature.strokesJson()`.
+  final String strokesJson;
+
+  /// Hash of the content signed.
+  final String contentHash;
+
+  /// Signing time (UTC epoch milliseconds in SQL).
+  final DateTime signedAt;
+  const MinutesSignatureRow({
+    required this.id,
+    required this.meetingId,
+    required this.version,
+    required this.signerName,
+    required this.signerRole,
+    required this.strokesJson,
+    required this.contentHash,
+    required this.signedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['meeting_id'] = Variable<String>(meetingId);
+    map['version'] = Variable<int>(version);
+    map['signer_name'] = Variable<String>(signerName);
+    map['signer_role'] = Variable<String>(signerRole);
+    map['strokes_json'] = Variable<String>(strokesJson);
+    map['content_hash'] = Variable<String>(contentHash);
+    {
+      map['signed_at'] = Variable<int>(
+        $MinutesSignaturesTable.$convertersignedAt.toSql(signedAt),
+      );
+    }
+    return map;
+  }
+
+  MinutesSignaturesCompanion toCompanion(bool nullToAbsent) {
+    return MinutesSignaturesCompanion(
+      id: Value(id),
+      meetingId: Value(meetingId),
+      version: Value(version),
+      signerName: Value(signerName),
+      signerRole: Value(signerRole),
+      strokesJson: Value(strokesJson),
+      contentHash: Value(contentHash),
+      signedAt: Value(signedAt),
+    );
+  }
+
+  factory MinutesSignatureRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MinutesSignatureRow(
+      id: serializer.fromJson<int>(json['id']),
+      meetingId: serializer.fromJson<String>(json['meetingId']),
+      version: serializer.fromJson<int>(json['version']),
+      signerName: serializer.fromJson<String>(json['signerName']),
+      signerRole: serializer.fromJson<String>(json['signerRole']),
+      strokesJson: serializer.fromJson<String>(json['strokesJson']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      signedAt: serializer.fromJson<DateTime>(json['signedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'meetingId': serializer.toJson<String>(meetingId),
+      'version': serializer.toJson<int>(version),
+      'signerName': serializer.toJson<String>(signerName),
+      'signerRole': serializer.toJson<String>(signerRole),
+      'strokesJson': serializer.toJson<String>(strokesJson),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'signedAt': serializer.toJson<DateTime>(signedAt),
+    };
+  }
+
+  MinutesSignatureRow copyWith({
+    int? id,
+    String? meetingId,
+    int? version,
+    String? signerName,
+    String? signerRole,
+    String? strokesJson,
+    String? contentHash,
+    DateTime? signedAt,
+  }) => MinutesSignatureRow(
+    id: id ?? this.id,
+    meetingId: meetingId ?? this.meetingId,
+    version: version ?? this.version,
+    signerName: signerName ?? this.signerName,
+    signerRole: signerRole ?? this.signerRole,
+    strokesJson: strokesJson ?? this.strokesJson,
+    contentHash: contentHash ?? this.contentHash,
+    signedAt: signedAt ?? this.signedAt,
+  );
+  MinutesSignatureRow copyWithCompanion(MinutesSignaturesCompanion data) {
+    return MinutesSignatureRow(
+      id: data.id.present ? data.id.value : this.id,
+      meetingId: data.meetingId.present ? data.meetingId.value : this.meetingId,
+      version: data.version.present ? data.version.value : this.version,
+      signerName: data.signerName.present
+          ? data.signerName.value
+          : this.signerName,
+      signerRole: data.signerRole.present
+          ? data.signerRole.value
+          : this.signerRole,
+      strokesJson: data.strokesJson.present
+          ? data.strokesJson.value
+          : this.strokesJson,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      signedAt: data.signedAt.present ? data.signedAt.value : this.signedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MinutesSignatureRow(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('version: $version, ')
+          ..write('signerName: $signerName, ')
+          ..write('signerRole: $signerRole, ')
+          ..write('strokesJson: $strokesJson, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('signedAt: $signedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    meetingId,
+    version,
+    signerName,
+    signerRole,
+    strokesJson,
+    contentHash,
+    signedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MinutesSignatureRow &&
+          other.id == this.id &&
+          other.meetingId == this.meetingId &&
+          other.version == this.version &&
+          other.signerName == this.signerName &&
+          other.signerRole == this.signerRole &&
+          other.strokesJson == this.strokesJson &&
+          other.contentHash == this.contentHash &&
+          other.signedAt == this.signedAt);
+}
+
+class MinutesSignaturesCompanion extends UpdateCompanion<MinutesSignatureRow> {
+  final Value<int> id;
+  final Value<String> meetingId;
+  final Value<int> version;
+  final Value<String> signerName;
+  final Value<String> signerRole;
+  final Value<String> strokesJson;
+  final Value<String> contentHash;
+  final Value<DateTime> signedAt;
+  const MinutesSignaturesCompanion({
+    this.id = const Value.absent(),
+    this.meetingId = const Value.absent(),
+    this.version = const Value.absent(),
+    this.signerName = const Value.absent(),
+    this.signerRole = const Value.absent(),
+    this.strokesJson = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.signedAt = const Value.absent(),
+  });
+  MinutesSignaturesCompanion.insert({
+    this.id = const Value.absent(),
+    required String meetingId,
+    required int version,
+    required String signerName,
+    this.signerRole = const Value.absent(),
+    required String strokesJson,
+    required String contentHash,
+    required DateTime signedAt,
+  }) : meetingId = Value(meetingId),
+       version = Value(version),
+       signerName = Value(signerName),
+       strokesJson = Value(strokesJson),
+       contentHash = Value(contentHash),
+       signedAt = Value(signedAt);
+  static Insertable<MinutesSignatureRow> custom({
+    Expression<int>? id,
+    Expression<String>? meetingId,
+    Expression<int>? version,
+    Expression<String>? signerName,
+    Expression<String>? signerRole,
+    Expression<String>? strokesJson,
+    Expression<String>? contentHash,
+    Expression<int>? signedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (meetingId != null) 'meeting_id': meetingId,
+      if (version != null) 'version': version,
+      if (signerName != null) 'signer_name': signerName,
+      if (signerRole != null) 'signer_role': signerRole,
+      if (strokesJson != null) 'strokes_json': strokesJson,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (signedAt != null) 'signed_at': signedAt,
+    });
+  }
+
+  MinutesSignaturesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? meetingId,
+    Value<int>? version,
+    Value<String>? signerName,
+    Value<String>? signerRole,
+    Value<String>? strokesJson,
+    Value<String>? contentHash,
+    Value<DateTime>? signedAt,
+  }) {
+    return MinutesSignaturesCompanion(
+      id: id ?? this.id,
+      meetingId: meetingId ?? this.meetingId,
+      version: version ?? this.version,
+      signerName: signerName ?? this.signerName,
+      signerRole: signerRole ?? this.signerRole,
+      strokesJson: strokesJson ?? this.strokesJson,
+      contentHash: contentHash ?? this.contentHash,
+      signedAt: signedAt ?? this.signedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (meetingId.present) {
+      map['meeting_id'] = Variable<String>(meetingId.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (signerName.present) {
+      map['signer_name'] = Variable<String>(signerName.value);
+    }
+    if (signerRole.present) {
+      map['signer_role'] = Variable<String>(signerRole.value);
+    }
+    if (strokesJson.present) {
+      map['strokes_json'] = Variable<String>(strokesJson.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (signedAt.present) {
+      map['signed_at'] = Variable<int>(
+        $MinutesSignaturesTable.$convertersignedAt.toSql(signedAt.value),
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MinutesSignaturesCompanion(')
+          ..write('id: $id, ')
+          ..write('meetingId: $meetingId, ')
+          ..write('version: $version, ')
+          ..write('signerName: $signerName, ')
+          ..write('signerRole: $signerRole, ')
+          ..write('strokesJson: $strokesJson, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('signedAt: $signedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5453,6 +7028,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $SpeakerMeetingNotesTable(this);
   late final $CodeFindingsTable codeFindings = $CodeFindingsTable(this);
   late final $TaskDismissalsTable taskDismissals = $TaskDismissalsTable(this);
+  late final $OfficialRecordsTable officialRecords = $OfficialRecordsTable(
+    this,
+  );
+  late final $MinutesVersionsTable minutesVersions = $MinutesVersionsTable(
+    this,
+  );
+  late final $MinutesSignaturesTable minutesSignatures =
+      $MinutesSignaturesTable(this);
   late final Index segmentsMeetingIdx = Index(
     'segments_meeting_idx',
     'CREATE INDEX segments_meeting_idx ON segments (meeting_id, idx)',
@@ -5489,6 +7072,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'code_findings_meeting',
     'CREATE INDEX code_findings_meeting ON code_findings (meeting_id)',
   );
+  late final Index officialRecordsSequence = Index(
+    'official_records_sequence',
+    'CREATE INDEX official_records_sequence ON official_records (entity_key, committee, number_year)',
+  );
+  late final Index minutesSignaturesMeeting = Index(
+    'minutes_signatures_meeting',
+    'CREATE INDEX minutes_signatures_meeting ON minutes_signatures (meeting_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5505,6 +7096,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     speakerMeetingNotes,
     codeFindings,
     taskDismissals,
+    officialRecords,
+    minutesVersions,
+    minutesSignatures,
     segmentsMeetingIdx,
     segmentsSpeaker,
     glossaryTermsMeeting,
@@ -5514,6 +7108,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     taskUpdatesPendingTask,
     speakerMeetingNotesMeeting,
     codeFindingsMeeting,
+    officialRecordsSequence,
+    minutesSignaturesMeeting,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5607,6 +7203,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('task_dismissals', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('official_records', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('minutes_versions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'meetings',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('minutes_signatures', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -6578,6 +8195,67 @@ final class $$MeetingsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$OfficialRecordsTable, List<OfficialRecordRow>>
+  _officialRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.officialRecords,
+    aliasName: 'meetings__id__official_records__meeting_id',
+  );
+
+  $$OfficialRecordsTableProcessedTableManager get officialRecordsRefs {
+    final manager = $$OfficialRecordsTableTableManager(
+      $_db,
+      $_db.officialRecords,
+    ).filter((f) => f.meetingId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _officialRecordsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MinutesVersionsTable, List<MinutesVersionRow>>
+  _minutesVersionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.minutesVersions,
+    aliasName: 'meetings__id__minutes_versions__meeting_id',
+  );
+
+  $$MinutesVersionsTableProcessedTableManager get minutesVersionsRefs {
+    final manager = $$MinutesVersionsTableTableManager(
+      $_db,
+      $_db.minutesVersions,
+    ).filter((f) => f.meetingId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _minutesVersionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MinutesSignaturesTable, List<MinutesSignatureRow>>
+  _minutesSignaturesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.minutesSignatures,
+        aliasName: 'meetings__id__minutes_signatures__meeting_id',
+      );
+
+  $$MinutesSignaturesTableProcessedTableManager get minutesSignaturesRefs {
+    final manager = $$MinutesSignaturesTableTableManager(
+      $_db,
+      $_db.minutesSignatures,
+    ).filter((f) => f.meetingId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _minutesSignaturesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$MeetingsTableFilterComposer
@@ -6821,6 +8499,81 @@ class $$MeetingsTableFilterComposer
           }) => $$TaskDismissalsTableFilterComposer(
             $db: $db,
             $table: $db.taskDismissals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> officialRecordsRefs(
+    Expression<bool> Function($$OfficialRecordsTableFilterComposer f) f,
+  ) {
+    final $$OfficialRecordsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.officialRecords,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$OfficialRecordsTableFilterComposer(
+            $db: $db,
+            $table: $db.officialRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> minutesVersionsRefs(
+    Expression<bool> Function($$MinutesVersionsTableFilterComposer f) f,
+  ) {
+    final $$MinutesVersionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.minutesVersions,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MinutesVersionsTableFilterComposer(
+            $db: $db,
+            $table: $db.minutesVersions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> minutesSignaturesRefs(
+    Expression<bool> Function($$MinutesSignaturesTableFilterComposer f) f,
+  ) {
+    final $$MinutesSignaturesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.minutesSignatures,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MinutesSignaturesTableFilterComposer(
+            $db: $db,
+            $table: $db.minutesSignatures,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7144,6 +8897,82 @@ class $$MeetingsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> officialRecordsRefs<T extends Object>(
+    Expression<T> Function($$OfficialRecordsTableAnnotationComposer a) f,
+  ) {
+    final $$OfficialRecordsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.officialRecords,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$OfficialRecordsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.officialRecords,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> minutesVersionsRefs<T extends Object>(
+    Expression<T> Function($$MinutesVersionsTableAnnotationComposer a) f,
+  ) {
+    final $$MinutesVersionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.minutesVersions,
+      getReferencedColumn: (t) => t.meetingId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MinutesVersionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.minutesVersions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> minutesSignaturesRefs<T extends Object>(
+    Expression<T> Function($$MinutesSignaturesTableAnnotationComposer a) f,
+  ) {
+    final $$MinutesSignaturesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.minutesSignatures,
+          getReferencedColumn: (t) => t.meetingId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$MinutesSignaturesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.minutesSignatures,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$MeetingsTableTableManager
@@ -7167,6 +8996,9 @@ class $$MeetingsTableTableManager
             bool speakerMeetingNotesRefs,
             bool codeFindingsRefs,
             bool taskDismissalsRefs,
+            bool officialRecordsRefs,
+            bool minutesVersionsRefs,
+            bool minutesSignaturesRefs,
           })
         > {
   $$MeetingsTableTableManager(_$AppDatabase db, $MeetingsTable table)
@@ -7261,6 +9093,9 @@ class $$MeetingsTableTableManager
                 speakerMeetingNotesRefs = false,
                 codeFindingsRefs = false,
                 taskDismissalsRefs = false,
+                officialRecordsRefs = false,
+                minutesVersionsRefs = false,
+                minutesSignaturesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -7272,6 +9107,9 @@ class $$MeetingsTableTableManager
                     if (speakerMeetingNotesRefs) db.speakerMeetingNotes,
                     if (codeFindingsRefs) db.codeFindings,
                     if (taskDismissalsRefs) db.taskDismissals,
+                    if (officialRecordsRefs) db.officialRecords,
+                    if (minutesVersionsRefs) db.minutesVersions,
+                    if (minutesSignaturesRefs) db.minutesSignatures,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -7416,6 +9254,66 @@ class $$MeetingsTableTableManager
                           referencedColumn: 'meeting_id',
                           typedResults: items,
                         ),
+                      if (officialRecordsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          MeetingRow,
+                          $MeetingsTable,
+                          OfficialRecordRow,
+                          $OfficialRecordsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MeetingsTableReferences
+                              ._officialRecordsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MeetingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).officialRecordsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'meeting_id',
+                          typedResults: items,
+                        ),
+                      if (minutesVersionsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          MeetingRow,
+                          $MeetingsTable,
+                          MinutesVersionRow,
+                          $MinutesVersionsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MeetingsTableReferences
+                              ._minutesVersionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MeetingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).minutesVersionsRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'meeting_id',
+                          typedResults: items,
+                        ),
+                      if (minutesSignaturesRefs)
+                        await $_getPrefetchedDataByColumns<
+                          MeetingRow,
+                          $MeetingsTable,
+                          MinutesSignatureRow,
+                          $MinutesSignaturesTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MeetingsTableReferences
+                              ._minutesSignaturesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MeetingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).minutesSignaturesRefs,
+                          currentColumn: 'id',
+                          referencedColumn: 'meeting_id',
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7444,6 +9342,9 @@ typedef $$MeetingsTableProcessedTableManager =
         bool speakerMeetingNotesRefs,
         bool codeFindingsRefs,
         bool taskDismissalsRefs,
+        bool officialRecordsRefs,
+        bool minutesVersionsRefs,
+        bool minutesSignaturesRefs,
       })
     >;
 typedef $$SegmentsTableCreateCompanionBuilder = SegmentsCompanion Function({
@@ -10956,6 +12857,1161 @@ typedef $$TaskDismissalsTableProcessedTableManager =
       TaskDismissalRow,
       PrefetchHooks Function({bool meetingId})
     >;
+typedef $$OfficialRecordsTableCreateCompanionBuilder =
+    OfficialRecordsCompanion Function({
+      required String meetingId,
+      Value<String> entityKey,
+      Value<String> committee,
+      Value<int?> numberYear,
+      Value<int?> meetingNumber,
+      Value<String> status,
+      Value<int> version,
+      required String recordJson,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$OfficialRecordsTableUpdateCompanionBuilder =
+    OfficialRecordsCompanion Function({
+      Value<String> meetingId,
+      Value<String> entityKey,
+      Value<String> committee,
+      Value<int?> numberYear,
+      Value<int?> meetingNumber,
+      Value<String> status,
+      Value<int> version,
+      Value<String> recordJson,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$OfficialRecordsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $OfficialRecordsTable,
+          OfficialRecordRow
+        > {
+  $$OfficialRecordsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) =>
+      db.meetings.createAlias('official_records__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$OfficialRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $OfficialRecordsTable> {
+  $$OfficialRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entityKey => $composableBuilder(
+    column: $table.entityKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get committee => $composableBuilder(
+    column: $table.committee,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get numberYear => $composableBuilder(
+    column: $table.numberYear,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get meetingNumber => $composableBuilder(
+    column: $table.meetingNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAt =>
+      $composableBuilder(
+        column: $table.updatedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$OfficialRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $OfficialRecordsTable> {
+  $$OfficialRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entityKey => $composableBuilder(
+    column: $table.entityKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get committee => $composableBuilder(
+    column: $table.committee,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get numberYear => $composableBuilder(
+    column: $table.numberYear,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get meetingNumber => $composableBuilder(
+    column: $table.meetingNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$OfficialRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OfficialRecordsTable> {
+  $$OfficialRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entityKey =>
+      $composableBuilder(column: $table.entityKey, builder: (column) => column);
+
+  GeneratedColumn<String> get committee =>
+      $composableBuilder(column: $table.committee, builder: (column) => column);
+
+  GeneratedColumn<int> get numberYear => $composableBuilder(
+    column: $table.numberYear,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get meetingNumber => $composableBuilder(
+    column: $table.meetingNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$OfficialRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OfficialRecordsTable,
+          OfficialRecordRow,
+          $$OfficialRecordsTableFilterComposer,
+          $$OfficialRecordsTableOrderingComposer,
+          $$OfficialRecordsTableAnnotationComposer,
+          $$OfficialRecordsTableCreateCompanionBuilder,
+          $$OfficialRecordsTableUpdateCompanionBuilder,
+          (OfficialRecordRow, $$OfficialRecordsTableReferences),
+          OfficialRecordRow,
+          PrefetchHooks Function({bool meetingId})
+        > {
+  $$OfficialRecordsTableTableManager(
+    _$AppDatabase db,
+    $OfficialRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OfficialRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OfficialRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OfficialRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> meetingId = const Value.absent(),
+                Value<String> entityKey = const Value.absent(),
+                Value<String> committee = const Value.absent(),
+                Value<int?> numberYear = const Value.absent(),
+                Value<int?> meetingNumber = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> recordJson = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OfficialRecordsCompanion(
+                meetingId: meetingId,
+                entityKey: entityKey,
+                committee: committee,
+                numberYear: numberYear,
+                meetingNumber: meetingNumber,
+                status: status,
+                version: version,
+                recordJson: recordJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String meetingId,
+                Value<String> entityKey = const Value.absent(),
+                Value<String> committee = const Value.absent(),
+                Value<int?> numberYear = const Value.absent(),
+                Value<int?> meetingNumber = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                required String recordJson,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => OfficialRecordsCompanion.insert(
+                meetingId: meetingId,
+                entityKey: entityKey,
+                committee: committee,
+                numberYear: numberYear,
+                meetingNumber: meetingNumber,
+                status: status,
+                version: version,
+                recordJson: recordJson,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$OfficialRecordsTable, OfficialRecordRow>(table),
+                  $$OfficialRecordsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({meetingId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (meetingId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.meetingId,
+                        referencedTable: $$OfficialRecordsTableReferences
+                            ._meetingIdTable(db),
+                        referencedColumn: $$OfficialRecordsTableReferences
+                            ._meetingIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$OfficialRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OfficialRecordsTable,
+      OfficialRecordRow,
+      $$OfficialRecordsTableFilterComposer,
+      $$OfficialRecordsTableOrderingComposer,
+      $$OfficialRecordsTableAnnotationComposer,
+      $$OfficialRecordsTableCreateCompanionBuilder,
+      $$OfficialRecordsTableUpdateCompanionBuilder,
+      (OfficialRecordRow, $$OfficialRecordsTableReferences),
+      OfficialRecordRow,
+      PrefetchHooks Function({bool meetingId})
+    >;
+typedef $$MinutesVersionsTableCreateCompanionBuilder =
+    MinutesVersionsCompanion Function({
+      required String meetingId,
+      required int version,
+      required String minutesJson,
+      required String recordJson,
+      required String contentHash,
+      required DateTime approvedAt,
+      Value<int> rowid,
+    });
+typedef $$MinutesVersionsTableUpdateCompanionBuilder =
+    MinutesVersionsCompanion Function({
+      Value<String> meetingId,
+      Value<int> version,
+      Value<String> minutesJson,
+      Value<String> recordJson,
+      Value<String> contentHash,
+      Value<DateTime> approvedAt,
+      Value<int> rowid,
+    });
+
+final class $$MinutesVersionsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $MinutesVersionsTable,
+          MinutesVersionRow
+        > {
+  $$MinutesVersionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) =>
+      db.meetings.createAlias('minutes_versions__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MinutesVersionsTableFilterComposer
+    extends Composer<_$AppDatabase, $MinutesVersionsTable> {
+  $$MinutesVersionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get minutesJson => $composableBuilder(
+    column: $table.minutesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get approvedAt =>
+      $composableBuilder(
+        column: $table.approvedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesVersionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MinutesVersionsTable> {
+  $$MinutesVersionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get minutesJson => $composableBuilder(
+    column: $table.minutesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get approvedAt => $composableBuilder(
+    column: $table.approvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesVersionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MinutesVersionsTable> {
+  $$MinutesVersionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get minutesJson => $composableBuilder(
+    column: $table.minutesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get recordJson => $composableBuilder(
+    column: $table.recordJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get approvedAt =>
+      $composableBuilder(
+        column: $table.approvedAt,
+        builder: (column) => column,
+      );
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesVersionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MinutesVersionsTable,
+          MinutesVersionRow,
+          $$MinutesVersionsTableFilterComposer,
+          $$MinutesVersionsTableOrderingComposer,
+          $$MinutesVersionsTableAnnotationComposer,
+          $$MinutesVersionsTableCreateCompanionBuilder,
+          $$MinutesVersionsTableUpdateCompanionBuilder,
+          (MinutesVersionRow, $$MinutesVersionsTableReferences),
+          MinutesVersionRow,
+          PrefetchHooks Function({bool meetingId})
+        > {
+  $$MinutesVersionsTableTableManager(
+    _$AppDatabase db,
+    $MinutesVersionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MinutesVersionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MinutesVersionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MinutesVersionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> meetingId = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> minutesJson = const Value.absent(),
+                Value<String> recordJson = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<DateTime> approvedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MinutesVersionsCompanion(
+                meetingId: meetingId,
+                version: version,
+                minutesJson: minutesJson,
+                recordJson: recordJson,
+                contentHash: contentHash,
+                approvedAt: approvedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String meetingId,
+                required int version,
+                required String minutesJson,
+                required String recordJson,
+                required String contentHash,
+                required DateTime approvedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => MinutesVersionsCompanion.insert(
+                meetingId: meetingId,
+                version: version,
+                minutesJson: minutesJson,
+                recordJson: recordJson,
+                contentHash: contentHash,
+                approvedAt: approvedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MinutesVersionsTable, MinutesVersionRow>(table),
+                  $$MinutesVersionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({meetingId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (meetingId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.meetingId,
+                        referencedTable: $$MinutesVersionsTableReferences
+                            ._meetingIdTable(db),
+                        referencedColumn: $$MinutesVersionsTableReferences
+                            ._meetingIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MinutesVersionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MinutesVersionsTable,
+      MinutesVersionRow,
+      $$MinutesVersionsTableFilterComposer,
+      $$MinutesVersionsTableOrderingComposer,
+      $$MinutesVersionsTableAnnotationComposer,
+      $$MinutesVersionsTableCreateCompanionBuilder,
+      $$MinutesVersionsTableUpdateCompanionBuilder,
+      (MinutesVersionRow, $$MinutesVersionsTableReferences),
+      MinutesVersionRow,
+      PrefetchHooks Function({bool meetingId})
+    >;
+typedef $$MinutesSignaturesTableCreateCompanionBuilder =
+    MinutesSignaturesCompanion Function({
+      Value<int> id,
+      required String meetingId,
+      required int version,
+      required String signerName,
+      Value<String> signerRole,
+      required String strokesJson,
+      required String contentHash,
+      required DateTime signedAt,
+    });
+typedef $$MinutesSignaturesTableUpdateCompanionBuilder =
+    MinutesSignaturesCompanion Function({
+      Value<int> id,
+      Value<String> meetingId,
+      Value<int> version,
+      Value<String> signerName,
+      Value<String> signerRole,
+      Value<String> strokesJson,
+      Value<String> contentHash,
+      Value<DateTime> signedAt,
+    });
+
+final class $$MinutesSignaturesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $MinutesSignaturesTable,
+          MinutesSignatureRow
+        > {
+  $$MinutesSignaturesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MeetingsTable _meetingIdTable(_$AppDatabase db) =>
+      db.meetings.createAlias('minutes_signatures__meeting_id__meetings__id');
+
+  $$MeetingsTableProcessedTableManager get meetingId {
+    final $_column = $_itemColumn<String>('meeting_id')!;
+
+    final manager = $$MeetingsTableTableManager(
+      $_db,
+      $_db.meetings,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_meetingIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MinutesSignaturesTableFilterComposer
+    extends Composer<_$AppDatabase, $MinutesSignaturesTable> {
+  $$MinutesSignaturesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signerRole => $composableBuilder(
+    column: $table.signerRole,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get strokesJson => $composableBuilder(
+    column: $table.strokesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get signedAt =>
+      $composableBuilder(
+        column: $table.signedAt,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  $$MeetingsTableFilterComposer get meetingId {
+    final $$MeetingsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableFilterComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesSignaturesTableOrderingComposer
+    extends Composer<_$AppDatabase, $MinutesSignaturesTable> {
+  $$MinutesSignaturesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signerRole => $composableBuilder(
+    column: $table.signerRole,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get strokesJson => $composableBuilder(
+    column: $table.strokesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get signedAt => $composableBuilder(
+    column: $table.signedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MeetingsTableOrderingComposer get meetingId {
+    final $$MeetingsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableOrderingComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesSignaturesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MinutesSignaturesTable> {
+  $$MinutesSignaturesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get signerName => $composableBuilder(
+    column: $table.signerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get signerRole => $composableBuilder(
+    column: $table.signerRole,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get strokesJson => $composableBuilder(
+    column: $table.strokesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get signedAt =>
+      $composableBuilder(column: $table.signedAt, builder: (column) => column);
+
+  $$MeetingsTableAnnotationComposer get meetingId {
+    final $$MeetingsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.meetingId,
+      referencedTable: $db.meetings,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MeetingsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.meetings,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MinutesSignaturesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MinutesSignaturesTable,
+          MinutesSignatureRow,
+          $$MinutesSignaturesTableFilterComposer,
+          $$MinutesSignaturesTableOrderingComposer,
+          $$MinutesSignaturesTableAnnotationComposer,
+          $$MinutesSignaturesTableCreateCompanionBuilder,
+          $$MinutesSignaturesTableUpdateCompanionBuilder,
+          (MinutesSignatureRow, $$MinutesSignaturesTableReferences),
+          MinutesSignatureRow,
+          PrefetchHooks Function({bool meetingId})
+        > {
+  $$MinutesSignaturesTableTableManager(
+    _$AppDatabase db,
+    $MinutesSignaturesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MinutesSignaturesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MinutesSignaturesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MinutesSignaturesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> meetingId = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> signerName = const Value.absent(),
+                Value<String> signerRole = const Value.absent(),
+                Value<String> strokesJson = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<DateTime> signedAt = const Value.absent(),
+              }) => MinutesSignaturesCompanion(
+                id: id,
+                meetingId: meetingId,
+                version: version,
+                signerName: signerName,
+                signerRole: signerRole,
+                strokesJson: strokesJson,
+                contentHash: contentHash,
+                signedAt: signedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String meetingId,
+                required int version,
+                required String signerName,
+                Value<String> signerRole = const Value.absent(),
+                required String strokesJson,
+                required String contentHash,
+                required DateTime signedAt,
+              }) => MinutesSignaturesCompanion.insert(
+                id: id,
+                meetingId: meetingId,
+                version: version,
+                signerName: signerName,
+                signerRole: signerRole,
+                strokesJson: strokesJson,
+                contentHash: contentHash,
+                signedAt: signedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$MinutesSignaturesTable, MinutesSignatureRow>(
+                    table,
+                  ),
+                  $$MinutesSignaturesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({meetingId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (meetingId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.meetingId,
+                        referencedTable: $$MinutesSignaturesTableReferences
+                            ._meetingIdTable(db),
+                        referencedColumn: $$MinutesSignaturesTableReferences
+                            ._meetingIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MinutesSignaturesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MinutesSignaturesTable,
+      MinutesSignatureRow,
+      $$MinutesSignaturesTableFilterComposer,
+      $$MinutesSignaturesTableOrderingComposer,
+      $$MinutesSignaturesTableAnnotationComposer,
+      $$MinutesSignaturesTableCreateCompanionBuilder,
+      $$MinutesSignaturesTableUpdateCompanionBuilder,
+      (MinutesSignatureRow, $$MinutesSignaturesTableReferences),
+      MinutesSignatureRow,
+      PrefetchHooks Function({bool meetingId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10982,4 +14038,10 @@ class $AppDatabaseManager {
       $$CodeFindingsTableTableManager(_db, _db.codeFindings);
   $$TaskDismissalsTableTableManager get taskDismissals =>
       $$TaskDismissalsTableTableManager(_db, _db.taskDismissals);
+  $$OfficialRecordsTableTableManager get officialRecords =>
+      $$OfficialRecordsTableTableManager(_db, _db.officialRecords);
+  $$MinutesVersionsTableTableManager get minutesVersions =>
+      $$MinutesVersionsTableTableManager(_db, _db.minutesVersions);
+  $$MinutesSignaturesTableTableManager get minutesSignatures =>
+      $$MinutesSignaturesTableTableManager(_db, _db.minutesSignatures);
 }

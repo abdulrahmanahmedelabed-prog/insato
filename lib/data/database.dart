@@ -373,6 +373,103 @@ class CodeFindings extends Table {
   IntColumn get createdAt => integer().map(const EpochMillisConverter())();
 }
 
+/// v5 (Insato 1.2, A): the official data of a meeting (header, attendance,
+/// vote reviews, lifecycle). The indexed columns duplicate fields of
+/// [recordJson] used for meeting-number sequences and listing.
+@DataClassName('OfficialRecordRow')
+@TableIndex(
+  name: 'official_records_sequence',
+  columns: {#entityKey, #committee, #numberYear},
+)
+class OfficialRecords extends Table {
+  /// Meeting; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// Normalised entity name at numbering time.
+  TextColumn get entityKey => text().withDefault(const Constant(''))();
+
+  /// Normalised committee name ('' = none).
+  TextColumn get committee => text().withDefault(const Constant(''))();
+
+  /// Year of the meeting number (Hijri or Gregorian).
+  IntColumn get numberYear => integer().nullable()();
+
+  /// Meeting number within entity / committee / year.
+  IntColumn get meetingNumber => integer().nullable()();
+
+  /// `OfficialStatus.name`.
+  TextColumn get status => text().withDefault(const Constant('draft'))();
+
+  /// Current version (1-based).
+  IntColumn get version => integer().withDefault(const Constant(1))();
+
+  /// `OfficialRecord.toJson()`.
+  TextColumn get recordJson => text()();
+
+  /// Last update (UTC epoch milliseconds in SQL).
+  IntColumn get updatedAt => integer().map(const EpochMillisConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {meetingId};
+}
+
+/// v5 (A): every approved version of official minutes (history).
+@DataClassName('MinutesVersionRow')
+class MinutesVersions extends Table {
+  /// Meeting; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// Version number.
+  IntColumn get version => integer()();
+
+  /// `Minutes.toJson()` as approved.
+  TextColumn get minutesJson => text()();
+
+  /// `OfficialRecord.toJson()` as approved.
+  TextColumn get recordJson => text()();
+
+  /// SHA-256 of the canonical approved content.
+  TextColumn get contentHash => text()();
+
+  /// Approval time (UTC epoch milliseconds in SQL).
+  IntColumn get approvedAt => integer().map(const EpochMillisConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {meetingId, version};
+}
+
+/// v5 (A): signatures captured on the device (vector strokes JSON).
+@DataClassName('MinutesSignatureRow')
+@TableIndex(name: 'minutes_signatures_meeting', columns: {#meetingId})
+class MinutesSignatures extends Table {
+  /// Auto-increment primary key.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Meeting; deleted with the meeting.
+  TextColumn get meetingId =>
+      text().references(Meetings, #id, onDelete: KeyAction.cascade)();
+
+  /// Minutes version signed.
+  IntColumn get version => integer()();
+
+  /// Signer's name.
+  TextColumn get signerName => text()();
+
+  /// Signer's capacity.
+  TextColumn get signerRole => text().withDefault(const Constant(''))();
+
+  /// `MinutesSignature.strokesJson()`.
+  TextColumn get strokesJson => text()();
+
+  /// Hash of the content signed.
+  TextColumn get contentHash => text()();
+
+  /// Signing time (UTC epoch milliseconds in SQL).
+  IntColumn get signedAt => integer().map(const EpochMillisConverter())();
+}
+
 /// Simple key/value application settings.
 @DataClassName('SettingRow')
 class Settings extends Table {
@@ -399,6 +496,9 @@ class Settings extends Table {
   SpeakerMeetingNotes,
   CodeFindings,
   TaskDismissals,
+  OfficialRecords,
+  MinutesVersions,
+  MinutesSignatures,
 ])
 class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database file `insato.sqlite` in the application
@@ -427,8 +527,8 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forExecutor(super.executor);
 
   /// Current schema version (v1.1 = 2, speaker confidence = 3, task
-  /// dismissals = 4).
-  static const int currentSchemaVersion = 4;
+  /// dismissals = 4, official minutes (v1.2) = 5).
+  static const int currentSchemaVersion = 5;
 
   @override
   int get schemaVersion => currentSchemaVersion;
@@ -443,6 +543,13 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4 && to >= 4) {
             await m.createTable(taskDismissals);
+          }
+          if (from < 5 && to >= 5) {
+            await m.createTable(officialRecords);
+            await m.createTable(minutesVersions);
+            await m.createTable(minutesSignatures);
+            await m.createIndex(officialRecordsSequence);
+            await m.createIndex(minutesSignaturesMeeting);
           }
         },
         beforeOpen: (details) async {

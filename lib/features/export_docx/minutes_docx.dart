@@ -8,6 +8,11 @@ import '../../core/models.dart';
 import '../../core/time_format.dart';
 import '../../minutes/export_service.dart';
 import '../../minutes/minutes_prompt.dart';
+import '../official/docx_template.dart';
+import '../official/official_document.dart';
+import '../official/official_outline.dart';
+import '../official/signature_raster.dart';
+import '../official/template_placeholders.dart';
 import 'docx_writer.dart';
 import 'strings.dart';
 
@@ -240,6 +245,166 @@ class MinutesDocxComposer {
       }
     }
     return d;
+  }
+
+  /// The .docx bytes of official minutes (v1.2): the user's uploaded Word
+  /// template filled with the placeholders when [templateBytes] is given,
+  /// else the built-in official layout (header with logo, both dates,
+  /// attendance, quorum, numbered resolutions with votes, signatures with
+  /// their images, status and hash).
+  Uint8List buildOfficial(
+    OfficialDocument doc,
+    Minutes minutes,
+    Map<String, Speaker> speakersById, {
+    List<TranscriptSegment> segments = const [],
+    bool includeTranscript = false,
+    DateTime? created,
+    Uint8List? templateBytes,
+  }) {
+    if (templateBytes != null) {
+      return fillDocxTemplate(templateBytes, templateDataFor(doc, minutes));
+    }
+    const w = DocxBuilder.textWidth;
+    final images = <String, Object?>{};
+    final footer = [
+      doc.documentTitle,
+      if (doc.isApproved) 'SHA-256: ${doc.contentHash}',
+    ].join(' — ');
+    final d = DocxBuilder(
+      footerText: footer,
+      pageLabel: XS.page,
+      ofLabel: XS.of,
+    );
+    if (doc.logo != null) {
+      final logo = docxImageOf(doc.logo!, maxWidthCm: 3, maxHeightCm: 3);
+      if (logo != null) {
+        images['insato_img_logo'] = logo;
+        d.runs([const DocxRun('{{insato_img_logo}}')], align: DocxAlign.center);
+      }
+    }
+    if (doc.entityName.isNotEmpty) {
+      d.runs([
+        DocxRun(doc.entityName, bold: true, sizeHalfPoints: 28),
+      ], align: DocxAlign.center);
+    }
+    d
+      ..subtitle(doc.templateName)
+      ..title(doc.documentTitle)
+      ..labelValue('الموضوع', doc.minutesTitle);
+    for (final (label, value) in doc.infoRows) {
+      d.labelValue(label, value);
+    }
+    for (final block in officialOutline(doc, minutes)) {
+      switch (block) {
+        case OutlineHeading(:final text):
+          d.heading(text);
+        case OutlineParagraph(:final text, :final muted, :final bold):
+          if (muted) {
+            d.note(text);
+          } else if (bold) {
+            d.runs([DocxRun(text, bold: true)], align: DocxAlign.justify);
+          } else {
+            d.paragraph(text);
+          }
+        case OutlineLabelValues(:final rows):
+          for (final (label, value) in rows) {
+            d.labelValue(label, value);
+          }
+        case OutlineList(:final items, :final numbered):
+          if (numbered) {
+            d.numbered(items);
+          } else {
+            d.bullets(items);
+          }
+        case OutlineTable(:final header, :final rows, :final flex):
+          final total = flex.isEmpty
+              ? header.length
+              : flex.fold(0, (a, b) => a + b);
+          d.table(
+            DocxTable(
+              header: header,
+              rows: rows,
+              columnWidths: [
+                for (var i = 0; i < header.length; i++)
+                  w * (flex.isEmpty ? 1 : flex[i]) ~/ total,
+              ],
+            ),
+          );
+        case OutlineResolution():
+          d.runs([
+            DocxRun('${block.label} ', bold: true),
+            DocxRun(oneLine(block.text)),
+          ], align: DocxAlign.justify);
+          for (final line in block.voteLines) {
+            d.runs([DocxRun(line, color: '5F6B7A', sizeHalfPoints: 20)]);
+          }
+        case OutlineSignatures(:final signatories):
+          final rows = <List<String>>[];
+          for (var i = 0; i < signatories.length; i++) {
+            final s = signatories[i];
+            var sigCell = '';
+            final sig = s.signature;
+            if (sig != null && !sig.isEmpty) {
+              final image = docxImageOf(
+                signaturePng(sig),
+                maxWidthCm: 4.5,
+                maxHeightCm: 1.6,
+              );
+              if (image != null) {
+                images['insato_img_sig$i'] = image;
+                sigCell = '{{insato_img_sig$i}}\n${signatureStateText(s)}';
+              }
+            }
+            rows.add([s.role, s.name, sigCell]);
+          }
+          d.table(
+            DocxTable(
+              header: const ['الصفة', 'الاسم', XS.sigSignature],
+              rows: rows,
+              columnWidths: const [w * 2 ~/ 10, w * 4 ~/ 10, w * 4 ~/ 10],
+              minRowHeight: 900,
+            ),
+          );
+      }
+    }
+    for (final line in officialFooterLines(doc)) {
+      d.note(line);
+    }
+    d.note(
+      XS.generatedBy(
+        ExportService.appName,
+        minutes.model,
+        formatArabicDateTime(minutes.generatedAt),
+      ),
+    );
+    if (includeTranscript && segments.isNotEmpty) {
+      d
+        ..pageBreak()
+        ..heading(XS.transcriptAppendix);
+      for (final block in buildTranscriptBlocks(segments, speakersById)) {
+        d.runs([
+          DocxRun(
+            '[${formatTimestamp(block.startMs)}] ',
+            color: '5F6B7A',
+            sizeHalfPoints: 18,
+          ),
+          DocxRun('${block.speakerName}: ', bold: true, sizeHalfPoints: 20),
+          DocxRun(block.text, sizeHalfPoints: 20),
+        ], align: DocxAlign.justify);
+      }
+    }
+    final bytes = d.build(
+      DocxMetadata(
+        title: doc.documentTitle,
+        subject: doc.minutesTitle,
+        creator: ExportService.appName,
+        application: ExportService.appName,
+        created: created ?? minutes.generatedAt,
+      ),
+    );
+    return images.isEmpty
+        ? bytes
+        : fillDocxTemplate(bytes, DocxTemplateData(values: images));
   }
 
   /// The .docx bytes of the minutes.

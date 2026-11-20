@@ -238,10 +238,33 @@ width** so it uses a large Windows window well.
 Goal: Insato becomes *the* app for official Arabic minutes. Scheduled after
 v1.1 is verified on real devices.
 
+## Status (v1.2 A + B, 2026-11-20)
+
+| Item | State | Reachable from |
+|---|---|---|
+| A templates | Built-in, generic: مجلس إدارة، جمعية عمومية، لجنة، اجتماع إداري/حكومي، اجتماع فريق (مبسّط، الافتراضي). Each defines sections, numbering (أولاً… / 1. / قرار رقم n/meeting/year), wording (`resolutionLead`), quorum rule, majority rule (+ chair casting vote), signatories | Context page «نوع المحضر»; official screen |
+| A uploaded Word templates | `.docx` with `{{placeholders}}` (full list in Settings and in `template_placeholders.dart`), validated on upload (real .docx, ≤ 10 MB, ≥ 1 known placeholder), linked to a built-in template's rules, chosen per meeting; sample template download | Settings → «الجهة والقوالب» |
+| A «learn the structure from a sample» | **Not done** (optional item; placeholder path prioritised) | — |
+| A entity profile | Name, logo (PNG/JPG, app data), councils/committees, default chair/secretary/place, numbering year (Hijri/Gregorian) | Settings → «الجهة والقوالب» |
+| A meeting number | Auto sequence per entity + committee + year (`12/1448هـ`, `12/2026`), editable | Official screen → «بيانات المحضر» |
+| A dates | Umm al-Qura converter (`lib/core/hijri.dart`, table 1356–1500 AH) + Gregorian in header and every export | Official screen, exports |
+| A attendance & quorum | Present / absent with / without excuse / guests, pre-filled from expected attendees + voices, editable; quorum stated | Official screen → «كشف الحضور» |
+| A resolutions | `formal_text` per decision (template wording), numbered, with evidence and vote result | Official screen; exports |
+| A lifecycle | draft → reviewed (blocked while unclear votes matter) → approved (locked, SHA-256 of canonical content); edits / regeneration / template change after approval → new draft version; history kept | Official screen; «سجل الإصدارات» |
+| A signatures | Finger / pen strokes stored as vector JSON with signer, role, time and hash; drawn as vectors in PDF, as PNG in Word | Official screen → «توقيع» |
+| B vote detection | Schema `decisions[].vote {mode, announced_result, positions[{speaker, position, evidence}], evidence}`; consensus = «توافق دون تصويت رسمي»; validation drops unknown speakers / segments and downgrades unsupported positions to «غير واضح» | Engine (all backends) |
+| B tally | Simple / absolute / two-thirds / unanimity, chair casting vote, unclear positions → «بحاجة إلى تأكيد» only when they could change the outcome | Pure Dart (`official_logic.dart`) |
+| B secretary review | Confirm / correct positions and mode per resolution | Official screen → «مراجعة التصويت» |
+| PDF for uploaded templates | PDF uses the built-in official layout with the linked template's rules (a .docx cannot be rendered to PDF on device); Word uses the uploaded file | Export sheet |
+| C, D | Not started | — |
+
+
 ## A — Official Arabic minutes (المحضر الرسمي المعتمد)
 * Templates (selected per meeting, F3 `template`): مجلس إدارة، جمعية عمومية،
   لجنة، اجتماع حكومي/إداري، اجتماع فريق (مبسّط). Each template defines
-  sections, numbering style and wording conventions.
+  sections, numbering style and wording conventions. Owner decision
+  (2026-11-20): templates stay generic (any institution); an institution's
+  own layout is uploaded as a Word template with placeholders.
 * Official header: entity name/logo (settings), meeting number (auto
   sequence per entity/committee), place, Hijri **and** Gregorian date
   (Umm al-Qura via `intl`/custom converter, unit-tested), start/end time,

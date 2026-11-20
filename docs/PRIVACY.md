@@ -20,6 +20,15 @@
 | المحاضر | قاعدة البيانات المحلية | نعم، مقتطفات منها إلى المحرك المختار عند استخدام «اسأل اجتماعاتك»، والمهام المفتوحة منها مع طلب المحضر التالي؛ وفيما عدا ذلك لا، إلا إذا شاركتها أو صدّرتها أنت |
 | مفاتيح API | المخزن الآمن للنظام | تُرسَل فقط إلى مزوّد الخدمة الخاص بها للمصادقة |
 | الإعدادات | قاعدة البيانات المحلية | لا |
+| بيانات الجهة وشعارها وقوالب Word المرفوعة (الإصدار 1.2) | قاعدة البيانات المحلية ومجلد التطبيق | لا؛ يُرسَل اسم المجلس/اللجنة وقائمة الحضور المتوقعين ضمن طلب المحضر إلى المحرك المختار، والشعار والقالب يدخلان الملفات التي تصدّرها أنت فقط |
+| كشف الحضور ومواقف التصويت ومراجعتها | قاعدة البيانات المحلية | لا، إلا ضمن المحاضر التي تشاركها أو تصدّرها |
+| **التواقيع** المرسومة على الجهاز (الإصدار 1.2) | قاعدة البيانات المحلية: خطوط متجهة (إحداثيات وتوقيت) مع اسم الموقِّع وصفته ووقت التوقيع ورمز التحقق للمحتوى المعتمد | **لا تُرسَل إلى أي خدمة**؛ تظهر فقط في ملفات PDF وWord التي تصدّرها أنت (متجهة في PDF، وصورة في Word) |
+
+**التواقيع** تُجمع على الجهاز بعد اعتماد المحضر، وترتبط بإصدار محدد ورمز
+تحققه (SHA-256)، وتبقى مع ذلك الإصدار في سجل الإصدارات. لا تُستخدم للتحقق من
+الهوية ولا لأي غرض آخر، وتُحذف مع الاجتماع. التوقيع المرسوم على الجهاز ليس
+توقيعاً إلكترونياً معتمداً بشهادة رقمية؛ ورمز التحقق يكشف أي تغيير لاحق في
+المحتوى المعتمد.
 
 **البصمة الصوتية** متجه رقمي يمثّل خصائص الصوت، يُستخدم فقط لمطابقة المتحدث
 مع المتحدثين المحفوظين على جهازك. لا تُرسَل إلى أي جهة، ولا تُستخدم لأي غرض
@@ -163,6 +172,16 @@ what leaves the device and where it goes.
 | Minutes | Local database | Yes — relevant excerpts to the chosen engine when you use Ask your meetings, and open tasks with later minutes requests; otherwise only if you share/export them |
 | API keys | OS secure storage | Only to their own provider, for authentication |
 | Settings | Local database | No |
+| Entity profile, logo and uploaded Word templates (v1.2) | Local database and app folder | No; the council/committee name and the expected attendees are part of the minutes request to the chosen engine; the logo and template only go into files you export |
+| Attendance sheet, vote positions and their review | Local database | No, except inside minutes you share or export |
+| **Signatures** drawn on the device (v1.2) | Local database: vector strokes (coordinates and timing) with the signer's name and role, the time and the hash of the approved content | **Never sent to any service**; they appear only in PDF and Word files you export (vectors in PDF, an image in Word) |
+
+**Signatures** are collected on the device after the minutes are approved,
+are bound to that version and its SHA-256 hash, and stay with it in the
+version history. They are not used for identity verification or anything
+else and are deleted with the meeting. A signature drawn on the device is
+not a certificate-based qualified electronic signature; the hash reveals any
+later change to the approved content.
 
 A **voiceprint** is a numeric vector describing voice characteristics. It is
 used only to match speakers against the speakers saved on your device, is

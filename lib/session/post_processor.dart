@@ -37,6 +37,7 @@ import '../audio/wav_writer.dart';
 import '../core/errors.dart';
 import '../core/interfaces.dart';
 import '../core/models.dart';
+import '../features/official/official_models.dart' show resolveTemplate;
 import '../data/database.dart';
 import '../data/minutes_artifacts.dart';
 import '../data/repositories.dart';
@@ -44,7 +45,8 @@ import '../data/secure_settings.dart';
 import '../diarization/clustering.dart';
 import '../diarization/speaker_tracker.dart';
 import '../diarization/vector_math.dart';
-import '../features/voice/voice_devices.dart' show knownSpeakerThresholdFor, voiceDeviceAfterLearning;
+import '../features/voice/voice_devices.dart'
+    show knownSpeakerThresholdFor, voiceDeviceAfterLearning;
 import 'meeting_session_controller.dart';
 import 'providers.dart';
 
@@ -1173,9 +1175,8 @@ class PostProcessor {
     Meeting meeting,
     Map<String, Speaker> speakersById,
   ) async {
-    final glossary = await GlossaryRepository(
-      _db,
-    ).getEffective(meeting.id, speakers: speakersById.values);
+    final glossary = await GlossaryRepository(_db)
+        .getEffective(meeting.id, speakers: speakersById.values);
     // Only tasks that existed before this meeting: regenerating an older
     // meeting must not propose updates for tasks of later meetings. A task
     // is dated by its source meeting (regeneration re-creates task rows with
@@ -1206,7 +1207,30 @@ class PostProcessor {
       glossary: glossary,
       openTasks: open,
       taskSourceTitles: titles,
+      style: await _styleHintFor(meeting),
     );
+  }
+
+  /// The official register of [meeting]'s template (v1.2), or null for the
+  /// simplified team template.
+  Future<MinutesStyleHint?> _styleHintFor(Meeting meeting) async {
+    try {
+      final choice = resolveTemplate(
+        meeting.context.template,
+        await OfficialSettingsStore(_db).templates(),
+      );
+      if (!choice.isOfficial) return null;
+      final record = await OfficialMinutesRepository(_db).get(meeting.id);
+      final profile = await OfficialSettingsStore(_db).profile();
+      return choice.template.styleHint(
+        committee:
+            record?.committee ??
+            (profile.committees.isEmpty ? null : profile.committees.first),
+        votingMembers: meeting.context.expectedAttendees,
+      );
+    } on Object {
+      return null;
+    }
   }
 
   Future<Minutes> _generate(

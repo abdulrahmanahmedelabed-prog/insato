@@ -6,6 +6,10 @@
 //   agenda item, in order (missing → not discussed) (F3);
 // * `task_updates` keep only ids of the open tasks given to the engine (F9);
 // * `speaker_notes` keep only speakers who opted in (F16);
+// * votes (v1.2, B) never invent anything: positions of speakers who are not
+//   in the transcript are dropped, a position without valid evidence becomes
+//   "unclear", duplicates keep the first, and a voting moment without any
+//   evidence is reported as "none" (see [sanitizeVote]);
 // * an empty title falls back to the meeting title.
 //
 // Pure Dart, unit-tested.
@@ -21,6 +25,7 @@ class MinutesConstraints {
     this.openTaskIds = const {},
     this.optedInSpeakers = const {},
     this.fallbackTitle = '',
+    this.speakerNames,
   });
 
   /// `TranscriptSegment.index` values present in the transcript.
@@ -37,6 +42,10 @@ class MinutesConstraints {
 
   /// Title used when the engine returned none.
   final String fallbackTitle;
+
+  /// Speaker names as rendered in the transcript (v1.2 vote validation);
+  /// null skips the speaker check.
+  final Set<String>? speakerNames;
 }
 
 String _key(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
@@ -66,6 +75,8 @@ Minutes sanitizeMinutes(Minutes m, MinutesConstraints c) {
           text: d.text,
           proposedBy: d.proposedBy,
           evidence: ev(d.evidence),
+          formalText: d.formalText,
+          vote: sanitizeVote(d.vote, c),
         ),
     ],
     actionItems: [
@@ -187,6 +198,60 @@ Minutes sanitizeMinutes(Minutes m, MinutesConstraints c) {
             lowEvidence: n.lowEvidence,
           ),
     ],
+  );
+}
+
+/// [vote] with the v1.2 rules of [c] enforced: evidence ids limited to the
+/// transcript; positions of unknown speakers (not in
+/// [MinutesConstraints.speakerNames]) or of the unidentified-speaker label
+/// dropped; one position per speaker (the first); a position other than
+/// "unclear" / "not_voted" without valid evidence downgraded to "unclear";
+/// a formal vote or consensus without any evidence (neither its own nor a
+/// position's) becomes "none", keeping only stated positions with evidence.
+MinutesVote sanitizeVote(MinutesVote vote, MinutesConstraints c) {
+  List<int> ev(List<int> ids) => [
+    for (final i in ids)
+      if (c.segmentIds.contains(i)) i,
+  ];
+  final known = c.speakerNames == null
+      ? null
+      : {for (final n in c.speakerNames!) _key(n)};
+  final seen = <String>{};
+  final positions = <MinutesVotePosition>[];
+  for (final p in vote.positions) {
+    final name = p.speaker.replaceAll(' (؟)', '').trim();
+    final k = _key(name);
+    if (k.isEmpty || k == _key('متحدث غير محدد')) continue;
+    if (known != null && !known.contains(k)) continue;
+    if (!seen.add(k)) continue;
+    final e = ev(p.evidence);
+    final position =
+        e.isEmpty &&
+            p.position != VotePosition.unclear &&
+            p.position != VotePosition.notVoted
+        ? VotePosition.unclear
+        : p.position;
+    positions.add(
+      MinutesVotePosition(speaker: name, position: position, evidence: e),
+    );
+  }
+  final evidence = ev(vote.evidence);
+  var mode = vote.mode;
+  final supported =
+      evidence.isNotEmpty || positions.any((p) => p.evidence.isNotEmpty);
+  if (mode != VoteMode.none && !supported) mode = VoteMode.none;
+  return MinutesVote(
+    mode: mode,
+    positions: mode == VoteMode.none
+        ? [
+            for (final p in positions)
+              if (p.evidence.isNotEmpty) p,
+          ]
+        : positions,
+    announcedResult: vote.announcedResult?.trim().isEmpty ?? true
+        ? null
+        : vote.announcedResult!.trim(),
+    evidence: mode == VoteMode.none ? const [] : evidence,
   );
 }
 

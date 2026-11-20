@@ -15,6 +15,8 @@ import '../../data/secure_settings.dart';
 import '../../features/context/glossary_screen.dart' show GlossaryScreen;
 import '../../features/context/strings.dart' show CS;
 import '../../features/local_llm/local_minutes_backends.dart';
+import '../../features/official/entity_settings_screen.dart'
+    show EntitySettingsTile;
 import '../../features/system_audio/audio_source_selector.dart'
     show AudioSourceSelector;
 import '../../features/voice/mic_settings.dart' show MicSettingsSection;
@@ -191,6 +193,8 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+
+              const EntitySettingsTile(),
 
               // ------------------------------------- Microphone & source
               const MicSettingsSection(),

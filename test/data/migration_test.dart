@@ -1,4 +1,4 @@
-// Schema migration v1 (Insato 1.0) → v2 (Insato 1.1), verified against the
+// Schema migrations v1 (Insato 1.0) → v5 (Insato 1.2), verified against the
 // drift schema snapshots in drift_schemas/ (regenerate the helpers with
 // `dart run drift_dev schema generate drift_schemas/ test/data/generated_migrations/`
 // after adding a schema version).
@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:insato/core/models.dart';
 import 'package:insato/data/database.dart';
 import 'package:insato/data/repositories.dart';
+import 'package:insato/data/official_repository.dart';
 import 'package:insato/data/repositories_v11.dart';
+import 'package:insato/features/official/official_models.dart';
 
 import 'generated_migrations/schema.dart';
 import 'generated_migrations/schema_v1.dart' as v1;
@@ -114,6 +116,95 @@ void main() {
       await db.close();
     }
   });
+
+  test('v4 → v5 and v1/v2/v3 → v5 produce exactly the v5 schema', () async {
+    for (final from in [1, 2, 3, 4]) {
+      final schema = await verifier.schemaAt(from);
+      final db = AppDatabase.forExecutor(schema.newConnection());
+      await verifier.migrateAndValidate(db, 5);
+      await db.close();
+    }
+  });
+
+  for (final from in [3, 4]) {
+    test('real v$from data survives v$from → v5 and official minutes work',
+        () async {
+      final schema = await verifier.schemaAt(from);
+      final raw = schema.rawDatabase;
+      seedV1(raw);
+      // v1.1 minutes with evidence and a template id stored by v1.1.
+      raw.execute(
+        "UPDATE meetings SET template = 'board', "
+        "expected_attendees = '[\"أحمد\",\"سارة\"]' WHERE id = 'm1'",
+      );
+      if (from >= 4) {
+        raw.execute(
+          'INSERT INTO task_dismissals (meeting_id, kind, item_key, '
+          "created_at) VALUES ('m1', 'task', 'x', 1700000002000)",
+        );
+      }
+      final db = AppDatabase.forExecutor(schema.newConnection());
+      addTearDown(db.close);
+
+      final meeting = (await MeetingRepository(db).get('m1'))!;
+      expect(meeting.context.template, 'board');
+      final decision = meeting.minutes!.decisions.single;
+      expect(decision.text, 'قرار');
+      expect(decision.formalText, isNull);
+      expect(decision.vote.isEmpty, isTrue);
+      if (from >= 4) {
+        final rows = await db.select(db.taskDismissals).get();
+        expect(rows.single.itemKey, 'x');
+      }
+
+      // The v5 tables work with foreign keys on.
+      final repo = OfficialMinutesRepository(db);
+      expect(await repo.get('m1'), isNull);
+      final record = await repo.save(
+        const OfficialRecord(
+          meetingId: 'm1',
+          committee: 'مجلس الإدارة',
+          meetingNumber: 1,
+          numberYear: 1448,
+        ),
+        entityName: 'الجهة',
+      );
+      expect(
+        await repo.nextNumber(
+          entityName: 'الجهة',
+          committee: 'مجلس الإدارة',
+          year: 1448,
+        ),
+        2,
+      );
+      final approved = await repo.approve(
+        record: record,
+        minutes: meeting.minutes!,
+        hash: 'abc',
+      );
+      expect(approved.isLocked, isTrue);
+      await repo.addSignature(
+        MinutesSignature(
+          meetingId: 'm1',
+          version: 1,
+          signerName: 'أحمد',
+          strokes: const [
+            [SignaturePoint(0.1, 0.2), SignaturePoint(0.5, 0.6)],
+          ],
+          signedAt: DateTime(2026, 6, 16),
+          contentHash: 'abc',
+        ),
+      );
+      expect((await repo.versions('m1')).single.contentHash, 'abc');
+      expect((await repo.signatures('m1')).single.strokes.single, hasLength(2));
+
+      // Deleting the meeting cascades to the official tables.
+      await MeetingRepository(db).delete('m1');
+      expect(await repo.get('m1'), isNull);
+      expect(await repo.versions('m1'), isEmpty);
+      expect(await repo.signatures('m1'), isEmpty);
+    });
+  }
 
   test('a fresh database is created at the current version', () async {
     final schema = await verifier.schemaAt(AppDatabase.currentSchemaVersion);

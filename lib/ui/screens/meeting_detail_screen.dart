@@ -20,6 +20,13 @@ import '../../features/evidence/evidence.dart'
     show EvidenceScope, EvidenceTranscriptTab;
 import '../../features/export_docx/export_docx.dart' show showExportShareSheet;
 import '../../features/export_docx/strings.dart' show XS;
+import '../../features/official/official_document.dart'
+    show OfficialDocument;
+import '../../features/official/official_minutes_screen.dart'
+    show openOfficialMinutesScreen;
+import '../../features/official/official_service.dart'
+    show officialMinutesServiceProvider;
+import '../../features/official/strings.dart' show OS;
 import '../../features/tasks/tasks.dart' show MeetingTasksPanel, TS;
 import '../../session/post_processor.dart';
 import '../../session/providers.dart';
@@ -233,6 +240,7 @@ class _MeetingDetail extends ConsumerWidget {
               m,
               data.speakersById,
               segments: data.segments,
+              official: data.official,
             )
           : export.fullTranscriptText(
               data.meeting,
@@ -257,11 +265,14 @@ class _MeetingDetail extends ConsumerWidget {
 
 /// Everything an export needs, read fresh from the repositories.
 class _ExportData {
-  _ExportData(this.meeting, this.segments, this.speakersById);
+  _ExportData(this.meeting, this.segments, this.speakersById, this.official);
 
   final Meeting meeting;
   final List<TranscriptSegment> segments;
   final Map<String, Speaker> speakersById;
+
+  /// v1.2: official minutes when the meeting uses an official template.
+  final OfficialDocument? official;
 
   static Future<_ExportData> load(WidgetRef ref, String meetingId) async {
     final meeting = await ref.read(meetingRepositoryProvider).get(meetingId);
@@ -270,11 +281,15 @@ class _ExportData {
         .read(segmentRepositoryProvider)
         .getForMeeting(meetingId);
     final speakers = await ref.read(speakerRepositoryProvider).getAllById();
-    return _ExportData(meeting, segments, speakers);
+    final official = await ref
+        .read(officialMinutesServiceProvider)
+        .documentForExport(meeting);
+    return _ExportData(meeting, segments, speakers, official);
   }
 }
 
 enum _MenuAction {
+  official,
   export,
   copyMinutes,
   editContext,
@@ -299,6 +314,14 @@ class _MoreMenu extends ConsumerWidget {
       icon: const Icon(Icons.more_vert_rounded),
       onSelected: (a) => _run(context, ref, a),
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _MenuAction.official,
+          enabled: hasMinutes,
+          child: const ListTile(
+            leading: Icon(Icons.gavel_rounded),
+            title: Text(OS.screenTitle),
+          ),
+        ),
         PopupMenuItem(
           value: _MenuAction.export,
           enabled: hasMinutes,
@@ -370,6 +393,8 @@ class _MoreMenu extends ConsumerWidget {
 
   Future<void> _run(BuildContext context, WidgetRef ref, _MenuAction a) async {
     switch (a) {
+      case _MenuAction.official:
+        await openOfficialMinutesScreen(context, meeting.id);
       case _MenuAction.export:
         await showExportShareSheet(context, meeting.id);
       case _MenuAction.editContext:
@@ -386,6 +411,7 @@ class _MoreMenu extends ConsumerWidget {
                   m,
                   data.speakersById,
                   segments: data.segments,
+                  official: data.official,
                 )
               : export.fullTranscriptText(
                   data.meeting,

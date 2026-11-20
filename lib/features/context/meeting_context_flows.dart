@@ -13,6 +13,8 @@ import '../../session/providers.dart';
 import '../../ui/navigation.dart';
 import '../../ui/widgets/common.dart';
 import '../../ui/widgets/dialogs.dart';
+import '../official/official_service.dart'
+    show officialMinutesServiceProvider;
 import 'context_logic.dart';
 import 'meeting_context_page.dart';
 import 'meeting_context_service.dart';
@@ -107,6 +109,15 @@ Future<bool> editMeetingContextFlow(
       return false;
     }
     await service.save(current, setup);
+    // v1.2: a different template changes approved official minutes, which
+    // then continue as a new draft version.
+    try {
+      await ref.read(officialMinutesServiceProvider).onMinutesChanged(
+        meeting.id,
+      );
+    } catch (_) {
+      // Best effort; the official screen shows a changed hash too.
+    }
     report(CS.contextSaved);
     return true;
   } catch (_) {

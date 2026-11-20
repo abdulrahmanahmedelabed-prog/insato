@@ -125,6 +125,9 @@ class UiTestEnv {
   );
   Map<String, ModelState> modelStates;
 
+  /// Additional overrides of a test (applied last).
+  final List<Override> extraOverrides = [];
+
   /// Provider overrides.
   List<Override> get overrides => [
     databaseProvider.overrideWithValue(db),
@@ -142,6 +145,7 @@ class UiTestEnv {
     }),
     shareGatewayProvider.overrideWithValue(share),
     claudeConnectionTesterProvider.overrideWithValue(tester),
+    ...extraOverrides,
   ];
 
   /// Runs real-async database work from inside a widget test.

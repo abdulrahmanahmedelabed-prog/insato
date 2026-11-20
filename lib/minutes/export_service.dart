@@ -7,10 +7,14 @@ import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../core/hijri.dart';
 import '../core/models.dart';
 import '../core/time_format.dart';
 import '../features/codes/codes_export.dart'
     show CodesExportFormat, renderCodesSection;
+import '../features/official/official_document.dart';
+import '../features/official/official_models.dart' show MinutesSignature;
+import '../features/official/official_outline.dart';
 import 'minutes_prompt.dart';
 
 /// Raw TrueType bytes of the fonts embedded in PDFs.
@@ -105,6 +109,13 @@ class ExportService {
     ).where((s) => s.name != kUnknownSpeakerName).map((s) => s.name).toList();
   }
 
+  /// Gregorian date and time followed by the Umm al-Qura date (v1.2).
+  static String dateWithHijri(DateTime date) {
+    final h = UmmAlQura.fromGregorian(date.toLocal());
+    final g = formatArabicDateTime(date);
+    return h == null ? g : '$g (الموافق ${h.formatAr()})';
+  }
+
   String _durationText(Meeting meeting) => meeting.durationMs > 0
       ? '${formatDuration(meeting.durationMs, alwaysHours: true)} '
             '(${formatDurationWords(meeting.durationMs)})'
@@ -167,13 +178,23 @@ class ExportService {
     Map<String, Speaker> speakersById, {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
+    OfficialDocument? official,
   }) {
+    if (official != null) {
+      return _officialMarkdown(
+        official,
+        minutes,
+        speakersById,
+        segments,
+        includeTranscript,
+      );
+    }
     final b = StringBuffer();
     final title = minutes.title.trim().isEmpty ? meeting.title : minutes.title;
     b
       ..writeln('# محضر اجتماع: ${_oneLine(title)}')
       ..writeln()
-      ..writeln('- **التاريخ:** ${formatArabicDateTime(meeting.createdAt)}')
+      ..writeln('- **التاريخ:** ${dateWithHijri(meeting.createdAt)}')
       ..writeln('- **المدة:** ${_durationText(meeting)}');
     if (minutes.languagesDetected.isNotEmpty) {
       b.writeln('- **لغات الاجتماع:** ${minutes.languagesDetected.join('، ')}');
@@ -335,7 +356,17 @@ class ExportService {
     Map<String, Speaker> speakersById, {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
+    OfficialDocument? official,
   }) {
+    if (official != null) {
+      return _officialText(
+        official,
+        minutes,
+        speakersById,
+        segments,
+        includeTranscript,
+      );
+    }
     final b = StringBuffer();
     final title = minutes.title.trim().isEmpty ? meeting.title : minutes.title;
     void heading(String h) => b
@@ -345,7 +376,7 @@ class ExportService {
 
     b
       ..writeln('محضر اجتماع: ${_oneLine(title)}')
-      ..writeln('التاريخ: ${formatArabicDateTime(meeting.createdAt)}')
+      ..writeln('التاريخ: ${dateWithHijri(meeting.createdAt)}')
       ..writeln('المدة: ${_durationText(meeting)}');
     if (minutes.languagesDetected.isNotEmpty) {
       b.writeln('لغات الاجتماع: ${minutes.languagesDetected.join('، ')}');
@@ -451,6 +482,171 @@ class ExportService {
   }
 
   // -------------------------------------------------------------------------
+  // Official minutes (v1.2)
+  // -------------------------------------------------------------------------
+
+  String _officialMarkdown(
+    OfficialDocument doc,
+    Minutes minutes,
+    Map<String, Speaker> speakersById,
+    List<TranscriptSegment> segments,
+    bool includeTranscript,
+  ) {
+    final b = StringBuffer();
+    if (doc.entityName.isNotEmpty) {
+      b
+        ..writeln('**${_oneLine(doc.entityName)}**')
+        ..writeln();
+    }
+    b
+      ..writeln('# ${_oneLine(doc.documentTitle)}')
+      ..writeln()
+      ..writeln('- **الموضوع:** ${_oneLine(doc.minutesTitle)}')
+      ..writeln('- **نوع الاجتماع:** ${doc.templateName}');
+    for (final (label, value) in doc.infoRows) {
+      b.writeln('- **$label:** ${_oneLine(value)}');
+    }
+    b.writeln();
+    for (final block in officialOutline(doc, minutes)) {
+      switch (block) {
+        case OutlineHeading(:final text):
+          b
+            ..writeln('## $text')
+            ..writeln();
+        case OutlineParagraph(:final text, :final muted, :final bold):
+          final t = _mdText(text);
+          b
+            ..writeln(muted ? '*$t*' : (bold ? '**$t**' : t))
+            ..writeln();
+        case OutlineLabelValues(:final rows):
+          for (final (label, value) in rows) {
+            b.writeln('- **$label:** ${_oneLine(value)}');
+          }
+          b.writeln();
+        case OutlineList(:final items, :final numbered):
+          for (var i = 0; i < items.length; i++) {
+            b.writeln('${numbered ? '${i + 1}.' : '-'} ${_oneLine(items[i])}');
+          }
+          b.writeln();
+        case OutlineTable(:final header, :final rows):
+          b
+            ..writeln('| ${header.join(' | ')} |')
+            ..writeln('|${List.filled(header.length, '---').join('|')}|');
+          for (final r in rows) {
+            b.writeln('| ${r.map(_mdCell).join(' | ')} |');
+          }
+          b.writeln();
+        case OutlineResolution():
+          b.writeln('**${block.label}** ${_oneLine(block.text)}');
+          for (final line in block.voteLines) {
+            b.writeln('  - ${_oneLine(line)}');
+          }
+          b.writeln();
+        case OutlineSignatures(:final signatories):
+          b
+            ..writeln('| الصفة | الاسم | التوقيع |')
+            ..writeln('|---|---|---|');
+          for (final s in signatories) {
+            b.writeln(
+              '| ${_mdCell(s.role)} | ${_mdCell(s.name)} | '
+              '${_mdCell(signatureStateText(s))} |',
+            );
+          }
+          b.writeln();
+      }
+    }
+    b
+      ..writeln('---')
+      ..writeln();
+    for (final line in officialFooterLines(doc)) {
+      b
+        ..writeln('*$line*')
+        ..writeln();
+    }
+    b.writeln('*${_generatedLine(minutes)}*');
+    if (includeTranscript && segments.isNotEmpty) {
+      b
+        ..writeln()
+        ..writeln('## ملحق: النص الكامل للاجتماع')
+        ..writeln();
+      for (final block in buildTranscriptBlocks(segments, speakersById)) {
+        b
+          ..writeln(
+            '**[${formatTimestamp(block.startMs)}] '
+            '${block.speakerName}:** ${_mdText(block.text)}',
+          )
+          ..writeln();
+      }
+    }
+    return '${b.toString().trimRight()}\n';
+  }
+
+  String _officialText(
+    OfficialDocument doc,
+    Minutes minutes,
+    Map<String, Speaker> speakersById,
+    List<TranscriptSegment> segments,
+    bool includeTranscript,
+  ) {
+    final b = StringBuffer();
+    if (doc.entityName.isNotEmpty) b.writeln(_oneLine(doc.entityName));
+    b
+      ..writeln(_oneLine(doc.documentTitle))
+      ..writeln('الموضوع: ${_oneLine(doc.minutesTitle)}');
+    for (final (label, value) in doc.infoRows) {
+      b.writeln('$label: ${_oneLine(value)}');
+    }
+    for (final block in officialOutline(doc, minutes)) {
+      switch (block) {
+        case OutlineHeading(:final text):
+          b
+            ..writeln()
+            ..writeln('▪ $text')
+            ..writeln();
+        case OutlineParagraph(:final text):
+          b.writeln(text.trim());
+        case OutlineLabelValues(:final rows):
+          for (final (label, value) in rows) {
+            b.writeln('$label: ${_oneLine(value)}');
+          }
+        case OutlineList(:final items, :final numbered):
+          for (var i = 0; i < items.length; i++) {
+            b.writeln('${numbered ? '${i + 1}.' : '•'} ${_oneLine(items[i])}');
+          }
+        case OutlineTable(:final rows):
+          for (final r in rows) {
+            b.writeln(r.where((c) => c.trim().isNotEmpty).join(' — '));
+          }
+        case OutlineResolution():
+          b.writeln('${block.label} ${_oneLine(block.text)}');
+          for (final line in block.voteLines) {
+            b.writeln('   $line');
+          }
+        case OutlineSignatures(:final signatories):
+          for (final s in signatories) {
+            final name = s.name.isEmpty ? '....................' : s.name;
+            b.writeln('${s.role}: $name — ${signatureStateText(s)}');
+          }
+      }
+    }
+    b
+      ..writeln()
+      ..writeln('—');
+    officialFooterLines(doc).forEach(b.writeln);
+    b.writeln(_generatedLine(minutes));
+    if (includeTranscript && segments.isNotEmpty) {
+      b
+        ..writeln()
+        ..writeln('▪ ملحق: النص الكامل للاجتماع')
+        ..writeln()
+        ..writeln(
+          renderTranscript(segments, speakersById, includeLanguage: false),
+        );
+    }
+    return '${b.toString().trimRight()}\n';
+  }
+
+  // -------------------------------------------------------------------------
   // Transcript
   // -------------------------------------------------------------------------
 
@@ -512,6 +708,7 @@ class ExportService {
     Map<String, Speaker> speakersById, {
     List<TranscriptSegment> segments = const [],
     bool includeTranscript = false,
+    OfficialDocument? official,
   }) async {
     final fonts = await _loadFonts();
     final arabic = pw.Font.ttf(fonts.arabicRegular);
@@ -549,7 +746,7 @@ class ExportService {
     ).copyWith(defaultTextStyle: base);
 
     final title = minutes.title.trim().isEmpty ? meeting.title : minutes.title;
-    final dateText = formatArabicDateTime(meeting.createdAt);
+    final dateText = dateWithHijri(meeting.createdAt);
     final durationText = _durationText(meeting);
 
     pw.Widget sectionTitle(String text) => pw.Container(
@@ -706,6 +903,29 @@ class ExportService {
       ..add(pw.Divider(color: rule, thickness: 0.5))
       ..add(paragraph(_generatedLine(minutes), style: small));
 
+    if (official != null) {
+      content
+        ..clear()
+        ..addAll(
+          _officialPdfContent(
+            official,
+            minutes,
+            base: base,
+            bold: bold,
+            h1: h1,
+            h3: h3,
+            small: small,
+            accent: accent,
+            rule: rule,
+            headerFill: headerFill,
+            sectionTitle: sectionTitle,
+            paragraph: paragraph,
+            bullet: bullet,
+            infoRow: infoRow,
+          ),
+        );
+    }
+
     if (includeTranscript && segments.isNotEmpty) {
       content
         ..add(pw.NewPage())
@@ -767,7 +987,7 @@ class ExportService {
               children: [
                 pw.Expanded(
                   child: pw.Text(
-                    'محضر اجتماع: ${_oneLine(title)}',
+                    official?.documentTitle ?? 'محضر اجتماع: ${_oneLine(title)}',
                     style: small,
                     maxLines: 1,
                   ),
@@ -779,13 +999,28 @@ class ExportService {
         },
         footer: (context) => pw.Container(
           margin: const pw.EdgeInsets.only(top: 10),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              pw.Text(appName, style: small),
-              pw.Text(
-                'صفحة ${context.pageNumber} من ${context.pagesCount}',
-                style: small,
+              if (official?.hashLine != null)
+                pw.Text(
+                  official!.hashLine!,
+                  style: small.copyWith(fontSize: 7),
+                ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    official == null
+                        ? appName
+                        : '$appName — ${official.statusLine}',
+                    style: small,
+                  ),
+                  pw.Text(
+                    'صفحة ${context.pageNumber} من ${context.pagesCount}',
+                    style: small,
+                  ),
+                ],
               ),
             ],
           ),
@@ -794,6 +1029,232 @@ class ExportService {
       ),
     );
     return doc.save();
+  }
+
+  List<pw.Widget> _officialPdfContent(
+    OfficialDocument doc,
+    Minutes minutes, {
+    required pw.TextStyle base,
+    required pw.TextStyle bold,
+    required pw.TextStyle h1,
+    required pw.TextStyle h3,
+    required pw.TextStyle small,
+    required PdfColor accent,
+    required PdfColor rule,
+    required PdfColor headerFill,
+    required pw.Widget Function(String) sectionTitle,
+    required pw.Widget Function(String, {pw.TextStyle? style}) paragraph,
+    required pw.Widget Function(String, {String marker}) bullet,
+    required pw.Widget Function(String, String) infoRow,
+  }) {
+    pw.Widget cell(String text, pw.TextStyle style) => pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+      child: pw.Text(text, style: style),
+    );
+    // pw.Table lays columns out left-to-right: reverse for RTL.
+    pw.Widget table(
+      List<String> header,
+      List<List<pw.Widget>> rows,
+      List<int> flex, {
+      double? minHeight,
+    }) {
+      final f = flex.length == header.length
+          ? flex
+          : List.filled(header.length, 1);
+      return pw.Table(
+        border: pw.TableBorder.all(color: rule, width: 0.6),
+        columnWidths: {
+          for (var i = 0; i < f.length; i++)
+            f.length - 1 - i: pw.FlexColumnWidth(f[i].toDouble()),
+        },
+        defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(color: headerFill),
+            repeat: true,
+            children: [
+              for (final h in header.reversed)
+                cell(h, bold.copyWith(fontSize: 10)),
+            ],
+          ),
+          for (final r in rows)
+            pw.TableRow(
+              children: [
+                for (final c in r.reversed)
+                  minHeight == null
+                      ? c
+                      : pw.Container(
+                          constraints: pw.BoxConstraints(minHeight: minHeight),
+                          alignment: pw.Alignment.centerRight,
+                          child: c,
+                        ),
+              ],
+            ),
+        ],
+      );
+    }
+
+    pw.Widget signatureImage(MinutesSignature sig) {
+      const width = 120.0;
+      final height = width / (sig.aspectRatio <= 0 ? 3 : sig.aspectRatio);
+      return pw.Padding(
+        padding: const pw.EdgeInsets.all(3),
+        child: pw.CustomPaint(
+          size: PdfPoint(width, height),
+          painter: (canvas, size) {
+            canvas
+              ..setStrokeColor(const PdfColor.fromInt(0xFF1F2A44))
+              ..setLineWidth(1.2)
+              ..setLineCap(PdfLineCap.round)
+              ..setLineJoin(PdfLineJoin.round);
+            for (final stroke in sig.strokes) {
+              if (stroke.isEmpty) continue;
+              final first = stroke.first;
+              canvas.moveTo(first.x * size.x, (1 - first.y) * size.y);
+              if (stroke.length == 1) {
+                canvas.lineTo(first.x * size.x + 0.5, (1 - first.y) * size.y);
+              }
+              for (final p in stroke.skip(1)) {
+                canvas.lineTo(p.x * size.x, (1 - p.y) * size.y);
+              }
+              canvas.strokePath();
+            }
+          },
+        ),
+      );
+    }
+
+    final out = <pw.Widget>[
+      pw.Container(
+        width: double.infinity,
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: headerFill,
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        ),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (doc.entityName.isNotEmpty)
+                    pw.Text(doc.entityName, style: h3.copyWith(color: accent)),
+                  pw.Text(doc.documentTitle, style: h1.copyWith(fontSize: 17)),
+                  pw.SizedBox(height: 4),
+                  infoRow('الموضوع', doc.minutesTitle),
+                  infoRow('نوع الاجتماع', doc.templateName),
+                  for (final (label, value) in doc.infoRows)
+                    infoRow(label, value),
+                ],
+              ),
+            ),
+            if (doc.logo != null)
+              pw.Padding(
+                padding: const pw.EdgeInsetsDirectional.only(start: 10),
+                child: pw.Image(
+                  pw.MemoryImage(doc.logo!),
+                  width: 72,
+                  height: 72,
+                  fit: pw.BoxFit.contain,
+                ),
+              ),
+          ],
+        ),
+      ),
+      pw.SizedBox(height: 8),
+    ];
+
+    for (final block in officialOutline(doc, minutes)) {
+      switch (block) {
+        case OutlineHeading(:final text):
+          out.add(sectionTitle(text));
+        case OutlineParagraph(:final text, :final muted, :final bold):
+          out.add(
+            paragraph(
+              text,
+              style: muted ? small : (bold ? h3.copyWith(fontSize: 11) : null),
+            ),
+          );
+        case OutlineLabelValues(:final rows):
+          for (final (label, value) in rows) {
+            out.add(infoRow(label, value));
+          }
+        case OutlineList(:final items, :final numbered):
+          for (var i = 0; i < items.length; i++) {
+            out.add(bullet(items[i], marker: numbered ? '${i + 1}.' : '•'));
+          }
+        case OutlineTable(:final header, :final rows, :final flex):
+          out.add(
+            table(header, [
+              for (final r in rows)
+                [for (final c in r) cell(c, base.copyWith(fontSize: 10))],
+            ], flex),
+          );
+        case OutlineResolution():
+          out.add(
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 4, bottom: 2),
+              child: pw.RichText(
+                textAlign: pw.TextAlign.justify,
+                text: pw.TextSpan(
+                  children: [
+                    pw.TextSpan(text: '${block.label} ', style: bold),
+                    pw.TextSpan(text: _oneLine(block.text), style: base),
+                  ],
+                ),
+              ),
+            ),
+          );
+          for (final line in block.voteLines) {
+            out.add(
+              pw.Padding(
+                padding: const pw.EdgeInsetsDirectional.only(start: 16),
+                child: pw.Text(line, style: small),
+              ),
+            );
+          }
+        case OutlineSignatures(:final signatories):
+          out.add(
+            table(
+              const ['الصفة', 'الاسم', 'التوقيع'],
+              [
+                for (final s in signatories)
+                  [
+                    cell(s.role, base.copyWith(fontSize: 10)),
+                    cell(
+                      s.name.isEmpty ? '....................' : s.name,
+                      base.copyWith(fontSize: 10),
+                    ),
+                    s.signature == null || s.signature!.isEmpty
+                        ? cell('', base)
+                        : pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              signatureImage(s.signature!),
+                              cell(
+                                signatureStateText(s),
+                                small.copyWith(fontSize: 7),
+                              ),
+                            ],
+                          ),
+                  ],
+              ],
+              const [2, 3, 4],
+              minHeight: 46,
+            ),
+          );
+      }
+    }
+    out
+      ..add(pw.SizedBox(height: 12))
+      ..add(pw.Divider(color: rule, thickness: 0.5));
+    for (final line in officialFooterLines(doc)) {
+      out.add(paragraph(line, style: small));
+    }
+    out.add(paragraph(_generatedLine(minutes), style: small));
+    return out;
   }
 
   pw.Widget _actionTable(
