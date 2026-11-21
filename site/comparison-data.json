@@ -1483,8 +1483,8 @@
   {
    "dimension_id": "online_capture",
    "rating": "partial",
-   "en": "Windows captures Zoom/Teams system audio; no bot; phones cannot capture other apps",
-   "ar": "ويندوز يلتقط صوت Zoom وTeams؛ بلا روبوت؛ الجوالات لا تلتقط صوت التطبيقات الأخرى"
+   "en": "Windows bot joins Zoom, Teams, Meet (Webex beta); system audio; calls via Phone Link; phones cannot capture other apps",
+   "ar": "روبوت ويندوز ينضم إلى Zoom وTeams وMeet (وWebex تجريبيًا)؛ صوت النظام؛ المكالمات عبر Phone Link؛ الجوال لا يلتقط صوت التطبيقات الأخرى"
   },
   {
    "dimension_id": "platforms",
@@ -1507,8 +1507,8 @@
   {
    "dimension_id": "price",
    "rating": "yes",
-   "en": "Free app; minutes with free Gemini key or on-device; optional paid Claude/Deepgram",
-   "ar": "التطبيق مجاني؛ المحضر بمفتاح Gemini مجاني أو على الجهاز؛ Claude وDeepgram اختياريان بمقابل"
+   "en": "Free app; free cloud engines only (Gemini, Groq) or fully on-device; nothing paid",
+   "ar": "التطبيق مجاني؛ محركات سحابية مجانية فقط (Gemini وGroq) أو العمل كاملًا على الجهاز؛ لا شيء مدفوع"
   },
   {
    "dimension_id": "maturity",
@@ -1539,14 +1539,14 @@
    "mitigation_ar": "تقييم نماذج مفتوحة مضبوطة للعربية لتعمل على الجهاز، وإتاحة محرك سحابي متخصص بالعربية خيارًا إضافيًا، وإضافة كشف النشاط الصوتي للحد من الاختلاق في فترات الصمت، وإطلاق المفردات المخصصة المخطط لها."
   },
   {
-   "title_en": "No meeting bot, and phones cannot capture calls",
-   "title_ar": "لا روبوت للاجتماعات، والجوال لا يلتقط المكالمات",
-   "detail_en": "Windows can now record Zoom/Teams system audio, but there is still no bot that joins calls, no calendar join, and phones (especially iPhone) cannot capture other apps' audio.",
-   "detail_ar": "صار ويندوز يسجّل صوت النظام في Zoom وTeams، لكن لا يوجد روبوت ينضم للمكالمات ولا انضمام من التقويم، والجوالات (خاصة آيفون) لا تلتقط صوت التطبيقات الأخرى.",
-   "who_does_better": "Otter.ai, Fireflies.ai, Zoom My Notes, Plaud Desktop, MacWhisper and Sembly all capture remote meetings, and Teams and Zoom capture natively on their own platforms.",
+   "title_en": "Meeting bot runs only from Windows and is unproven",
+   "title_ar": "روبوت الاجتماعات يعمل من ويندوز فقط ولم يُجرَّب بعد",
+   "detail_en": "The bot joins Zoom, Teams, Meet and Webex from the Insato Windows app, but it needs that PC running, the organizer must admit it, and its join scripts are untested against the live services. Phones still cannot capture other apps' audio.",
+   "detail_ar": "ينضم الروبوت إلى Zoom وTeams وMeet وWebex من نسخة ويندوز، لكنه يحتاج الحاسوب يعمل، ويجب أن يقبله المنظّم، ولم تُجرَّب خطوات انضمامه على الخدمات الحقيقية بعد. والجوال ما زال لا يلتقط صوت التطبيقات الأخرى.",
+   "who_does_better": "Otter, Fireflies, Fathom and tl;dv run cloud bots that join from the calendar with the PC off.",
    "severity": "high",
-   "mitigation_en": "Promote the Windows path for online meetings; evaluate a lightweight bot later.",
-   "mitigation_ar": "توجيه الاجتماعات عن بُعد إلى نسخة ويندوز، ودراسة روبوت خفيف لاحقًا."
+   "mitigation_en": "Field-test each platform, keep join scripts in one updatable file, and offer import of recordings and the live Insato call as alternatives.",
+   "mitigation_ar": "تجربة ميدانية لكل منصة، وحفظ خطوات الانضمام في ملف واحد قابل للتحديث، وإتاحة استيراد التسجيلات ومكالمة إنصاتو الحية كبدائل."
   },
   {
    "title_en": "On-device minutes are much weaker than cloud minutes",
@@ -1713,6 +1713,14 @@
    "detail_ar": "بعد كل اجتماع يقارن إنصاتو القرارات والمهام الجديدة بالقرارات السابقة، وينبّه إلى التناقض والتكرار وتغيّر المسؤول أو الموعد مع ذكر الطرفين.",
    "evidence_en": "Cross-meeting Q&A exists elsewhere (e.g. Fireflies AskFred, Otter), but none of the reviewed tools documents contradiction detection against prior resolutions.",
    "evidence_ar": "البحث عبر الاجتماعات موجود لدى غيرنا (مثل AskFred في Fireflies وOtter)، لكن لم توثّق أي أداة راجعناها كشف التناقض مع القرارات السابقة."
+  },
+  {
+   "title_en": "Works with or without internet or a mobile network",
+   "title_ar": "يعمل مع الإنترنت ودونه، ومع شبكة الجوال ودونها",
+   "detail_en": "In-room recording, several phones over a local hotspot, phone calls via Phone Link or speakerphone, a live encrypted Insato call, imported recordings, and offline meeting packages merged later.",
+   "detail_ar": "تسجيل حضوري، وعدة جوالات عبر نقطة اتصال محلية، ومكالمات هاتفية عبر Phone Link أو مكبّر الصوت، ومكالمة إنصاتو حية مشفّرة، واستيراد التسجيلات، وحزم اجتماع تُدمج لاحقًا دون أي اتصال.",
+   "evidence_en": "The reviewed tools are cloud-first; offline options exist only on single platforms (MacWhisper, Pixel Recorder) without minutes in Arabic.",
+   "evidence_ar": "الأدوات التي راجعناها سحابية أساسًا، والخيارات دون اتصال محصورة في منصات منفردة (MacWhisper وPixel Recorder) ودون محاضر عربية."
   }
  ],
  "accuracy_note_en": "No meeting notetaker we reviewed publishes an Arabic word error rate (WER). Insato has none either. Reported figures, all unverified, as of 2026-11-19:\n- Whisper large-v3, the family Insato runs on-device, averages about 36.86% WER (17.21% CER) on the Open Universal Arabic ASR Leaderboard.\n- One vendor table puts Whisper at 46% (Gulf), 59% (Levantine) and 72% (North African) WER.\n- Whisper large-v3-turbo and int8 builds are reported somewhat worse than large-v3.\n- Arabic-specialist models report lower leaderboard averages: Jais-ASR 22.85%, Cohere Transcribe Arabic 25.87% and Munsit 26.68%. All three are vendor-reported.\n- Deepgram Nova-3, Insato's cloud engine, has no public Arabic WER. A competitor (Munsit) reports 35.87% WER for it on Saudi audio.\n- Recent papers report MAI-Transcribe-2 at 13.51%, Gemini at 16.13% and ElevenLabs Scribe at 16.12% on a 120-hour Arabic test.\nThese numbers come from different test sets, text normalization and averaging methods, so they cannot be ranked against each other directly. Speaker diarization reference: open pyannote 3.1 reports 22.7% DER on far-field AMI meetings.",
